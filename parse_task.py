@@ -128,21 +128,21 @@ def initialize_faiss_index_from_formatted_file(codes_list_file: str, embedding_m
                 
                 # Parse the line into code and examples
                 if ':' in line:
-                    code_name, examples_str = line.split(':', 1)
+                    code_name, definition_name, examples_str = line.split(':', 2)
                     examples = [ex.strip() for ex in examples_str.split(';') if ex.strip()]
                 else:
-                    code_name = line
-                    examples = []
+                    raise ValueError("Line format is incorrect. Expected format: 'code_name:definition_name:examples'")
 
                 processed_code = {
                     'code': code_name.strip(),
+                    'definition': definition_name.strip(),
                     'examples': examples
                 }
                 processed_codes.append(processed_code)
                 code_batch.append(processed_code)
 
-                # Combine code and examples for embedding
-                combined_text = f"{code_name}: {'; '.join(examples)}"
+                # Combine code, definition, and examples for embedding
+                combined_text = f"{code_name} - {definition_name}: {'; '.join(examples)}"
                 combined_texts.append(combined_text)
 
                 # If batch size is reached, process the batch
