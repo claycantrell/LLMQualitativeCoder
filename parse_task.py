@@ -71,16 +71,16 @@ def parse_transcript(transcript: str, instructions: str) -> List[dict]:
         match = csv_pattern.search(parsed_output)
         if match:
             csv_content = match.group(1).strip()
-            print("Extracted CSV from Code Block:")
-            print(csv_content)
+            #print("Extracted CSV from Code Block:")
+            #print(csv_content)
         else:
             # Check if output starts with 'speaker_id,quote' indicating CSV
             if parsed_output.lower().startswith("speaker_id,"):
                 csv_content = parsed_output
-                print("CSV detected without code block:")
-                print(csv_content)
+                #print("CSV detected without code block:")
+                #print(csv_content)
             else:
-                print("LLM did not return CSV format as expected.")
+                print("LLM did not return parsed transcript in CSV format as expected.")
                 return []
 
         # Use StringIO to treat the string as a file for csv.DictReader
@@ -101,7 +101,7 @@ def parse_transcript(transcript: str, instructions: str) -> List[dict]:
             else:
                 print("CSV row missing required fields:", row)
 
-        print(f"Parsed Data: {parsed_data}")
+        # print(f"Parsed Data: {parsed_data}")
 
         return parsed_data
 
@@ -109,9 +109,9 @@ def parse_transcript(transcript: str, instructions: str) -> List[dict]:
         print(f"An error occurred while parsing CSV: {e}")
         return []
 
-def initialize_faiss_index_from_formatted_file(codes_list_file: str, embedding_model: str = "text-embedding-ada-002", batch_size: int = 10) -> Tuple[faiss.IndexFlatL2, List[Dict[str, List[str]]]]:
+def initialize_faiss_index_from_formatted_file(codes_list_file: str, embedding_model: str = "text-embedding-3-small", batch_size: int = 10) -> Tuple[faiss.IndexFlatL2, List[Dict[str, List[str]]]]:
     """
-    Reads a pre-formatted codes_list.txt file and initializes a FAISS index directly using batch embedding.
+    Reads codes_list.txt file and initializes a FAISS index directly using batch embedding.
     Returns the FAISS index and the processed codes as dictionaries.
     """
     embeddings = []
@@ -185,14 +185,16 @@ def initialize_faiss_index_from_formatted_file(codes_list_file: str, embedding_m
         raise e
 
 
-def retrieve_relevant_codes(passage: str, index: faiss.IndexFlatL2, processed_codes: List[Dict[str, List[str]]], top_k: int = 5, embedding_model: str = "text-embedding-ada-002") -> List[Dict[str, List[str]]]:
+def retrieve_relevant_codes(speaker_id: str, passage: str, index: faiss.IndexFlatL2, processed_codes: List[Dict[str, List[str]]], top_k: int = 5, embedding_model: str = "text-embedding-3-small") -> List[Dict[str, List[str]]]:
     """
     Retrieves the top_k most relevant codes for a given passage using FAISS.
     Returns a list of code dictionaries with code names and examples.
     """
     try:
+        passage_text = f"{speaker_id}\nQuote: {passage}"
+
         response = client.embeddings.create(
-            input=passage,
+            input=passage_text,
             model=embedding_model
         )
         # Updated access using dot notation
@@ -200,6 +202,10 @@ def retrieve_relevant_codes(passage: str, index: faiss.IndexFlatL2, processed_co
 
         distances, indices = index.search(passage_embedding, top_k)
         relevant_codes = [processed_codes[idx] for idx in indices[0]]
+
+        print(passage_text)
+        for i, item in enumerate(relevant_codes):
+            print(f"Retrived code {i+1}: {item['code']}")
 
         return relevant_codes
 
@@ -214,7 +220,7 @@ def assign_codes_to_passages(passages: List[PassageData], coding_instructions: s
     try:
         for passage in passages:
             # Retrieve relevant codes using RAG
-            relevant_codes = retrieve_relevant_codes(passage.quote, index, processed_codes, top_k=top_k)
+            relevant_codes = retrieve_relevant_codes(passage.speaker_id, passage.quote, index, processed_codes, top_k=top_k)
 
             # Format the relevant codes with examples as a structured string
             relevant_codes_str = "\n".join([
@@ -225,23 +231,24 @@ def assign_codes_to_passages(passages: List[PassageData], coding_instructions: s
             response = client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
-                    {"role": "system", "content": "You are a qualitative coding assistant that assigns codes based on given instructions and relevant code list with examples."},
+                    {"role": "system", "content": "You are tasked with applying qualitative codes to individual utterances from a transcript between a teacher and a coach in a teacher coaching meeting. The purpose of this task is to identify all codes that best describe each utterance based on the provided list of codes and their examples. The input will be pre-segmented; you do not need to decide what constitutes an utterance, as each unit of input will already be defined for you. Below, I will provide the utterances for analysis and the list of codes."},
                     {
                         "role": "user",
                         "content": (
                             f"{coding_instructions}\n\n"
                             f"Relevant Codes:\n{relevant_codes_str}\n\n"
                             f"Passage:\nSpeaker: {passage.speaker_id}\nQuote: {passage.quote}\n\n"
-                            "Please provide the code and justification for this passage in CSV format with the following columns:\n\n"
+                            "Please provide all applicable codes and justifications for this passage in CSV format with the following columns:\n\n"
                             "code, justification\n\n"
                             "Where:\n"
                             "- `code` is the primary code you have selected for the passage.\n"
                             "- `justification` is a brief explanation (2-3 sentences) for why this code was applied."
+                            "Each row should represent a different code applied to the passage."
                         )
                     }
                 ],
                 temperature=0.2,
-                max_tokens=1000,
+                max_tokens=1500,
             )
 
             code_output = response.choices[0].message.content.strip()
@@ -257,14 +264,14 @@ def assign_codes_to_passages(passages: List[PassageData], coding_instructions: s
             match = csv_pattern.search(code_output)
             if match:
                 csv_content = match.group(1).strip()
-                print("Extracted CSV from Code Block:")
-                print(csv_content)
+                #print("Extracted CSV from Code Block:")
+                #print(csv_content)
             else:
                 # Check if output starts with 'code, justification' indicating CSV
                 if code_output.lower().startswith("code,"):
                     csv_content = code_output
-                    print("CSV detected without code block:")
-                    print(csv_content)
+                    #print("CSV detected without code block:")
+                    #print(csv_content)
                 else:
                     print("LLM did not return CSV format as expected.")
                     continue  # Skip to the next passage

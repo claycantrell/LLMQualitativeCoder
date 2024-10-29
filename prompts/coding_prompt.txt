@@ -1,27 +1,25 @@
-You are tasked with applying qualitative codes to individual utterances from a transcript between a teacher and a coach in a teacher coaching meeting. The purpose of this task is to identify all codes that best describe each utterance based on the provided list of codes and their examples. The input will be pre-segmented; you do not need to decide what constitutes an utterance, as each unit of input will already be defined for you. Below, I will provide the utterances for analysis and the list of codes.
+Instructions:
 
-**Instructions:**
+Evaluate Each Utterance Individually:
 
-1. **Evaluate Each Utterance Individually:**
-   - For each utterance, determine all relevant codes from the provided list that apply to the content of the utterance.
+For each utterance, determine all relevant codes from the provided list that apply to the content of the utterance.
+Note: Codes that start with C only apply to utterances spoken by the Coach, while codes that start with T only apply to utterances spoken by the Teacher. Do not apply codes beginning with C to the teacher's utterances and vice versa.
+Provide Justifications:
 
-2. **Provide Justifications:**
-   - For every code applied, provide a **2-3 sentence justification** explaining why the code is appropriate.
-   - If **no code** from the list applies to the utterance, use `VOID` in the `code` field and provide a **2-3 sentence justification** for omitting a code.
+For every code applied, provide a 2-3 sentence justification explaining why the code is appropriate.
+If no code from the list applies to the utterance, use VOID in the code field and provide a 2-3 sentence justification for omitting a code.
+Formatting Requirements:
 
-3. **Formatting Requirements:**
-   - **Respond exclusively within a code block** using triple backticks and specify `csv`.
-   - **Use the following CSV headers without any trailing spaces:**
-     - `code`
-     - `justification`
-   - **Ensure that each row corresponds to one utterance**, maintaining the order of utterances as provided.
-   - **Avoid adding any additional text, explanations, or comments** outside the CSV code block.
-   - **Ensure there are no extra quotes or commas** that could disrupt the CSV structure.
+Respond exclusively within a code block using triple backticks and specify csv.
+Use the following CSV headers without any trailing spaces:
+code
+justification
+Ensure that each row corresponds to one utterance, maintaining the order of utterances as provided.
+Avoid adding any additional text, explanations, or comments outside the CSV code block.
+Ensure there are no extra quotes or commas that could disrupt the CSV structure.
 
-**Example Output:**
-```csv
+If no code is applicable, code MUST be named "VOID" and you will explain justification for why no code was assigned.
+
+Example output:
 code,justification
-Communication,"The utterance emphasizes effective communication, aligning with the Communication code."
-Leadership,"The utterance demonstrates leadership qualities by encouraging open dialogue within the team."
-VOID,"The utterance does not fit any of the provided codes as it merely expresses a lack of experience with brain breaks."
-
+VOID,"The utterance discussed the phisolophy of Marx, which was not applicable to any of the codes"

@@ -9,15 +9,15 @@ from parse_task import (
 )
 
 def main():
-    # Set your OpenAI API key securely
+    # Set API 
     OpenAI.api_key = os.getenv('OPENAI_API_KEY')
     if not OpenAI.api_key:
-        raise ValueError("OpenAI API key not set. Please set the OPENAI_API_KEY environment variable.")
+        raise ValueError("Set the OPENAI_API_KEY environment variable.")
 
     # Define the path for the prompts folder
     prompts_folder = 'prompts'
 
-    # Sample preprocessed transcript
+    # transcript path
     transcript_file = os.path.join(prompts_folder, 'transcript.txt')
     if not os.path.exists(transcript_file):
         raise FileNotFoundError(f"Transcript file '{transcript_file}' not found.")
@@ -25,7 +25,7 @@ def main():
     with open(transcript_file, 'r', encoding='utf-8') as file:
         transcript = file.read().strip()  # Read and strip any extra whitespace
 
-    # Define your parsing instructions
+    # parsing instructions path
     instructions_file = os.path.join(prompts_folder, 'parse_prompt.txt')
     if not os.path.exists(instructions_file):
         raise FileNotFoundError(f"Instructions file '{instructions_file}' not found.")
@@ -51,7 +51,7 @@ def main():
         )
         passage_data_list.append(passage_data)
 
-    # Define your coding instructions
+    # coding task prompt path
     coding_instructions_file = os.path.join(prompts_folder, 'coding_prompt.txt')
     if not os.path.exists(coding_instructions_file):
         raise FileNotFoundError(f"Coding instructions file '{coding_instructions_file}' not found.")
@@ -59,7 +59,7 @@ def main():
     with open(coding_instructions_file, 'r', encoding='utf-8') as file:
         coding_instructions = file.read().strip()
 
-    # Define your list of codes with examples
+    # codes list path
     list_of_codes_file = os.path.join(prompts_folder, 'codes_list.txt')
     if not os.path.exists(list_of_codes_file):
         raise FileNotFoundError(f"List of codes file '{list_of_codes_file}' not found.")
