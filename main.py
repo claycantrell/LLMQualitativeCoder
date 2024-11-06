@@ -79,7 +79,7 @@ def main():
         coding_instructions = file.read().strip()
 
     # Codes list path
-    list_of_codes_file = os.path.join(prompts_folder, 'example_qual_codes.txt')
+    list_of_codes_file = os.path.join(prompts_folder, 'new_schema.txt')
     if not os.path.exists(list_of_codes_file):
         raise FileNotFoundError(f"List of codes file '{list_of_codes_file}' not found.")
 

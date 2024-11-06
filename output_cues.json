@@ -1,158 +1,284 @@
 [
     {
         "id": 1,
-        "length_of_time_spoken_seconds": 4.0,
-        "text_context": "Hi Coach, thanks for meeting with me. I wanted to discuss some of my students.",
-        "speaker_name": "Teacher"
+        "length_of_time_spoken_seconds": 6.0,
+        "text_context": "Hi Sarah, thank you for taking the time to meet with me today. I wanted to discuss the lesson I observed in your classroom yesterday.",
+        "speaker_name": "Coach"
     },
     {
         "id": 2,
-        "length_of_time_spoken_seconds": 3.5,
-        "text_context": "Absolutely! I\u2019m happy to help. What\u2019s on your mind?",
-        "speaker_name": "Coach"
+        "length_of_time_spoken_seconds": 5.5,
+        "text_context": "Hi Mike, no problem at all. I'm eager to hear your thoughts and get your feedback on how it went.",
+        "speaker_name": "Teacher"
     },
     {
         "id": 3,
-        "length_of_time_spoken_seconds": 4.5,
-        "text_context": "Well, a few students are struggling to balance their academics with their sports commitments.",
-        "speaker_name": "Teacher"
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "Great. First, I wanted to commend you on how you started the lesson. Your warm-up activity really engaged the students and set a positive tone for the class.",
+        "speaker_name": "Coach"
     },
     {
         "id": 4,
-        "length_of_time_spoken_seconds": 4.0,
-        "text_context": "I\u2019ve noticed that too. Are there specific subjects where they\u2019re having the most trouble?",
-        "speaker_name": "Coach"
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "Thank you. I've been trying to incorporate more interactive elements at the beginning to capture their attention early on.",
+        "speaker_name": "Teacher"
     },
     {
         "id": 5,
-        "length_of_time_spoken_seconds": 4.5,
-        "text_context": "Mostly math and science. These are heavy subjects, and with practice every day, they\u2019re overwhelmed.",
-        "speaker_name": "Teacher"
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "That's excellent. When you used the real-world examples during the math problems, I noticed the students were particularly attentive. How did you decide to include those?",
+        "speaker_name": "Coach"
     },
     {
         "id": 6,
-        "length_of_time_spoken_seconds": 5.0,
-        "text_context": "I can imagine. Do you think more study time would help, or is it more about managing the schedule?",
-        "speaker_name": "Coach"
+        "length_of_time_spoken_seconds": 8.0,
+        "text_context": "Well, I've found that when students can relate concepts to their daily lives, they're more interested. So I thought incorporating scenarios they might encounter outside school would help.",
+        "speaker_name": "Teacher"
     },
     {
         "id": 7,
-        "length_of_time_spoken_seconds": 3.5,
-        "text_context": "Both, honestly. They could use focused study time, but the schedule is a big part of it.",
-        "speaker_name": "Teacher"
+        "length_of_time_spoken_seconds": 8.5,
+        "text_context": "Absolutely, and it seems to be working well. I did observe, however, that during the group activity, some students appeared a bit confused about the instructions. Can you tell me more about how you explained the task?",
+        "speaker_name": "Coach"
     },
     {
         "id": 8,
-        "length_of_time_spoken_seconds": 3.5,
-        "text_context": "I get it. We could try giving them a lighter practice schedule on days before tests.",
-        "speaker_name": "Coach"
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "Sure. I gave them a brief overview and expected them to dive in, but I think I might have assumed they had more prior knowledge than they actually did.",
+        "speaker_name": "Teacher"
     },
     {
         "id": 9,
-        "length_of_time_spoken_seconds": 4.5,
-        "text_context": "That would be amazing. They\u2019d appreciate that breathing room before major exams.",
-        "speaker_name": "Teacher"
+        "length_of_time_spoken_seconds": 8.5,
+        "text_context": "That makes sense. What strategies might you use next time to ensure that all students understand the expectations before starting the activity?",
+        "speaker_name": "Coach"
     },
     {
         "id": 10,
-        "length_of_time_spoken_seconds": 4.5,
-        "text_context": "Absolutely. We can also look at adding quiet study sessions right after practice.",
-        "speaker_name": "Coach"
+        "length_of_time_spoken_seconds": 8.5,
+        "text_context": "Maybe I could provide a step-by-step example or check for understanding by asking a few students to repeat the instructions in their own words.",
+        "speaker_name": "Teacher"
     },
     {
         "id": 11,
-        "length_of_time_spoken_seconds": 5.5,
-        "text_context": "That could work well. I was thinking of arranging study groups so they can support each other too.",
-        "speaker_name": "Teacher"
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "Those are great ideas. Incorporating a quick demonstration could clarify the task. Also, encouraging students to paraphrase instructions can confirm their understanding.",
+        "speaker_name": "Coach"
     },
     {
         "id": 12,
-        "length_of_time_spoken_seconds": 3.5,
-        "text_context": "Great idea. I think the team environment could actually help them stay motivated with studying.",
-        "speaker_name": "Coach"
+        "length_of_time_spoken_seconds": 8.0,
+        "text_context": "I agree. I'll definitely try that in the next group activity. Do you think visual aids could also help?",
+        "speaker_name": "Teacher"
     },
     {
         "id": 13,
-        "length_of_time_spoken_seconds": 4.5,
-        "text_context": "Yes, and some of the upperclassmen might tutor the younger students.",
-        "speaker_name": "Teacher"
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "Absolutely. Visual aids can support diverse learning styles and make abstract concepts more concrete. How might you integrate them into your instructions?",
+        "speaker_name": "Coach"
     },
     {
         "id": 14,
-        "length_of_time_spoken_seconds": 3.5,
-        "text_context": "I like that. And if they know their teammates are also working on their academics, it might reduce the pressure.",
-        "speaker_name": "Coach"
+        "length_of_time_spoken_seconds": 7.0,
+        "text_context": "I could create a simple infographic or flowchart that outlines the steps they need to follow during the activity.",
+        "speaker_name": "Teacher"
     },
     {
         "id": 15,
-        "length_of_time_spoken_seconds": 5.5,
-        "text_context": "Exactly. I want them to see academics and athletics as complementary, not conflicting.",
-        "speaker_name": "Teacher"
+        "length_of_time_spoken_seconds": 8.5,
+        "text_context": "That sounds effective. By providing visual cues, you can help students stay on track. Moving on, I noticed that you asked some open-ended questions during the discussion. How do you feel those went?",
+        "speaker_name": "Coach"
     },
     {
         "id": 16,
-        "length_of_time_spoken_seconds": 3.5,
-        "text_context": "Absolutely. If I notice they\u2019re feeling burned out, I\u2019ll reach out to you.",
-        "speaker_name": "Coach"
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "I think they encouraged some deeper thinking, but not all students participated. I'm wondering how to engage the quieter ones.",
+        "speaker_name": "Teacher"
     },
     {
         "id": 17,
-        "length_of_time_spoken_seconds": 4.5,
-        "text_context": "Please do. I\u2019ll also check in with them regularly to see how they\u2019re managing everything.",
-        "speaker_name": "Teacher"
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "Engaging all students can be challenging. What are some strategies you might use to involve those who are less inclined to speak up?",
+        "speaker_name": "Coach"
     },
     {
         "id": 18,
-        "length_of_time_spoken_seconds": 3.5,
-        "text_context": "Sounds like a plan. By the way, is there anything specific you\u2019d like them to work on?",
-        "speaker_name": "Coach"
+        "length_of_time_spoken_seconds": 8.5,
+        "text_context": "Perhaps I could implement think-pair-share, where students first think individually, then discuss with a partner before sharing with the class.",
+        "speaker_name": "Teacher"
     },
     {
         "id": 19,
-        "length_of_time_spoken_seconds": 4.5,
-        "text_context": "Well, developing time management skills would help. They\u2019re juggling a lot.",
-        "speaker_name": "Teacher"
+        "length_of_time_spoken_seconds": 8.5,
+        "text_context": "That's an excellent strategy. It gives students time to formulate their thoughts and can boost their confidence to share in the larger group. Additionally, assigning discussion roles might help.",
+        "speaker_name": "Coach"
     },
     {
         "id": 20,
-        "length_of_time_spoken_seconds": 4.5,
-        "text_context": "I can reinforce that during practice. We could set up goals for each week, not just for sports but for academics too.",
-        "speaker_name": "Coach"
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "That's a good point. Assigning roles like facilitator, recorder, or presenter could encourage more active participation.",
+        "speaker_name": "Teacher"
     },
     {
         "id": 21,
-        "length_of_time_spoken_seconds": 5.5,
-        "text_context": "That would be fantastic. And I\u2019ll try to keep them motivated academically, especially during the season.",
-        "speaker_name": "Teacher"
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "Exactly. It can also help students develop collaboration skills. Now, let's talk about pacing. How did you feel about the timing of your lesson?",
+        "speaker_name": "Coach"
     },
     {
         "id": 22,
-        "length_of_time_spoken_seconds": 3.5,
-        "text_context": "Good idea. I know it\u2019s tough, but with a bit of structure, they\u2019ll adapt.",
-        "speaker_name": "Coach"
+        "length_of_time_spoken_seconds": 8.0,
+        "text_context": "I felt a bit rushed towards the end. We didn't get to cover everything I had planned, and the closure was shorter than I wanted.",
+        "speaker_name": "Teacher"
     },
     {
         "id": 23,
-        "length_of_time_spoken_seconds": 3.5,
-        "text_context": "Thanks for being so flexible with them. I think this could really make a difference.",
-        "speaker_name": "Teacher"
-    },
-    {
-        "id": 24,
-        "length_of_time_spoken_seconds": 3.5,
-        "text_context": "No problem at all. Their well-being is important to me, both on and off the field.",
+        "length_of_time_spoken_seconds": 8.5,
+        "text_context": "I noticed that as well. How might you adjust your lesson plan to manage the pacing more effectively?",
         "speaker_name": "Coach"
     },
     {
-        "id": 25,
-        "length_of_time_spoken_seconds": 3.5,
-        "text_context": "I feel the same way. Let\u2019s check in again in a few weeks to see how they\u2019re handling it?",
+        "id": 24,
+        "length_of_time_spoken_seconds": 8.5,
+        "text_context": "I could prioritize the most critical components and perhaps limit the time spent on the warm-up activity, even though it's engaging.",
         "speaker_name": "Teacher"
     },
     {
+        "id": 25,
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "Balancing engagement and content coverage is key. Maybe setting specific time limits for each segment and using a timer could help keep the lesson on track.",
+        "speaker_name": "Coach"
+    },
+    {
         "id": 26,
-        "length_of_time_spoken_seconds": 3.5,
-        "text_context": "Absolutely. Looking forward to seeing how they progress with this new approach!",
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "That's a good idea. I sometimes lose track of time when the students are really into an activity.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 27,
+        "length_of_time_spoken_seconds": 7.0,
+        "text_context": "It's a common challenge. Also, consider incorporating formative assessments throughout the lesson to gauge understanding and adjust pacing accordingly.",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 28,
+        "length_of_time_spoken_seconds": 8.5,
+        "text_context": "Yes, like quick polls or thumbs-up/thumbs-down checks. That could help me see if we can move on or need to spend more time on a concept.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 29,
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "Exactly. This can make your teaching more responsive to students' needs. Before we wrap up, I wanted to highlight your classroom management.",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 30,
+        "length_of_time_spoken_seconds": 7.0,
+        "text_context": "Oh, thank you. I've been working on establishing clear expectations and routines.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 31,
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "It's definitely showing. The students transitioned between activities smoothly, and there were minimal disruptions. This creates a positive learning environment.",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 32,
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "I'm glad to hear that. I think consistency has been key in that area.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 33,
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "Consistency is crucial. Do you have any concerns or areas you'd like to focus on moving forward?",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 34,
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "I'd like to improve differentiation in my lessons to meet the diverse needs of my students.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 35,
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "That's a great goal. Differentiated instruction can significantly impact student learning. What steps might you take to start incorporating it?",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 36,
+        "length_of_time_spoken_seconds": 8.0,
+        "text_context": "I could begin by assessing students' individual levels more regularly and then providing tiered activities based on their readiness.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 37,
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "That's an effective approach. Also, offering choices in how they demonstrate their understanding can cater to different learning styles.",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 38,
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "True. I could allow students to choose between writing a summary, creating a poster, or giving a short presentation.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 39,
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "Excellent ideas. I'm here to support you in this process. Let's set up a time to plan some differentiated activities together.",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 40,
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "That would be wonderful. I appreciate your willingness to help.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 41,
+        "length_of_time_spoken_seconds": 7.0,
+        "text_context": "Of course. Before we conclude, is there anything else you'd like to discuss or any questions you have?",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 42,
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "Not at the moment. This has been very helpful, and I feel more confident about implementing these strategies.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 43,
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "I'm glad to hear that. You're doing a great job, and I'm excited to see how your next lessons unfold.",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 44,
+        "length_of_time_spoken_seconds": 8.0,
+        "text_context": "Thank you so much, Mike. I'll start working on these ideas and look forward to our next meeting.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 45,
+        "length_of_time_spoken_seconds": 6.5,
+        "text_context": "Sounds good. Let's touch base next week to see how things are progressing.",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 46,
+        "length_of_time_spoken_seconds": 5.5,
+        "text_context": "Perfect. Have a great rest of your day.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 47,
+        "length_of_time_spoken_seconds": 4.5,
+        "text_context": "You too, Sarah. Take care.",
         "speaker_name": "Coach"
     }
 ]
