@@ -1,0 +1,158 @@
+[
+    {
+        "id": 1,
+        "length_of_time_spoken_seconds": 4.0,
+        "text_context": "Hi Coach, thanks for meeting with me. I wanted to discuss some of my students.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 2,
+        "length_of_time_spoken_seconds": 3.5,
+        "text_context": "Absolutely! I\u2019m happy to help. What\u2019s on your mind?",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 3,
+        "length_of_time_spoken_seconds": 4.5,
+        "text_context": "Well, a few students are struggling to balance their academics with their sports commitments.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 4,
+        "length_of_time_spoken_seconds": 4.0,
+        "text_context": "I\u2019ve noticed that too. Are there specific subjects where they\u2019re having the most trouble?",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 5,
+        "length_of_time_spoken_seconds": 4.5,
+        "text_context": "Mostly math and science. These are heavy subjects, and with practice every day, they\u2019re overwhelmed.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 6,
+        "length_of_time_spoken_seconds": 5.0,
+        "text_context": "I can imagine. Do you think more study time would help, or is it more about managing the schedule?",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 7,
+        "length_of_time_spoken_seconds": 3.5,
+        "text_context": "Both, honestly. They could use focused study time, but the schedule is a big part of it.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 8,
+        "length_of_time_spoken_seconds": 3.5,
+        "text_context": "I get it. We could try giving them a lighter practice schedule on days before tests.",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 9,
+        "length_of_time_spoken_seconds": 4.5,
+        "text_context": "That would be amazing. They\u2019d appreciate that breathing room before major exams.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 10,
+        "length_of_time_spoken_seconds": 4.5,
+        "text_context": "Absolutely. We can also look at adding quiet study sessions right after practice.",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 11,
+        "length_of_time_spoken_seconds": 5.5,
+        "text_context": "That could work well. I was thinking of arranging study groups so they can support each other too.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 12,
+        "length_of_time_spoken_seconds": 3.5,
+        "text_context": "Great idea. I think the team environment could actually help them stay motivated with studying.",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 13,
+        "length_of_time_spoken_seconds": 4.5,
+        "text_context": "Yes, and some of the upperclassmen might tutor the younger students.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 14,
+        "length_of_time_spoken_seconds": 3.5,
+        "text_context": "I like that. And if they know their teammates are also working on their academics, it might reduce the pressure.",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 15,
+        "length_of_time_spoken_seconds": 5.5,
+        "text_context": "Exactly. I want them to see academics and athletics as complementary, not conflicting.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 16,
+        "length_of_time_spoken_seconds": 3.5,
+        "text_context": "Absolutely. If I notice they\u2019re feeling burned out, I\u2019ll reach out to you.",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 17,
+        "length_of_time_spoken_seconds": 4.5,
+        "text_context": "Please do. I\u2019ll also check in with them regularly to see how they\u2019re managing everything.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 18,
+        "length_of_time_spoken_seconds": 3.5,
+        "text_context": "Sounds like a plan. By the way, is there anything specific you\u2019d like them to work on?",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 19,
+        "length_of_time_spoken_seconds": 4.5,
+        "text_context": "Well, developing time management skills would help. They\u2019re juggling a lot.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 20,
+        "length_of_time_spoken_seconds": 4.5,
+        "text_context": "I can reinforce that during practice. We could set up goals for each week, not just for sports but for academics too.",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 21,
+        "length_of_time_spoken_seconds": 5.5,
+        "text_context": "That would be fantastic. And I\u2019ll try to keep them motivated academically, especially during the season.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 22,
+        "length_of_time_spoken_seconds": 3.5,
+        "text_context": "Good idea. I know it\u2019s tough, but with a bit of structure, they\u2019ll adapt.",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 23,
+        "length_of_time_spoken_seconds": 3.5,
+        "text_context": "Thanks for being so flexible with them. I think this could really make a difference.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 24,
+        "length_of_time_spoken_seconds": 3.5,
+        "text_context": "No problem at all. Their well-being is important to me, both on and off the field.",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 25,
+        "length_of_time_spoken_seconds": 3.5,
+        "text_context": "I feel the same way. Let\u2019s check in again in a few weeks to see how they\u2019re handling it?",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 26,
+        "length_of_time_spoken_seconds": 3.5,
+        "text_context": "Absolutely. Looking forward to seeing how they progress with this new approach!",
+        "speaker_name": "Coach"
+    }
+]

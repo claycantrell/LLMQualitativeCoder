@@ -1,25 +1,46 @@
 Instructions:
 
-Evaluate Each Utterance Individually:
+Determine Relevant Codes:
 
-For each utterance, determine all relevant codes from the provided list that apply to the content of the utterance.
-Note: Codes that start with C only apply to utterances spoken by the Coach, while codes that start with T only apply to utterances spoken by the Teacher. Do not apply codes beginning with C to the teacher's utterances and vice versa.
+Identify all relevant codes from the provided list that apply to the content of the excerpt.
 Provide Justifications:
 
 For every code applied, provide a 2-3 sentence justification explaining why the code is appropriate.
-If no code from the list applies to the utterance, use VOID in the code field and provide a 2-3 sentence justification for omitting a code.
+If no code from the list applies to the excerpt, still create a code but name it VOID in the code field and provide a 2-3 sentence justification for omitting a code.
 Formatting Requirements:
 
-Respond exclusively within a code block using triple backticks and specify csv.
-Use the following CSV headers without any trailing spaces:
-code
-justification
-Ensure that each row corresponds to one utterance, maintaining the order of utterances as provided.
-Avoid adding any additional text, explanations, or comments outside the CSV code block.
-Ensure there are no extra quotes or commas that could disrupt the CSV structure.
+Respond exclusively within a code block using triple backticks and specify json.
+Structure the output as a JSON array of objects, where each object represents a excerpt with the following keys:
+code: The name of the applied code.
+justification: The explanation for why the code was assigned.
+Ensure that each object corresponds to one excerpt, maintaining the order of excerpts as provided.
+Avoid adding any additional text, explanations, or comments outside the JSON code block.
+Ensure that the JSON is properly formatted without syntax errors, such as missing commas or unmatched braces.
+Handling VOID Codes:
 
-If no code is applicable, code MUST be named "VOID" and you will explain justification for why no code was assigned.
+If no code is applicable, the code MUST be named VOID and you MUST explain the justification for why no code was assigned.
 
-Example output:
-code,justification
-VOID,"The utterance discussed the phisolophy of Marx, which was not applicable to any of the codes"
+Assign every code that is applicable. This means some excerpts will be assigned multiple codes.
+
+Example output: [
+  {
+    "code": "C_General Praise – Verbal Behavior",
+    "justification": "The speaker is praising the participants for their efforts, fostering a positive environment."
+  },
+  {
+    "code": "C_Neutral Statements – Verbal Behavior",
+    "justification": "The speaker is making a neutral statement that does not express positive or negative reinforcement."
+  },
+  {
+    "code": "C_Supportive Feedback – Verbal Behavior",
+    "justification": "The speaker is providing supportive feedback to encourage continued performance."
+  },
+  {
+    "code": "C_Instructional Statements – Verbal Behavior",
+    "justification": "The speaker is giving instructions to guide the participants towards desired actions."
+  },
+  {
+    "code": "C_Clarifying Questions – Verbal Behavior",
+    "justification": "The speaker is asking clarifying questions to ensure understanding and address any ambiguities."
+  }
+]

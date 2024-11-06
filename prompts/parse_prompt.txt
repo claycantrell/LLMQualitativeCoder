@@ -1,4 +1,4 @@
-I will provide you with a piece of text. Your task is to segment this text into smaller, meaningful units called "meaning units." A meaning unit is a segment that expresses a coherent and complete thought, idea, or action related to the overall context of the text. Follow these guidelines when breaking down the text:
+I will provide you with a piece of text spoken by a specific speaker, {speaker_name}. Your task is to segment this text into smaller, meaningful units called "meaning units." A meaning unit is a segment that expresses a coherent and complete thought, idea, or action related to the overall context of the text. Follow these guidelines when breaking down the text:
 
 1. **Contextual Understanding**: First, read the entire text thoroughly to grasp its overall meaning and context.
 
@@ -8,20 +8,10 @@ I will provide you with a piece of text. Your task is to segment this text into 
 
 4. **Avoid Over-Segmentation**: Do not break down the text into individual words or too small segments unless they independently carry meaningful information.
 
-5. **Use Speaker Names**: In the text I provide, whenever there is a change in speaker, the section of text will begin with their name. Incorporate this information into the meaning units. For each segment, include the speaker’s name to clearly associate each meaning unit with the speaker who said it.
+5. **Use Speaker Names**: The speaker's name is provided separately. For each segment, include the speaker’s name to clearly associate each meaning unit with the speaker who said it.
 
-6. **Present the Meaning Units with Unique Identifiers in CSV Format**: Ensure that the CSV is well-structured, with each row containing a `speaker_id` and a `quote`. Avoid any additional commentary or explanations outside of the CSV format. Each meaning unit should have:
-    - The speaker's name.
-    - The meaning unit text.
+6. **Present the Meaning Units in JSON Format**: Ensure that the output is well-structured in JSON format, with each object containing a `speaker_id` and a `quote`. Avoid any additional commentary or explanations outside of the JSON structure. Each meaning unit should have:
+    - The speaker's name as `speaker_id`.
+    - The meaning unit text as `quote`.
 
 7. **Concise Representation**: Keep each unit concise while retaining its essential information and context.
-
-**Example Output:**
-
-speaker_id,quote
-S1,"I think we should start the meeting by reviewing the agenda."
-S2,"That sounds good, but we might need to adjust the timeline."
-S1,"Sure, we can be flexible with the schedule."
-S3,"I agree with S2. The timeline could be too tight for some tasks."
-S1,"Okay, let's make those adjustments now."
-S2,"I'll note them down and send the updated version by the end of the day."
