@@ -1,19 +1,28 @@
-You will receive a piece of spoken text attributed to a specific speaker, {speaker_name}. Your task is to segment this text into discrete, meaningful units known as 'meaning units.' A meaning unit is a coherent segment that conveys a single, self-contained idea, thought, or action. Please adhere to the following guidelines:
+You will receive a piece of spoken text attributed to {speaker_name}. Your task is to segment this text into discrete, self-contained "meaning units." Each meaning unit must be a direct, unaltered quote from the speaker. Do not rephrase, paraphrase, or summarize.
 
-Comprehend Overall Context: Begin by reading the entire text to understand its full context and overarching themes.
+Guidelines:
 
-Identify Natural Breaks for Segmentation: Segment the text based on logical breaks where each new thought, idea, or action begins and ends. A segment could be a full sentence, phrase, or a few words, provided it represents a distinct and complete thought that directly contributes to the text's subject.
+Read for Context: First, read the entire text to understand its context.
 
-Ensure Standalone Coherence: Each segment should be independently coherent and reflect the original intent and meaning of the speaker. Avoid paraphrasing; each meaning unit should be a direct quote.
+Segment by Logical Breaks: Break down the text where new ideas, thoughts, or actions naturally begin and end. Each segment can be a full sentence, phrase, or brief passage that conveys one idea completely.
 
-Avoid Excessive Segmentation: Do not split text into individual words or overly short fragments unless they hold independent significance. Each unit should capture a distinct, meaningful element.
+Direct Quotes Only – No Changes: Each meaning unit must use the speaker’s exact words without any alteration. Do not modify, change, summarize, or rephrase.
 
-Assign Speaker Identifier: Use the speaker's name provided to clearly identify the speaker of each segment. For consistency, include this identifier with each meaning unit.
+Do not change the language in any way – keep the original words as they are.
+Do not interpret or simplify – simply segment into distinct quotes.
+Avoid Over-Segmentation: Do not create overly short fragments unless a few words alone carry complete meaning.
 
-Output Format in JSON: Structure the output in a clean JSON format, ensuring each entry is represented as follows:
+Speaker Identifier: Attach the speaker's name {speaker_name} to each segment.
 
-speaker_id: The speaker’s name, provided as {speaker_name}.
-quote: The text of the segmented meaning unit.
-Precision and Brevity: Aim for conciseness in each segment while preserving its key information and context.
+Output Format: Structure the output in JSON format, following these keys:
 
-The output should be a structured JSON array with each meaning unit as an object, avoiding any commentary or text outside the JSON structure."
+speaker_id: {speaker_name}.
+quote: The exact words of the segmented meaning unit.
+Example Output
+json
+Copy code
+[
+  { "speaker_id": "John", "quote": "I believe we can make a difference by working together." },
+  { "speaker_id": "John", "quote": "Each of us brings unique skills to the table." }
+]
+Output: Submit your response as a JSON array containing only exact quotes – do not add commentary or any non-JSON text.
