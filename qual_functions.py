@@ -2,20 +2,21 @@
 
 from openai import OpenAI
 from dataclasses import dataclass, field
-from typing import List, ClassVar, Dict, Tuple
+from typing import List, Dict, Tuple, Any
 import faiss
+import json
 import numpy as np
 from pydantic import BaseModel
 
 client = OpenAI()
 
-#qualitative code_name name with code_justification for assignment
+# Qualitative code with code_name and code_justification for assignment
 @dataclass
 class CodeAssigned:
     code_name: str
     code_justification: str
 
-#text unit with assigned codes and speaker info
+# Text unit with assigned codes and speaker info
 @dataclass
 class MeaningUnit:
     unique_id: int = field(init=False)
@@ -23,21 +24,21 @@ class MeaningUnit:
     meaning_unit_string: str
     assigned_code_list: List[CodeAssigned] = field(default_factory=list) 
 
-#Defines the expected output when parsing the transcript.
+# Defines the expected output when parsing the transcript.
 class ParseFormat(BaseModel):
     speaker_id: str
-    meaning_unit_string_list: list[str]
+    meaning_unit_string_list: List[str]
 
-#Defines the expected output when assigning codes to meaning unit.
+# Defines the expected output when assigning codes to meaning unit.
 class CodeFormat(BaseModel):
-    codeList: list[CodeAssigned]
+    codeList: List[CodeAssigned]
 
-def parse_transcript(meaning_unit_string: str, prompt: str) -> List[dict]:
+def parse_transcript(speaking_turn_string: str, prompt: str) -> List[dict]:
     """
     Breaks up a speaking turn into smaller meaning units based on criteria in the LLM prompt.
     
     Args:
-        meaning_unit_string (str): The dialogue text from a speaker.
+        speaking_turn_string (str): The dialogue text from a speaker.
         prompt (str): The complete prompt with speaker's name inserted.
 
     Returns:
@@ -52,7 +53,7 @@ def parse_transcript(meaning_unit_string: str, prompt: str) -> List[dict]:
                     "role": "user",
                     "content": (
                         f"{prompt}\n\n"
-                        f"Speaking Turn:\n{meaning_unit_string}\n\n"
+                        f"Speaking Turn:\n{speaking_turn_string}\n\n"
                     )
                 }
             ],
@@ -64,8 +65,8 @@ def parse_transcript(meaning_unit_string: str, prompt: str) -> List[dict]:
         parsed_output = response.choices[0].message.parsed
 
         # Debug: Print the raw response from LLM
-        #print("Raw LLM Output for parse_transcript:")
-        #print(parsed_output)
+        # print("Raw LLM Output for parse_transcript:")
+        # print(parsed_output)
 
         # Extract 'speaker_id' and individual 'meaning_unit_string' entries from the parsed model
         speaker_id = parsed_output.speaker_id
@@ -75,8 +76,8 @@ def parse_transcript(meaning_unit_string: str, prompt: str) -> List[dict]:
         meaning_units = [{"speaker_id": speaker_id, "meaning_unit_string": single_quote} for single_quote in meaningunit_stringlist_parsed]
         
         # Debug: Print the parsed meaning units
-        #print("Parsed Meaning Units:")
-        #print(meaning_units)
+        # print("Parsed Meaning Units:")
+        # print(meaning_units)
         
         return meaning_units
 
@@ -84,14 +85,13 @@ def parse_transcript(meaning_unit_string: str, prompt: str) -> List[dict]:
         print(f"An error occurred while parsing transcript into meaning units: {e}")
         return []
 
-
 def initialize_faiss_index_from_formatted_file(
     codes_list_file: str, 
-    embedding_model: str = "text-embedding-ada-002", 
+    embedding_model: str = "text-embedding-3-small", 
     batch_size: int = 32
-) -> Tuple[faiss.IndexFlatL2, List[Dict[str, List[str]]]]:
+) -> Tuple[faiss.IndexFlatL2, List[Dict[str, Any]]]:
     """
-    Reads codes_list.txt file and initializes a FAISS index directly using batch embedding.
+    Reads a JSONL-formatted file and initializes a FAISS index directly using batch embedding.
     Returns the FAISS index and the processed codes as dictionaries.
     """
     embeddings = []
@@ -105,27 +105,21 @@ def initialize_faiss_index_from_formatted_file(
                 line = line.strip()
                 if not line:
                     continue  # Skip empty lines
-                
-                # Parse the line into code_name and examples
-                if ':' in line:
-                    parts = line.split(':', 2)
-                    if len(parts) < 3:
-                        raise ValueError("Line format is incorrect. Expected format: 'code_name:definition_name:examples'")
-                    code_name, definition_name, examples_str = parts
-                    examples = [ex.strip() for ex in examples_str.split(';') if ex.strip()]
-                else:
-                    raise ValueError("Line format is incorrect. Expected format: 'code_name:definition_name:examples'")
 
+                # Parse each JSONL line
+                data = json.loads(line)
+                text = data.get("text", "")
+                metadata = data.get("metadata", {})
+                
                 processed_code = {
-                    'code_name': code_name.strip(),
-                    'definition': definition_name.strip(),
-                    'examples': examples
+                    'text': text,
+                    'metadata': metadata
                 }
                 processed_codes.append(processed_code)
                 code_batch.append(processed_code)
 
-                # Combine code_name, definition, and examples for embedding
-                combined_text = f"{code_name} - {definition_name}: {'; '.join(examples)}"
+                # Combine `text` and metadata elements for embedding
+                combined_text = f"{text} Metadata: {metadata}"
                 combined_texts.append(combined_text)
 
                 # If batch size is reached, process the batch
@@ -159,7 +153,7 @@ def initialize_faiss_index_from_formatted_file(
             index = faiss.IndexFlatL2(dimension)
             index.add(embeddings)
         else:
-            raise ValueError("No valid embeddings found. Check the content of your codes_list.txt file.")
+            raise ValueError("No valid embeddings found. Check the content of your JSONL file.")
 
         return index, processed_codes
 
@@ -171,13 +165,13 @@ def retrieve_relevant_codes(
     speaker_id: str, 
     meaning_unit_string: str, 
     index: faiss.IndexFlatL2, 
-    processed_codes: List[Dict[str, List[str]]], 
+    processed_codes: List[Dict[str, Any]], 
     top_k: int = 5, 
-    embedding_model: str = "text-embedding-ada-002"
-) -> List[Dict[str, List[str]]]:
+    embedding_model: str = "text-embedding-3-small"
+) -> List[Dict[str, Any]]:
     """
     Retrieves the top_k most relevant codes for a given meaning_unit_string using FAISS.
-    Returns a list of code_name dictionaries with code_name names and examples.
+    Returns a list of code dictionaries with relevant information.
     """
     try:
         meaning_unit_string_with_speaker = f"{speaker_id}\nUnit: {meaning_unit_string}"
@@ -194,7 +188,7 @@ def retrieve_relevant_codes(
 
         print(f"\nSpeaker: {meaning_unit_string_with_speaker}")
         for i, item in enumerate(relevant_codes):
-            print(f"Retrieved Code {i+1}: {item['code_name']}")
+            print(f"Retrieved Code {i+1}: {item['metadata']['name']}")
 
         return relevant_codes
 
@@ -202,11 +196,10 @@ def retrieve_relevant_codes(
         print(f"An error occurred while retrieving relevant codes: {e}")
         return []
 
-
 def assign_codes_to_meaning_units(
     meaning_unit_list: List[MeaningUnit], 
     coding_instructions: str, 
-    processed_codes: List[Dict[str, List[str]]], 
+    processed_codes: List[Dict[str, Any]], 
     index: faiss.IndexFlatL2, 
     top_k: int = 5,
     context_size: int = 5 
@@ -217,7 +210,7 @@ def assign_codes_to_meaning_units(
     Args:
         meaning_unit_list (List[MeaningUnit]): List of MeaningUnit objects to be coded.
         coding_instructions (str): Instructions for the coding task.
-        processed_codes (List[Dict[str, List[str]]]): List of processed codes with definitions and examples.
+        processed_codes (List[Dict[str, Any]]): List of processed codes with definitions and examples.
         index (faiss.IndexFlatL2): FAISS index for retrieving relevant codes.
         top_k (int, optional): Number of top relevant codes to retrieve. Defaults to 5.
         context_size (int, optional): Number of preceding and following meaning units to include as context. Defaults to 5.
@@ -240,43 +233,53 @@ def assign_codes_to_meaning_units(
                 top_k=top_k
             )
 
-            # Format the relevant codes with examples as a structured string
-            relevant_codes_str = "\n".join([
-                f"{code_name['code_name']}: " + "; ".join([f"Example {i+1}: {ex}" for i, ex in enumerate(code_name['examples'])])
-                for code_name in relevant_codes
+            # Format the relevant codes as their entire JSONL lines
+            relevant_codes_str = "\n\n".join([
+                json.dumps(code, indent=2)
+                for code in relevant_codes
             ])
 
             # Retrieve previous and next meaning units for context
-            previous_excerpt = ""
-            next_excerpt = ""
+            context_excerpt = ""
 
             # Collect previous context
             if context_size > 0 and idx > 0:
                 prev_units = meaning_unit_list[max(0, idx - context_size):idx]
-                previous_excerpt = "\n".join([
-                    f"Previous Excerpt {i+1}:\nSpeaker: {unit.speaker_id}\nQuote: {unit.meaning_unit_string}\n"
-                    for i, unit in enumerate(prev_units, start=1)
-                ]) + "\n" if prev_units else ""
+                context_excerpt += "\n".join([
+                    f"{unit.speaker_id}: {unit.meaning_unit_string}"
+                    for unit in prev_units
+                ]) + "\n"
+
+            # Add current excerpt embedded into context
+            context_excerpt += f"{meaning_unit_object.speaker_id}: {meaning_unit_object.meaning_unit_string}\n"
 
             # Collect next context
             if context_size > 0 and idx < total_units - 1:
                 next_units = meaning_unit_list[idx + 1: idx + 1 + context_size]
-                next_excerpt = "\n".join([
-                    f"Following Excerpt {i+1}:\nSpeaker: {unit.speaker_id}\nQuote: {unit.meaning_unit_string}\n"
-                    for i, unit in enumerate(next_units, start=1)
-                ]) + "\n" if next_units else ""
+                context_excerpt += "\n".join([
+                    f"{unit.speaker_id}: {unit.meaning_unit_string}"
+                    for unit in next_units
+                ]) + "\n"
 
-            # Construct the full prompt with context
-            full_prompt = (
-                f"{coding_instructions}\n\n"
-                f"Relevant Codes:\n{relevant_codes_str}\n\n"
-                f"{previous_excerpt}"
-                f"Current Excerpt:\nSpeaker: {meaning_unit_object.speaker_id}\nQuote: {meaning_unit_object.meaning_unit_string}\n\n"
-                f"{next_excerpt}"
-                f"**Important:** Please use the previous and following excerpts **only** as context to understand the current excerpt better. **Apply codes exclusively to the current excerpt provided above. Do not assign codes to the previous or following excerpts.**"
+            # Separately label the current excerpt for coding
+            current_excerpt_labeled = (
+                f"Current Excerpt for Coding:\n"
+                f"Speaker: {meaning_unit_object.speaker_id}\n"
+                f"Quote: {meaning_unit_object.meaning_unit_string}\n"
             )
 
-            print("full prompt")
+            # Construct the full prompt with context and clearly labeled current excerpt
+            full_prompt = (
+                f"{coding_instructions}\n\n"
+                f"Relevant Codes (full details):\n{relevant_codes_str}\n\n"
+                f"Contextual Excerpts:\n{context_excerpt}\n"
+                f"{current_excerpt_labeled}"
+                f"**Important:** Please use the provided contextual excerpts **only** as background information to understand the current excerpt better. **Apply codes exclusively to the current excerpt provided above. Do not assign codes to the contextual excerpts.**\n\n"
+                f"Please provide the assigned codes in the following JSON format:\n"
+                f"{{\n  \"codeList\": [\n    {{\"code_name\": \"<Name of the code>\", \"code_justification\": \"<Justification for the code>\"}},\n    ...\n  ]\n}}"
+            )
+
+            print("Full Prompt:")
             print(full_prompt)
 
             response = client.beta.chat.completions.parse(
@@ -285,7 +288,7 @@ def assign_codes_to_meaning_units(
                     {
                         "role": "system", 
                         "content": (
-                            "You are tasked with applying qualitative codes to excerpts from a transcript between a teacher and a coach in a teacher coaching meeting. The purpose of this task is to identify all codes that best describe each excerpt based on the provided list of codes and their examples."
+                            "You are tasked with applying qualitative codes to excerpts from a transcript between a teacher and a coach in a teacher coaching meeting. The purpose of this task is to identify all codes that best describe each excerpt based on the provided list of codes and their full details."
                         )
                     },
                     {
@@ -305,7 +308,13 @@ def assign_codes_to_meaning_units(
 
             # Append each code_name and code_justification to the meaning_unit_object
             for code_item in code_output.codeList:
-                meaning_unit_object.assigned_code_list.append(CodeAssigned(code_name=code_item.code_name, code_justification=code_item.code_justification))
+                # Access the fields with fallbacks to handle unexpected structures
+                code_name = getattr(code_item, 'code_name', getattr(code_item, 'name', 'Unknown Code'))
+                code_justification = getattr(code_item, 'code_justification', 'No justification provided')
+                
+                meaning_unit_object.assigned_code_list.append(
+                    CodeAssigned(code_name=code_name, code_justification=code_justification)
+                )
 
     except Exception as e:
         print(f"An error occurred while assigning codes: {e}")
