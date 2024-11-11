@@ -1,46 +1,63 @@
 Instructions:
 
-Determine Relevant Codes:
+Code Selection
 
-Identify all relevant codes from the provided list that apply to the content of the excerpt.
-Provide Justifications:
+Identify Relevant Codes: For each excerpt, determine all applicable codes from the provided list that accurately describe the content of the excerpt.
 
-For every code applied, provide a 2-3 sentence justification explaining why the code is appropriate.
-If no code from the list applies to the excerpt, still create a code but name it VOID in the code field and provide a 2-3 sentence justification for omitting a code.
-Formatting Requirements:
+Utilize Contextual Excerpts: Leverage the surrounding excerpts to gain a comprehensive understanding of the current excerpt, ensuring accurate code assignments.
 
-Respond exclusively within a code block using triple backticks and specify json.
-Structure the output as a JSON array of objects, where each object represents a excerpt with the following keys:
-code: The name of the applied code.
-justification: The explanation for why the code was assigned.
-Ensure that each object corresponds to one excerpt, maintaining the order of excerpts as provided.
-Avoid adding any additional text, explanations, or comments outside the JSON code block.
-Ensure that the JSON is properly formatted without syntax errors, such as missing commas or unmatched braces.
-Handling VOID Codes:
+Handle Non-Applicable Excerpts: If none of the provided codes are relevant to a current excerpt, assign the code "VOID" in the "code_name" field and supply an appropriate justification.
 
-If no code is applicable, the code MUST be named VOID and you MUST explain the justification for why no code was assigned.
+Provide Justifications
 
-Assign every code that is applicable. This means some excerpts will be assigned multiple codes.
+Explain Code Assignments: For every assigned code, include a 2-3 sentence justification detailing why the code is pertinent to the excerpt.
 
-Example output: [
+Justify "VOID" Assignments: If "VOID" is assigned, provide a 2-3 sentence explanation clarifying why none of the provided codes are suitable for the excerpt.
+
+Formatting Requirements
+
+JSON Structure: Format the output as a JSON array where each object corresponds to a single excerpt. Each object should contain the following key:
+
+"codeList": An array of code assignments, each comprising:
+"code_name": The assigned code.
+"code_justification": The rationale for the code assignment.
+Maintain Order: Ensure that each JSON object aligns with the order of the provided excerpts.
+
+Ensure JSON Validity
+
+Accurate Formatting: Construct the JSON meticulously to avoid syntax errors such as missing commas, brackets, or braces.
+
+No Extraneous Text: Do not include any additional text, explanations, or comments outside the JSON code block.
+
+Assigning Multiple Codes
+
+Comprehensive Coding: Assign all applicable codes to each excerpt; some excerpts may warrant multiple codes.
+
+Use Defined Codes Only: Restrict assignments to codes explicitly defined in the provided list.
+
+Example Output Format:
+
+json
+Copy code
+[
   {
-    "code": "C_General Praise – Verbal Behavior",
-    "justification": "The speaker is praising the participants for their efforts, fostering a positive environment."
+    "codeList": [
+      {
+        "code_name": "Sample_Code1",
+        "code_justification": "This code was applied because the excerpt discusses..."
+      },
+      {
+        "code_name": "Sample_Code2",
+        "code_justification": "This code was applied because the excerpt also relates to..."
+      }
+    ]
   },
   {
-    "code": "C_Neutral Statements – Verbal Behavior",
-    "justification": "The speaker is making a neutral statement that does not express positive or negative reinforcement."
-  },
-  {
-    "code": "C_Supportive Feedback – Verbal Behavior",
-    "justification": "The speaker is providing supportive feedback to encourage continued performance."
-  },
-  {
-    "code": "C_Instructional Statements – Verbal Behavior",
-    "justification": "The speaker is giving instructions to guide the participants towards desired actions."
-  },
-  {
-    "code": "C_Clarifying Questions – Verbal Behavior",
-    "justification": "The speaker is asking clarifying questions to ensure understanding and address any ambiguities."
+    "codeList": [
+      {
+        "code_name": "VOID",
+        "code_justification": "No code was applicable as the excerpt does not align with any provided categories."
+      }
+    ]
   }
 ]

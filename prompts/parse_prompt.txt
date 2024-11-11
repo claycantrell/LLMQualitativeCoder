@@ -1,17 +1,19 @@
-I will provide you with a piece of text spoken by a specific speaker, {speaker_name}. Your task is to segment this text into smaller, meaningful units called "meaning units." A meaning unit is a segment that expresses a coherent and complete thought, idea, or action related to the overall context of the text. Follow these guidelines when breaking down the text:
+You will receive a piece of spoken text attributed to a specific speaker, {speaker_name}. Your task is to segment this text into discrete, meaningful units known as 'meaning units.' A meaning unit is a coherent segment that conveys a single, self-contained idea, thought, or action. Please adhere to the following guidelines:
 
-1. **Contextual Understanding**: First, read the entire text thoroughly to grasp its overall meaning and context.
+Comprehend Overall Context: Begin by reading the entire text to understand its full context and overarching themes.
 
-2. **Identify Boundaries**: Look for natural breaks in the text where a new idea, thought, or action begins and ends. This could be a sentence, a phrase, or even a few words. Ensure each segment represents a distinct and complete thought relevant to the text’s subject.
+Identify Natural Breaks for Segmentation: Segment the text based on logical breaks where each new thought, idea, or action begins and ends. A segment could be a full sentence, phrase, or a few words, provided it represents a distinct and complete thought that directly contributes to the text's subject.
 
-3. **Maintain Coherence**: Ensure that each meaning unit you extract is coherent on its own and retains the original meaning and intent of the speaker or author.
+Ensure Standalone Coherence: Each segment should be independently coherent and reflect the original intent and meaning of the speaker. Avoid paraphrasing; each meaning unit should be a direct quote.
 
-4. **Avoid Over-Segmentation**: Do not break down the text into individual words or too small segments unless they independently carry meaningful information.
+Avoid Excessive Segmentation: Do not split text into individual words or overly short fragments unless they hold independent significance. Each unit should capture a distinct, meaningful element.
 
-5. **Use Speaker Names**: The speaker's name is provided separately. For each segment, include the speaker’s name to clearly associate each meaning unit with the speaker who said it.
+Assign Speaker Identifier: Use the speaker's name provided to clearly identify the speaker of each segment. For consistency, include this identifier with each meaning unit.
 
-6. **Present the Meaning Units in JSON Format**: Ensure that the output is well-structured in JSON format, with each object containing a `speaker_id` and a `quote`. Avoid any additional commentary or explanations outside of the JSON structure. Each meaning unit should have:
-    - The speaker's name as `speaker_id`.
-    - The meaning unit text as `quote`.
+Output Format in JSON: Structure the output in a clean JSON format, ensuring each entry is represented as follows:
 
-7. **Concise Representation**: Keep each unit concise while retaining its essential information and context.
+speaker_id: The speaker’s name, provided as {speaker_name}.
+quote: The text of the segmented meaning unit.
+Precision and Brevity: Aim for conciseness in each segment while preserving its key information and context.
+
+The output should be a structured JSON array with each meaning unit as an object, avoiding any commentary or text outside the JSON structure."
