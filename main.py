@@ -138,12 +138,12 @@ def main():
 
         print("Data inserted successfully.")
 
-        # (Optional) Step 5: Fetch and display all MeaningUnits from the database
-        fetched_meaning_units = fetch_all_meaning_units(conn)
-        for mu in fetched_meaning_units:
-            print(f"ID: {mu.unique_id}, Speaker: {mu.speaker_id}, Text: {mu.meaning_unit_string}")
-            for code in mu.assigned_code_list:
-                print(f"  - Code: {code.code_name}, Justification: {code.code_justification}")
+        # # (Optional) Step 5: Fetch and display all MeaningUnits from the database
+        # fetched_meaning_units = fetch_all_meaning_units(conn)
+        # for mu in fetched_meaning_units:
+        #     print(f"ID: {mu.unique_id}, Speaker: {mu.speaker_id}, Text: {mu.meaning_unit_string}")
+        #     for code in mu.assigned_code_list:
+        #         print(f"  - Code: {code.code_name}, Justification: {code.code_justification}")
 
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
