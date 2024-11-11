@@ -8,7 +8,6 @@ from qual_functions import (
     assign_codes_to_meaning_units,
     initialize_faiss_index_from_formatted_file
 )
-from database_functions import get_connection, create_tables, insert_meaning_unit, bulk_insert_meaning_units, fetch_all_meaning_units, sqlite3
 
 def main():
     # Set API Key from Environment Variable
@@ -116,40 +115,6 @@ def main():
                 print(f"  Justification: {code.code_justification}\n")
         else:
             print("  No codes assigned.\n")
-
-
-        # Step 1: Establish a database connection
-    conn = get_connection()
-
-    try:
-        # Step 2: Create tables if they don't exist
-        create_tables(conn)
-
-        # Step 3: Retrieve your MeaningUnit instances
-        meaning_units = coded_meaning_unit_list
-
-        # Step 4: Insert MeaningUnit instances into the database
-        # You can choose to insert them one by one:
-        # for mu in meaning_units:
-        #     insert_meaning_unit(conn, mu)
-        
-        # Or use bulk insertion for efficiency:
-        bulk_insert_meaning_units(conn, meaning_units)
-
-        print("Data inserted successfully.")
-
-        # # (Optional) Step 5: Fetch and display all MeaningUnits from the database
-        # fetched_meaning_units = fetch_all_meaning_units(conn)
-        # for mu in fetched_meaning_units:
-        #     print(f"ID: {mu.unique_id}, Speaker: {mu.speaker_id}, Text: {mu.meaning_unit_string}")
-        #     for code in mu.assigned_code_list:
-        #         print(f"  - Code: {code.code_name}, Justification: {code.code_justification}")
-
-    except sqlite3.Error as e:
-        print(f"An error occurred: {e}")
-    finally:
-        # Step 6: Close the database connection
-        conn.close()
 
 if __name__ == "__main__":
     main()
