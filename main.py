@@ -52,7 +52,7 @@ def main():
         # Replace the placeholder with the actual speaker's name
         formatted_prompt = parse_instructions.replace("{speaker_name}", speaker_id)
         
-        # Use parse_transcript to break the speaking speaking_turn into meaning units
+        # Use parse_transcript to break the speaking_turn into meaning units
         meaning_unit_list = parse_transcript(speaking_turn_string, formatted_prompt,)
         if not meaning_unit_list:
             print(f"No meaning units extracted from Speaking Turn {idx}. Skipping.")
@@ -95,13 +95,17 @@ def main():
         print(f"An error occurred during FAISS index initialization: {e}")
         return
 
-    # Assign codes to meaning units using the LLM and RAG
+    # Assign codes to meaning units using the LLM and optionally using RAG
+    # In this example, we are not using RAG and thus include the entire codebase in the prompt.
     coded_meaning_unit_list = assign_codes_to_meaning_units(
-        meaning_unit_object_list, 
-        coding_instructions, 
-        processed_codes, 
-        faiss_index, 
-        top_k=5
+        meaning_unit_list=meaning_unit_object_list,
+        coding_instructions=coding_instructions,
+        processed_codes=processed_codes,
+        index=faiss_index,
+        top_k=5,
+        context_size=5,
+        use_rag=False,  # Set to False to include the full codebase in the prompt
+        codebase=processed_codes  # Provide the full codebase here
     )
 
     # Example: Print all info from meaning unit object

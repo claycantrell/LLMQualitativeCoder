@@ -2,7 +2,7 @@
 
 from openai import OpenAI
 from dataclasses import dataclass, field
-from typing import List, Dict, Tuple, Any
+from typing import List, Dict, Tuple, Any, Optional
 import faiss
 import json
 import numpy as np
@@ -64,20 +64,12 @@ def parse_transcript(speaking_turn_string: str, prompt: str) -> List[dict]:
         
         parsed_output = response.choices[0].message.parsed
 
-        # Debug: Print the raw response from LLM
-        # print("Raw LLM Output for parse_transcript:")
-        # print(parsed_output)
-
         # Extract 'speaker_id' and individual 'meaning_unit_string' entries from the parsed model
         speaker_id = parsed_output.speaker_id
         meaningunit_stringlist_parsed = parsed_output.meaning_unit_string_list
 
         # Create a list of meaning units
         meaning_units = [{"speaker_id": speaker_id, "meaning_unit_string": single_quote} for single_quote in meaningunit_stringlist_parsed]
-        
-        # Debug: Print the parsed meaning units
-        # print("Parsed Meaning Units:")
-        # print(meaning_units)
         
         return meaning_units
 
@@ -97,7 +89,6 @@ def initialize_faiss_index_from_formatted_file(
     embeddings = []
     processed_codes = []
     combined_texts = []  # To store combined texts for batch processing
-    code_batch = []      # To temporarily store processed codes for each batch
 
     try:
         with open(codes_list_file, 'r', encoding='utf-8') as file:
@@ -116,7 +107,6 @@ def initialize_faiss_index_from_formatted_file(
                     'metadata': metadata
                 }
                 processed_codes.append(processed_code)
-                code_batch.append(processed_code)
 
                 # Combine `text` and metadata elements for embedding
                 combined_text = f"{text} Metadata: {metadata}"
@@ -133,7 +123,6 @@ def initialize_faiss_index_from_formatted_file(
 
                     # Reset for the next batch
                     combined_texts = []
-                    code_batch = []
 
             # Process any remaining texts in the last batch
             if combined_texts:
@@ -180,7 +169,6 @@ def retrieve_relevant_codes(
             input=meaning_unit_string_with_speaker,
             model=embedding_model
         )
-        # Updated access using dot notation
         meaning_unit_embedding = np.array([response.data[0].embedding]).astype('float32')
 
         distances, indices = index.search(meaning_unit_embedding, top_k)
@@ -199,10 +187,12 @@ def retrieve_relevant_codes(
 def assign_codes_to_meaning_units(
     meaning_unit_list: List[MeaningUnit], 
     coding_instructions: str, 
-    processed_codes: List[Dict[str, Any]], 
-    index: faiss.IndexFlatL2, 
+    processed_codes: Optional[List[Dict[str, Any]]] = None, 
+    index: Optional[faiss.IndexFlatL2] = None, 
     top_k: int = 5,
-    context_size: int = 5 
+    context_size: int = 5,
+    use_rag: bool = True,
+    codebase: Optional[List[Dict[str, Any]]] = None
 ) -> List[MeaningUnit]:
     """
     Assigns codes to each MeaningUnit object, including contextual information from surrounding units.
@@ -210,10 +200,12 @@ def assign_codes_to_meaning_units(
     Args:
         meaning_unit_list (List[MeaningUnit]): List of MeaningUnit objects to be coded.
         coding_instructions (str): Instructions for the coding task.
-        processed_codes (List[Dict[str, Any]]): List of processed codes with definitions and examples.
-        index (faiss.IndexFlatL2): FAISS index for retrieving relevant codes.
+        processed_codes (List[Dict[str, Any]], optional): List of processed codes with definitions and examples.
+        index (faiss.IndexFlatL2, optional): FAISS index for retrieving relevant codes.
         top_k (int, optional): Number of top relevant codes to retrieve. Defaults to 5.
         context_size (int, optional): Number of preceding and following meaning units to include as context. Defaults to 5.
+        use_rag (bool, optional): Flag to determine whether to use RAG or include the entire codebase. Defaults to True.
+        codebase (List[Dict[str, Any]], optional): The entire codebase to include in the prompt when not using RAG.
 
     Returns:
         List[MeaningUnit]: List of MeaningUnit objects with assigned codes.
@@ -224,19 +216,26 @@ def assign_codes_to_meaning_units(
             unique_id = idx + 1  # Start unique_id at 1
             meaning_unit_object.unique_id = unique_id  # Assign the unique ID to the meaning_unit_string
 
-            # Retrieve relevant codes using FAISS
-            relevant_codes = retrieve_relevant_codes(
-                meaning_unit_object.speaker_id, 
-                meaning_unit_object.meaning_unit_string, 
-                index, 
-                processed_codes, 
-                top_k=top_k
-            )
+            if use_rag:
+                # Retrieve relevant codes using FAISS
+                relevant_codes = retrieve_relevant_codes(
+                    meaning_unit_object.speaker_id, 
+                    meaning_unit_object.meaning_unit_string, 
+                    index, 
+                    processed_codes, 
+                    top_k=top_k
+                )
 
-            # Format the relevant codes as their entire JSONL lines
-            relevant_codes_str = "\n\n".join([
+                # Format the relevant codes as their entire JSONL lines
+                codes_to_include = relevant_codes
+            else:
+                # Include the entire codebase
+                codes_to_include = codebase
+
+            # Format codes as a string
+            codes_str = "\n\n".join([
                 json.dumps(code, indent=2)
-                for code in relevant_codes
+                for code in codes_to_include
             ])
 
             # Retrieve previous and next meaning units for context
@@ -271,7 +270,7 @@ def assign_codes_to_meaning_units(
             # Construct the full prompt with context and clearly labeled current excerpt
             full_prompt = (
                 f"{coding_instructions}\n\n"
-                f"Relevant Codes (full details):\n{relevant_codes_str}\n\n"
+                f"{'Relevant Codes (full details):' if use_rag else 'Full Codebase (all codes with details):'}\n{codes_str}\n\n"
                 f"Contextual Excerpts:\n{context_excerpt}\n"
                 f"{current_excerpt_labeled}"
                 f"**Important:** Please use the provided contextual excerpts **only** as background information to understand the current excerpt better. **Apply codes exclusively to the current excerpt provided above. Do not assign codes to the contextual excerpts.**\n\n"
