@@ -55,9 +55,11 @@ def main(
 
     # Define the path for the prompts folder
     prompts_folder = 'prompts'
+    codebase_folder = 'qual_codebase'
+    json_folder = 'json_transcripts'
 
     # JSON path (output from the VTT processing script)
-    json_transcript_file = 'output_cues.json'
+    json_transcript_file = os.path.join(json_folder, 'output_cues.json')
     if not os.path.exists(json_transcript_file):
         logger.error(f"JSON file '{json_transcript_file}' not found.")
         raise FileNotFoundError(f"JSON file '{json_transcript_file}' not found.")
@@ -146,7 +148,7 @@ def main(
         coding_instructions = file.read().strip()
 
     # Codes list path
-    list_of_codes_file = os.path.join(prompts_folder, 'new_schema.txt')
+    list_of_codes_file = os.path.join(codebase_folder, 'new_schema.txt')
     if not os.path.exists(list_of_codes_file):
         logger.error(f"List of codes file '{list_of_codes_file}' not found.")
         raise FileNotFoundError(f"List of codes file '{list_of_codes_file}' not found.")
