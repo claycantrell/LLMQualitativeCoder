@@ -9,7 +9,18 @@ from qual_functions import (
     initialize_faiss_index_from_formatted_file
 )
 
-def main():
+def main(use_parsing: bool = True, use_rag: bool = True):
+    """
+    Processes the transcript data to assign qualitative codes.
+
+    Args:
+        use_parsing (bool, optional): Whether to parse speaking turns into meaning units using the parse_transcript function.
+                                      If False, the entire speaking turn will be used as a single meaning unit.
+                                      Defaults to True.
+        use_rag (bool, optional): Whether to use Retrieval-Augmented Generation (RAG) for code assignment.
+                                  If False, the entire codebase is included directly in the prompt.
+                                  Defaults to False.
+    """
     # Set API Key from Environment Variable
     openai_api_key = os.getenv('OPENAI_API_KEY')
     if not openai_api_key:
@@ -43,31 +54,49 @@ def main():
     # Initialize a list to hold MeaningUnit objects (meaning units)
     meaning_unit_object_list = []
 
-    # Iterate over the JSON unit (speaking turns) and break into meaning units
-    for idx, speaking_turn in enumerate(json_data, start=1):
-        speaker_id = speaking_turn.get('speaker_name', 'Unknown')
-        speaking_turn_string = speaking_turn.get('text_context', '')
-        print(f"\nProcessing Speaking Turn {idx}: Speaker - {speaker_id}")
-        
-        # Replace the placeholder with the actual speaker's name
-        formatted_prompt = parse_instructions.replace("{speaker_name}", speaker_id)
-        
-        # Use parse_transcript to break the speaking_turn into meaning units
-        meaning_unit_list = parse_transcript(speaking_turn_string, formatted_prompt,)
-        if not meaning_unit_list:
-            print(f"No meaning units extracted from Speaking Turn {idx}. Skipping.")
-            continue
-        for unit_idx, unit in enumerate(meaning_unit_list, start=1):
+    if use_parsing:
+        # Iterate over the JSON unit (speaking turns) and break into meaning units
+        for idx, speaking_turn in enumerate(json_data, start=1):
+            speaker_id = speaking_turn.get('speaker_name', 'Unknown')
+            speaking_turn_string = speaking_turn.get('text_context', '')
+            print(f"\nProcessing Speaking Turn {idx} (Parsing): Speaker - {speaker_id}")
+            
+            # Replace the placeholder with the actual speaker's name
+            formatted_prompt = parse_instructions.replace("{speaker_name}", speaker_id)
+            
+            # Use parse_transcript to break the speaking turn into meaning units
+            meaning_unit_list = parse_transcript(speaking_turn_string, formatted_prompt,)
+            if not meaning_unit_list:
+                print(f"No meaning units extracted from Speaking Turn {idx}. Skipping.")
+                continue
+            for unit_idx, unit in enumerate(meaning_unit_list, start=1):
+                meaning_unit_object = MeaningUnit(
+                    speaker_id=unit.get('speaker_id', speaker_id),
+                    meaning_unit_string=unit.get('meaning_unit_string', '')
+                )
+                # Debug: Print each meaning unit being added
+                print(f"  Added Meaning Unit {unit_idx}: Speaker - {meaning_unit_object.speaker_id}, Quote - {meaning_unit_object.meaning_unit_string}")
+                meaning_unit_object_list.append(meaning_unit_object)
+    else:
+        # Use entire speaking turns as meaning units without parsing
+        for idx, speaking_turn in enumerate(json_data, start=1):
+            speaker_id = speaking_turn.get('speaker_name', 'Unknown')
+            speaking_turn_string = speaking_turn.get('text_context', '')
+            if not speaking_turn_string:
+                print(f"No speaking turn text found for Speaking Turn {idx}. Skipping.")
+                continue
+            
+            print(f"\nProcessing Speaking Turn {idx} (No Parsing): Speaker - {speaker_id}")
             meaning_unit_object = MeaningUnit(
-                speaker_id=unit.get('speaker_id', speaker_id),
-                meaning_unit_string=unit.get('meaning_unit_string', '')
+                speaker_id=speaker_id,
+                meaning_unit_string=speaking_turn_string
             )
             # Debug: Print each meaning unit being added
-            print(f"  Added Meaning Unit {unit_idx}: Speaker - {meaning_unit_object.speaker_id}, Quote - {meaning_unit_object.meaning_unit_string}")
+            print(f"  Added Meaning Unit: Speaker - {meaning_unit_object.speaker_id}, Quote - {meaning_unit_object.meaning_unit_string}")
             meaning_unit_object_list.append(meaning_unit_object)
 
     if not meaning_unit_object_list:
-        print("No meaning units extracted from any speaking turns. Exiting.")
+        print("No meaning units extracted (or speaking turns processed). Exiting.")
         return
 
     # Coding task prompt path
@@ -95,18 +124,29 @@ def main():
         print(f"An error occurred during FAISS index initialization: {e}")
         return
 
-    # Assign codes to meaning units using the LLM and optionally using RAG
-    # In this example, we are not using RAG and thus include the entire codebase in the prompt.
-    coded_meaning_unit_list = assign_codes_to_meaning_units(
-        meaning_unit_list=meaning_unit_object_list,
-        coding_instructions=coding_instructions,
-        processed_codes=processed_codes,
-        index=faiss_index,
-        top_k=5,
-        context_size=5,
-        use_rag=False,  # Set to False to include the full codebase in the prompt
-        codebase=processed_codes  # Provide the full codebase here
-    )
+    if use_rag:
+        # Assign codes to meaning units using the LLM and RAG
+        coded_meaning_unit_list = assign_codes_to_meaning_units(
+            meaning_unit_list=meaning_unit_object_list,
+            coding_instructions=coding_instructions,
+            processed_codes=processed_codes,
+            index=faiss_index,
+            top_k=5,
+            context_size=5,
+            use_rag=True
+        )
+    else:
+        # Assign codes to meaning units directly by providing the codebase
+        coded_meaning_unit_list = assign_codes_to_meaning_units(
+            meaning_unit_list=meaning_unit_object_list,
+            coding_instructions=coding_instructions,
+            processed_codes=processed_codes,
+            index=faiss_index,
+            top_k=5,
+            context_size=5,
+            use_rag=False,  # Include the full codebase in the prompt
+            codebase=processed_codes
+        )
 
     # Example: Print all info from meaning unit object
     for unit in coded_meaning_unit_list:
@@ -121,4 +161,8 @@ def main():
             print("  No codes assigned.\n")
 
 if __name__ == "__main__":
-    main()
+    # Example usage:
+    # 1. Parsing meaning units from speaking turns and then coding (use_parsing=True, use_rag=False)
+    # 2. Directly coding speaking turns without parsing (use_parsing=False, use_rag=False)
+    # You can also toggle use_rag=True if you want to use RAG for code retrieval.
+    main(use_parsing=False, use_rag=False)
