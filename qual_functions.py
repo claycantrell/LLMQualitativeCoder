@@ -230,7 +230,10 @@ def assign_codes_to_meaning_units(
             unique_id = idx + 1  # Start unique_id at 1
             meaning_unit_object.unique_id = unique_id  # Assign the unique ID to the meaning_unit_string
 
-            if use_rag and processed_codes and index:
+            # Determine if deductive or inductive based on presence of processed_codes and codebase
+            is_deductive = processed_codes is not None and index is not None
+
+            if is_deductive and use_rag:
                 # Retrieve relevant codes using FAISS and the specified embedding model
                 relevant_codes = retrieve_relevant_codes(
                     meaning_unit_object.speaker_id, 
@@ -243,26 +246,22 @@ def assign_codes_to_meaning_units(
 
                 # Format the relevant codes as their entire JSONL lines
                 codes_to_include = relevant_codes
-            elif not use_rag and codebase:
+            elif is_deductive and not use_rag and codebase:
                 # Include the entire codebase
                 codes_to_include = codebase
             else:
                 # Inductive coding: No predefined codes
                 codes_to_include = None
 
-            if coding_instructions:
-                # If codes_to_include is present (deductive coding), prepare them
-                if codes_to_include is not None:
-                    codes_str = "\n\n".join([
-                        json.dumps(code, indent=2)
-                        for code in codes_to_include
-                    ])
-                else:
-                    # Inductive coding: No predefined codes
-                    codes_str = "No predefined codes. Please generate codes based on the following guidelines."
+            if codes_to_include is not None:
+                # Deductive coding: format codes as a string
+                codes_str = "\n\n".join([
+                    json.dumps(code, indent=2)
+                    for code in codes_to_include
+                ])
             else:
-                logger.warning(f"No coding instructions provided for Meaning Unit ID {unique_id}. Skipping.")
-                continue
+                # Inductive coding: No predefined codes
+                codes_str = "No predefined codes. Please generate codes based on the following guidelines."
 
             # Retrieve previous and next meaning units for context
             context_excerpt = ""
@@ -296,11 +295,11 @@ def assign_codes_to_meaning_units(
             # Construct the full prompt with context and clearly labeled current excerpt
             full_prompt = (
                 f"{coding_instructions}\n\n"
-                f"{'Relevant Codes (full details):' if use_rag and codes_to_include else 'Guidelines for Inductive Coding:'}\n{codes_str}\n\n"
+                f"{'Relevant Codes (full details):' if codes_to_include else 'Guidelines for Inductive Coding:'}\n{codes_str}\n\n"
                 f"Contextual Excerpts:\n{context_excerpt}\n"
                 f"{current_excerpt_labeled}"
                 f"**Important:** Please use the provided contextual excerpts **only** as background information to understand the current excerpt better. "
-                f"{'**Apply codes exclusively to the current excerpt provided above. Do not assign codes to the contextual excerpts.**' if use_rag or codes_to_include else '**Generate codes based on the current excerpt provided above using the guidelines.**'}\n\n"
+                f"{'**Apply codes exclusively to the current excerpt provided above. Do not assign codes to the contextual excerpts.**' if codes_to_include else '**Generate codes based on the current excerpt provided above using the guidelines.**'}\n\n"
                 f"Please provide the assigned codes in the following JSON format:\n"
                 f"{{\n  \"codeList\": [\n    {{\"code_name\": \"<Name of the code>\", \"code_justification\": \"<Justification for the code>\"}},\n    ...\n  ]\n}}"
             )

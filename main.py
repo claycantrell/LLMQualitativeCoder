@@ -134,22 +134,63 @@ def main(
                              f"Quote - {meaning_unit_object.meaning_unit_string}")
                 meaning_unit_object_list.append(meaning_unit_object)
     elif coding_mode == "inductive":
-        # In inductive mode, use the entire speaking turn as meaning units
-        for idx, speaking_turn in enumerate(json_data, start=1):
-            speaker_id = speaking_turn.get('speaker_name', 'Unknown')
-            speaking_turn_string = speaking_turn.get('text_context', '')
-            if not speaking_turn_string:
-                logger.warning(f"No speaking turn text found for Speaking Turn {idx}. Skipping.")
-                continue
+        if use_parsing:
+            # Parsing instructions path (optional for inductive coding with parsing)
+            parse_prompt_file = os.path.join(prompts_folder, 'parse_prompt.txt')
+            if not os.path.exists(parse_prompt_file):
+                logger.error(f"Parse instructions file '{parse_prompt_file}' not found.")
+                raise FileNotFoundError(f"Parse instructions file '{parse_prompt_file}' not found.")
 
-            logger.info(f"Processing Speaking Turn {idx} (Inductive Coding): Speaker - {speaker_id}")
-            meaning_unit_object = MeaningUnit(
-                speaker_id=speaker_id,
-                meaning_unit_string=speaking_turn_string
-            )
-            logger.debug(f"Added Meaning Unit: Speaker - {meaning_unit_object.speaker_id}, "
-                         f"Quote - {meaning_unit_object.meaning_unit_string}")
-            meaning_unit_object_list.append(meaning_unit_object)
+            with open(parse_prompt_file, 'r', encoding='utf-8') as file:
+                parse_instructions = file.read().strip()  # Read and strip any extra whitespace
+
+            # Iterate over the JSON unit (speaking turns) and break into meaning units
+            for idx, speaking_turn in enumerate(json_data, start=1):
+                speaker_id = speaking_turn.get('speaker_name', 'Unknown')
+                speaking_turn_string = speaking_turn.get('text_context', '')
+                logger.info(f"Processing Speaking Turn {idx} (Parsing for Inductive Coding): Speaker - {speaker_id}")
+
+                if not speaking_turn_string:
+                    logger.warning(f"No speaking turn text found for Speaking Turn {idx}. Skipping.")
+                    continue
+
+                # Replace the placeholder with the actual speaker's name
+                formatted_prompt = parse_instructions.replace("{speaker_name}", speaker_id)
+
+                # Use parse_transcript to break the speaking turn into meaning units
+                meaning_unit_list = parse_transcript(
+                    speaking_turn_string,
+                    formatted_prompt,
+                    completion_model=parse_model
+                )
+                if not meaning_unit_list:
+                    logger.warning(f"No meaning units extracted from Speaking Turn {idx}. Skipping.")
+                    continue
+                for unit_idx, unit in enumerate(meaning_unit_list, start=1):
+                    meaning_unit_object = MeaningUnit(
+                        speaker_id=unit.get('speaker_id', speaker_id),
+                        meaning_unit_string=unit.get('meaning_unit_string', '')
+                    )
+                    logger.debug(f"Added Meaning Unit {unit_idx}: Speaker - {meaning_unit_object.speaker_id}, "
+                                 f"Quote - {meaning_unit_object.meaning_unit_string}")
+                    meaning_unit_object_list.append(meaning_unit_object)
+        else:
+            # Inductive coding without parsing: use entire speaking turns as meaning units
+            for idx, speaking_turn in enumerate(json_data, start=1):
+                speaker_id = speaking_turn.get('speaker_name', 'Unknown')
+                speaking_turn_string = speaking_turn.get('text_context', '')
+                if not speaking_turn_string:
+                    logger.warning(f"No speaking turn text found for Speaking Turn {idx}. Skipping.")
+                    continue
+
+                logger.info(f"Processing Speaking Turn {idx} (Inductive Coding without Parsing): Speaker - {speaker_id}")
+                meaning_unit_object = MeaningUnit(
+                    speaker_id=speaker_id,
+                    meaning_unit_string=speaking_turn_string
+                )
+                logger.debug(f"Added Meaning Unit: Speaker - {meaning_unit_object.speaker_id}, "
+                             f"Quote - {meaning_unit_object.meaning_unit_string}")
+                meaning_unit_object_list.append(meaning_unit_object)
     else:
         # Deductive coding without parsing (entire speaking turns as meaning units)
         for idx, speaking_turn in enumerate(json_data, start=1):
@@ -159,7 +200,7 @@ def main(
                 logger.warning(f"No speaking turn text found for Speaking Turn {idx}. Skipping.")
                 continue
 
-            logger.info(f"Processing Speaking Turn {idx} (No Parsing): Speaker - {speaker_id}")
+            logger.info(f"Processing Speaking Turn {idx} (Deductive Coding without Parsing): Speaker - {speaker_id}")
             meaning_unit_object = MeaningUnit(
                 speaker_id=speaker_id,
                 meaning_unit_string=speaking_turn_string
@@ -296,19 +337,36 @@ if __name__ == "__main__":
     #     retrieve_embedding_model="text-embedding-3-small"
     # )
 
-    # 3. Inductive Coding with Custom Prompt
+    # 3. Inductive Coding with Custom Prompt and Parsing
     main(
         coding_mode="inductive",
-        use_parsing=True,  # Irrelevant in inductive mode, can be set to either True or False
+        use_parsing=True,  # Enable parsing for inductive coding
         use_rag=False,     # RAG not applicable in inductive mode
-        parse_model="gpt-4o-mini",  # Irrelevant in inductive mode
+        parse_model="gpt-4o-mini",  # Relevant only if use_parsing=True
         assign_model="gpt-4o-mini",
         initialize_embedding_model="text-embedding-3-small",  # Irrelevant in inductive mode
         retrieve_embedding_model="text-embedding-3-small",    # Irrelevant in inductive mode
         custom_coding_prompt=(
             "You are a qualitative research assistant. Identify and create codes based on the following guidelines:\n"
-            "1. Be as sarcastic as possible\n"
-            "2. Highlight areas of conversational focus.\n"
+            "1. Focus on key themes related to teacher-coach interactions.\n"
+            "2. Highlight areas of improvement and strengths.\n"
             "3. Generate clear and concise code names with justifications."
         )
     )
+
+    # 4. Inductive Coding without Parsing
+    # main(
+    #     coding_mode="inductive",
+    #     use_parsing=False,
+    #     use_rag=False,
+    #     parse_model="gpt-4o-mini",  # Irrelevant if use_parsing=False
+    #     assign_model="gpt-4o-mini",
+    #     initialize_embedding_model="text-embedding-3-small",  # Irrelevant in inductive mode
+    #     retrieve_embedding_model="text-embedding-3-small",    # Irrelevant in inductive mode
+    #     custom_coding_prompt=(
+    #         "You are a qualitative research assistant. Identify and create codes based on the following guidelines:\n"
+    #         "1. Focus on key themes related to teacher-coach interactions.\n"
+    #         "2. Highlight areas of improvement and strengths.\n"
+    #         "3. Generate clear and concise code names with justifications."
+    #     )
+    # )
