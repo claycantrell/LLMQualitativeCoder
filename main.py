@@ -27,8 +27,7 @@ def main(
     parse_model: str = "gpt-4o-mini",
     assign_model: str = "gpt-4o-mini",
     initialize_embedding_model: str = "text-embedding-3-small",
-    retrieve_embedding_model: str = "text-embedding-3-small",
-    custom_coding_prompt: str = None  # Only used in inductive mode
+    retrieve_embedding_model: str = "text-embedding-3-small"
 ):
     """
     Processes the transcript data to assign qualitative codes.
@@ -50,30 +49,39 @@ def main(
                                                    Defaults to "text-embedding-3-small".
         retrieve_embedding_model (str, optional): The OpenAI embedding model to use for retrieving relevant codes.
                                                  Defaults to "text-embedding-3-small".
-        custom_coding_prompt (str, optional): The custom GPT prompt guiding inductive coding.
-                                              Required if `coding_mode` is "inductive".
-                                              Defaults to None.
     """
     # Validate coding_mode
     if coding_mode not in ["deductive", "inductive"]:
         logger.error("Invalid coding_mode. Choose 'deductive' or 'inductive'.")
         raise ValueError("Invalid coding_mode. Choose 'deductive' or 'inductive'.")
 
-    # In inductive mode, ensure custom_coding_prompt is provided
-    if coding_mode == "inductive" and not custom_coding_prompt:
-        logger.error("In 'inductive' mode, 'custom_coding_prompt' must be provided.")
-        raise ValueError("In 'inductive' mode, 'custom_coding_prompt' must be provided.")
+    # Define common paths
+    prompts_folder = 'prompts'
+    json_folder = 'json_transcripts'
+
+    # In inductive mode, ensure inductive_coding_prompt is loaded from file
+    if coding_mode == "inductive":
+        inductive_coding_prompt_file = os.path.join(prompts_folder, 'inductive_coding_prompt.txt')
+        
+        if not os.path.exists(inductive_coding_prompt_file):
+            logger.error(f"inductive coding prompt file '{inductive_coding_prompt_file}' not found.")
+            raise FileNotFoundError(f"inductive coding prompt file '{inductive_coding_prompt_file}' not found.")
+        
+        with open(inductive_coding_prompt_file, 'r', encoding='utf-8') as file:
+            inductive_coding_prompt = file.read().strip()
+        
+        if not inductive_coding_prompt:
+            logger.error("inductive coding prompt file is empty.")
+            raise ValueError("inductive coding prompt file is empty.")
+    else:
+        # For deductive coding, define additional paths
+        codebase_folder = 'qual_codebase'
 
     # Set API Key from Environment Variable
     openai_api_key = os.getenv('OPENAI_API_KEY')
     if not openai_api_key:
         logger.error("OPENAI_API_KEY environment variable is not set.")
         raise ValueError("Set the OPENAI_API_KEY environment variable.")
-
-    # Define the path for the prompts folder and other directories
-    prompts_folder = 'prompts'
-    codebase_folder = 'qual_codebase'
-    json_folder = 'json_transcripts'
 
     # JSON path (output from the VTT processing script)
     json_transcript_file = os.path.join(json_folder, 'output_cues.json')
@@ -223,8 +231,8 @@ def main(
         with open(coding_instructions_file, 'r', encoding='utf-8') as file:
             coding_instructions = file.read().strip()
     else:
-        # In inductive mode, use the custom coding prompt provided by the user
-        coding_instructions = custom_coding_prompt
+        # In inductive mode, coding_instructions is already set from the inductive_coding_prompt
+        coding_instructions = inductive_coding_prompt
 
     # Codes list path (only needed for deductive coding)
     if coding_mode == "deductive":
@@ -282,10 +290,10 @@ def main(
                 embedding_model=retrieve_embedding_model
             )
     elif coding_mode == "inductive":
-        # Inductive Coding: Assign codes by generating them based on the custom prompt
+        # Inductive Coding: Assign codes by generating them based on the inductive prompt
         coded_meaning_unit_list = assign_codes_to_meaning_units(
             meaning_unit_list=meaning_unit_object_list,
-            coding_instructions=coding_instructions,  # Custom prompt for inductive coding
+            coding_instructions=coding_instructions,  # inductive prompt for inductive coding
             processed_codes=None,  # No codebase
             index=None,  # No FAISS index
             top_k=None,  # Not applicable
@@ -337,7 +345,7 @@ if __name__ == "__main__":
     #     retrieve_embedding_model="text-embedding-3-small"
     # )
 
-    # 3. Inductive Coding with Custom Prompt and Parsing
+    # 3. Inductive Coding with inductive Prompt and Parsing
     main(
         coding_mode="inductive",
         use_parsing=True,  # Enable parsing for inductive coding
@@ -345,13 +353,7 @@ if __name__ == "__main__":
         parse_model="gpt-4o-mini",  # Relevant only if use_parsing=True
         assign_model="gpt-4o-mini",
         initialize_embedding_model="text-embedding-3-small",  # Irrelevant in inductive mode
-        retrieve_embedding_model="text-embedding-3-small",    # Irrelevant in inductive mode
-        custom_coding_prompt=(
-            "You are a qualitative research assistant. Identify and create codes based on the following guidelines:\n"
-            "1. Focus on key themes related to teacher-coach interactions.\n"
-            "2. Highlight areas of improvement and strengths.\n"
-            "3. Generate clear and concise code names with justifications."
-        )
+        retrieve_embedding_model="text-embedding-3-small"    # Irrelevant in inductive mode
     )
 
     # 4. Inductive Coding without Parsing
@@ -362,11 +364,5 @@ if __name__ == "__main__":
     #     parse_model="gpt-4o-mini",  # Irrelevant if use_parsing=False
     #     assign_model="gpt-4o-mini",
     #     initialize_embedding_model="text-embedding-3-small",  # Irrelevant in inductive mode
-    #     retrieve_embedding_model="text-embedding-3-small",    # Irrelevant in inductive mode
-    #     custom_coding_prompt=(
-    #         "You are a qualitative research assistant. Identify and create codes based on the following guidelines:\n"
-    #         "1. Focus on key themes related to teacher-coach interactions.\n"
-    #         "2. Highlight areas of improvement and strengths.\n"
-    #         "3. Generate clear and concise code names with justifications."
-    #     )
+    #     retrieve_embedding_model="text-embedding-3-small"    # Irrelevant in inductive mode
     # )
