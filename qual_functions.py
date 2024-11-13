@@ -184,7 +184,7 @@ def retrieve_relevant_codes(
         distances, indices = index.search(meaning_unit_embedding, top_k)
         relevant_codes = [processed_codes[idx] for idx in indices[0]]
 
-        logger.debug(f"Retrieved top {top_k} relevant codes for speaker '{speaker_id}': {relevant_codes}")
+        logger.debug(f"Retrieved top {top_k} relevant codes for speaker '{speaker_id}': {[code.get('text', 'Unnamed Code') for code in relevant_codes]}")
         return relevant_codes
 
     except Exception as e:
@@ -196,27 +196,30 @@ def assign_codes_to_meaning_units(
     coding_instructions: str, 
     processed_codes: Optional[List[Dict[str, Any]]] = None, 
     index: Optional[faiss.IndexFlatL2] = None, 
-    top_k: int = 5,
+    top_k: Optional[int] = 5,
     context_size: int = 5,
     use_rag: bool = True,
     codebase: Optional[List[Dict[str, Any]]] = None,
-    completion_model: str = "gpt-4o-mini",
-    embedding_model: str = "text-embedding-3-small"
+    completion_model: Optional[str] = "gpt-4o-mini",
+    embedding_model: Optional[str] = "text-embedding-3-small"
 ) -> List[MeaningUnit]:
     """
     Assigns codes to each MeaningUnit object, including contextual information from surrounding units.
 
     Args:
         meaning_unit_list (List[MeaningUnit]): List of MeaningUnit objects to be coded.
-        coding_instructions (str): Instructions for the coding task.
+        coding_instructions (str): Instructions for the coding task or custom coding prompt.
         processed_codes (List[Dict[str, Any]], optional): List of processed codes with definitions and examples.
         index (faiss.IndexFlatL2, optional): FAISS index for retrieving relevant codes.
-        top_k (int, optional): Number of top relevant codes to retrieve. Defaults to 5.
+        top_k (Optional[int], optional): Number of top relevant codes to retrieve. Not applicable in inductive mode.
+                                         Defaults to 5.
         context_size (int, optional): Number of preceding and following meaning units to include as context. Defaults to 5.
         use_rag (bool, optional): Flag to determine whether to use RAG or include the entire codebase. Defaults to True.
         codebase (List[Dict[str, Any]], optional): The entire codebase to include in the prompt when not using RAG.
-        completion_model (str, optional): The OpenAI model to use for generative tasks (assigning codes).
-        embedding_model (str, optional): The OpenAI embedding model used for retrieval.
+        completion_model (Optional[str], optional): The OpenAI model to use for generative tasks (assigning codes).
+                                                   Defaults to "gpt-4o-mini".
+        embedding_model (Optional[str], optional): The OpenAI embedding model used for retrieval. Not applicable in inductive mode.
+                                                   Defaults to "text-embedding-3-small".
 
     Returns:
         List[MeaningUnit]: List of MeaningUnit objects with assigned codes.
@@ -227,11 +230,7 @@ def assign_codes_to_meaning_units(
             unique_id = idx + 1  # Start unique_id at 1
             meaning_unit_object.unique_id = unique_id  # Assign the unique ID to the meaning_unit_string
 
-            if use_rag:
-                if not index or not processed_codes:
-                    logger.error("FAISS index and processed codes must be provided when use_rag is True.")
-                    raise ValueError("FAISS index and processed codes are required for RAG.")
-
+            if use_rag and processed_codes and index:
                 # Retrieve relevant codes using FAISS and the specified embedding model
                 relevant_codes = retrieve_relevant_codes(
                     meaning_unit_object.speaker_id, 
@@ -244,19 +243,26 @@ def assign_codes_to_meaning_units(
 
                 # Format the relevant codes as their entire JSONL lines
                 codes_to_include = relevant_codes
-            else:
-                if not codebase:
-                    logger.error("Codebase must be provided when use_rag is False.")
-                    raise ValueError("Codebase is required when not using RAG.")
-
+            elif not use_rag and codebase:
                 # Include the entire codebase
                 codes_to_include = codebase
+            else:
+                # Inductive coding: No predefined codes
+                codes_to_include = None
 
-            # Format codes as a string
-            codes_str = "\n\n".join([
-                json.dumps(code, indent=2)
-                for code in codes_to_include
-            ])
+            if coding_instructions:
+                # If codes_to_include is present (deductive coding), prepare them
+                if codes_to_include is not None:
+                    codes_str = "\n\n".join([
+                        json.dumps(code, indent=2)
+                        for code in codes_to_include
+                    ])
+                else:
+                    # Inductive coding: No predefined codes
+                    codes_str = "No predefined codes. Please generate codes based on the following guidelines."
+            else:
+                logger.warning(f"No coding instructions provided for Meaning Unit ID {unique_id}. Skipping.")
+                continue
 
             # Retrieve previous and next meaning units for context
             context_excerpt = ""
@@ -290,10 +296,11 @@ def assign_codes_to_meaning_units(
             # Construct the full prompt with context and clearly labeled current excerpt
             full_prompt = (
                 f"{coding_instructions}\n\n"
-                f"{'Relevant Codes (full details):' if use_rag else 'Full Codebase (all codes with details):'}\n{codes_str}\n\n"
+                f"{'Relevant Codes (full details):' if use_rag and codes_to_include else 'Guidelines for Inductive Coding:'}\n{codes_str}\n\n"
                 f"Contextual Excerpts:\n{context_excerpt}\n"
                 f"{current_excerpt_labeled}"
-                f"**Important:** Please use the provided contextual excerpts **only** as background information to understand the current excerpt better. **Apply codes exclusively to the current excerpt provided above. Do not assign codes to the contextual excerpts.**\n\n"
+                f"**Important:** Please use the provided contextual excerpts **only** as background information to understand the current excerpt better. "
+                f"{'**Apply codes exclusively to the current excerpt provided above. Do not assign codes to the contextual excerpts.**' if use_rag or codes_to_include else '**Generate codes based on the current excerpt provided above using the guidelines.**'}\n\n"
                 f"Please provide the assigned codes in the following JSON format:\n"
                 f"{{\n  \"codeList\": [\n    {{\"code_name\": \"<Name of the code>\", \"code_justification\": \"<Justification for the code>\"}},\n    ...\n  ]\n}}"
             )
@@ -307,7 +314,8 @@ def assign_codes_to_meaning_units(
                         {
                             "role": "system", 
                             "content": (
-                                "You are tasked with applying qualitative codes to excerpts from a transcript between a teacher and a coach in a teacher coaching meeting. The purpose of this task is to identify all codes that best describe each excerpt based on the provided list of codes and their full details."
+                                "You are tasked with applying qualitative codes to excerpts from a transcript between a teacher and a coach in a teacher coaching meeting. "
+                                "The purpose of this task is to identify all codes that best describe each excerpt based on the provided instructions."
                             )
                         },
                         {
@@ -333,6 +341,7 @@ def assign_codes_to_meaning_units(
                     meaning_unit_object.assigned_code_list.append(
                         CodeAssigned(code_name=code_name, code_justification=code_justification)
                     )
+
             except Exception as e:
                 logger.error(f"An error occurred while retrieving code assignments for Unique ID {unique_id}: {e}")
 
