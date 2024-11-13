@@ -37,20 +37,21 @@ class ParseFormat(BaseModel):
 class CodeFormat(BaseModel):
     codeList: List[CodeAssigned]
 
-def parse_transcript(speaking_turn_string: str, prompt: str) -> List[dict]:
+def parse_transcript(speaking_turn_string: str, prompt: str, completion_model: str) -> List[dict]:
     """
     Breaks up a speaking turn into smaller meaning units based on criteria in the LLM prompt.
     
     Args:
         speaking_turn_string (str): The dialogue text from a speaker.
         prompt (str): The complete prompt with speaker's name inserted.
+        completion_model (str): The OpenAI model to use for parsing the transcript.
 
     Returns:
         List[dict]: A list of meaning units with 'speaker_id' and 'meaning_unit_string'.
     """
     try:
         response = client.beta.chat.completions.parse(
-            model="gpt-4o-mini",
+            model=completion_model,
             messages=[
                 {
                     "role": "system", 
@@ -198,7 +199,9 @@ def assign_codes_to_meaning_units(
     top_k: int = 5,
     context_size: int = 5,
     use_rag: bool = True,
-    codebase: Optional[List[Dict[str, Any]]] = None
+    codebase: Optional[List[Dict[str, Any]]] = None,
+    completion_model: str = "gpt-4o-mini",
+    embedding_model: str = "text-embedding-3-small"
 ) -> List[MeaningUnit]:
     """
     Assigns codes to each MeaningUnit object, including contextual information from surrounding units.
@@ -212,6 +215,8 @@ def assign_codes_to_meaning_units(
         context_size (int, optional): Number of preceding and following meaning units to include as context. Defaults to 5.
         use_rag (bool, optional): Flag to determine whether to use RAG or include the entire codebase. Defaults to True.
         codebase (List[Dict[str, Any]], optional): The entire codebase to include in the prompt when not using RAG.
+        completion_model (str, optional): The OpenAI model to use for generative tasks (assigning codes).
+        embedding_model (str, optional): The OpenAI embedding model used for retrieval.
 
     Returns:
         List[MeaningUnit]: List of MeaningUnit objects with assigned codes.
@@ -223,18 +228,27 @@ def assign_codes_to_meaning_units(
             meaning_unit_object.unique_id = unique_id  # Assign the unique ID to the meaning_unit_string
 
             if use_rag:
-                # Retrieve relevant codes using FAISS
+                if not index or not processed_codes:
+                    logger.error("FAISS index and processed codes must be provided when use_rag is True.")
+                    raise ValueError("FAISS index and processed codes are required for RAG.")
+
+                # Retrieve relevant codes using FAISS and the specified embedding model
                 relevant_codes = retrieve_relevant_codes(
                     meaning_unit_object.speaker_id, 
                     meaning_unit_object.meaning_unit_string, 
                     index, 
                     processed_codes, 
-                    top_k=top_k
+                    top_k=top_k,
+                    embedding_model=embedding_model
                 )
 
                 # Format the relevant codes as their entire JSONL lines
                 codes_to_include = relevant_codes
             else:
+                if not codebase:
+                    logger.error("Codebase must be provided when use_rag is False.")
+                    raise ValueError("Codebase is required when not using RAG.")
+
                 # Include the entire codebase
                 codes_to_include = codebase
 
@@ -288,7 +302,7 @@ def assign_codes_to_meaning_units(
 
             try:
                 response = client.beta.chat.completions.parse(
-                    model="gpt-4o-mini",
+                    model=completion_model,
                     messages=[
                         {
                             "role": "system", 

@@ -11,13 +11,23 @@ from qual_functions import (
 )
 
 # Configure logging
-logging.basicConfig(level=logging.INFO,
-                     format='%(message)s')  # Only show the message without any additional info)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
-
-
-def main(use_parsing: bool = True, use_rag: bool = True):
+def main(
+    use_parsing: bool = True,
+    use_rag: bool = True,
+    parse_model: str = "gpt-4o-mini",
+    assign_model: str = "gpt-4o-mini",
+    initialize_embedding_model: str = "text-embedding-3-small",
+    retrieve_embedding_model: str = "text-embedding-3-small"
+):
     """
     Processes the transcript data to assign qualitative codes.
 
@@ -28,13 +38,21 @@ def main(use_parsing: bool = True, use_rag: bool = True):
         use_rag (bool, optional): Whether to use Retrieval-Augmented Generation (RAG) for code assignment.
                                   If False, the entire codebase is included directly in the prompt.
                                   Defaults to True.
+        parse_model (str, optional): The OpenAI model to use for parsing transcripts into meaning units.
+                                     Defaults to "gpt-4o-mini".
+        assign_model (str, optional): The OpenAI model to use for assigning codes to meaning units.
+                                      Defaults to "gpt-4o-mini".
+        initialize_embedding_model (str, optional): The OpenAI embedding model to use for FAISS indexing.
+                                                   Defaults to "text-embedding-3-small".
+        retrieve_embedding_model (str, optional): The OpenAI embedding model to use for retrieving relevant codes.
+                                                 Defaults to "text-embedding-3-small".
     """
     # Set API Key from Environment Variable
     openai_api_key = os.getenv('OPENAI_API_KEY')
     if not openai_api_key:
         logger.error("OPENAI_API_KEY environment variable is not set.")
         raise ValueError("Set the OPENAI_API_KEY environment variable.")
-    
+
     # Define the path for the prompts folder
     prompts_folder = 'prompts'
 
@@ -71,12 +89,20 @@ def main(use_parsing: bool = True, use_rag: bool = True):
             speaker_id = speaking_turn.get('speaker_name', 'Unknown')
             speaking_turn_string = speaking_turn.get('text_context', '')
             logger.info(f"Processing Speaking Turn {idx} (Parsing): Speaker - {speaker_id}")
-            
+
+            if not speaking_turn_string:
+                logger.warning(f"No speaking turn text found for Speaking Turn {idx}. Skipping.")
+                continue
+
             # Replace the placeholder with the actual speaker's name
             formatted_prompt = parse_instructions.replace("{speaker_name}", speaker_id)
-            
+
             # Use parse_transcript to break the speaking turn into meaning units
-            meaning_unit_list = parse_transcript(speaking_turn_string, formatted_prompt,)
+            meaning_unit_list = parse_transcript(
+                speaking_turn_string,
+                formatted_prompt,
+                completion_model=parse_model
+            )
             if not meaning_unit_list:
                 logger.warning(f"No meaning units extracted from Speaking Turn {idx}. Skipping.")
                 continue
@@ -96,7 +122,7 @@ def main(use_parsing: bool = True, use_rag: bool = True):
             if not speaking_turn_string:
                 logger.warning(f"No speaking turn text found for Speaking Turn {idx}. Skipping.")
                 continue
-            
+
             logger.info(f"Processing Speaking Turn {idx} (No Parsing): Speaker - {speaker_id}")
             meaning_unit_object = MeaningUnit(
                 speaker_id=speaker_id,
@@ -127,7 +153,10 @@ def main(use_parsing: bool = True, use_rag: bool = True):
 
     # Initialize FAISS index and get processed codes
     try:
-        faiss_index, processed_codes = initialize_faiss_index_from_formatted_file(list_of_codes_file)
+        faiss_index, processed_codes = initialize_faiss_index_from_formatted_file(
+            list_of_codes_file,
+            embedding_model=initialize_embedding_model
+        )
 
         if not processed_codes:
             logger.warning(f"No codes found in '{list_of_codes_file}' or failed to process correctly. Exiting.")
@@ -146,7 +175,9 @@ def main(use_parsing: bool = True, use_rag: bool = True):
             index=faiss_index,
             top_k=5,
             context_size=5,
-            use_rag=True
+            use_rag=True,
+            completion_model=assign_model,
+            embedding_model=retrieve_embedding_model
         )
     else:
         # Assign codes to meaning units directly by providing the codebase
@@ -158,7 +189,9 @@ def main(use_parsing: bool = True, use_rag: bool = True):
             top_k=5,
             context_size=5,
             use_rag=False,  # Include the full codebase in the prompt
-            codebase=processed_codes
+            codebase=processed_codes,
+            completion_model=assign_model,
+            embedding_model=retrieve_embedding_model
         )
 
     # Output information about each coded meaning unit
@@ -178,4 +211,12 @@ if __name__ == "__main__":
     # 1. Parsing meaning units from speaking turns and then coding (use_parsing=True, use_rag=False)
     # 2. Directly coding speaking turns without parsing (use_parsing=False, use_rag=False)
     # You can also toggle use_rag to True if you want to use RAG for code retrieval.
-    main(use_parsing=False, use_rag=False)
+    # Additionally, you can specify custom embedding and completion models if desired.
+    main(
+        use_parsing=False,
+        use_rag=False,
+        parse_model="gpt-4o-mini",
+        assign_model="gpt-4o-mini",
+        initialize_embedding_model="text-embedding-3-small",
+        retrieve_embedding_model="text-embedding-3-small"
+    )
