@@ -11,8 +11,11 @@ from qual_functions import (
 )
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO,
+                     format='%(message)s')  # Only show the message without any additional info)
 logger = logging.getLogger(__name__)
+
+
 
 def main(use_parsing: bool = True, use_rag: bool = True):
     """
