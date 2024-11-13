@@ -14,13 +14,13 @@ client = OpenAI()
 # Configure module-level logger
 logger = logging.getLogger(__name__)
 
-# Qualitative code with code_name and code_justification for assignment
+# Qualitative code structure
 @dataclass
 class CodeAssigned:
     code_name: str
     code_justification: str
 
-# Text unit with assigned codes and speaker info
+# Meaning unit structure
 @dataclass
 class MeaningUnit:
     unique_id: int = field(init=False)
@@ -28,12 +28,12 @@ class MeaningUnit:
     meaning_unit_string: str
     assigned_code_list: List[CodeAssigned] = field(default_factory=list) 
 
-# Defines the expected output when parsing the transcript.
+# Defines the structure for parsing the transcript.
 class ParseFormat(BaseModel):
     speaker_id: str
     meaning_unit_string_list: List[str]
 
-# Defines the expected output when assigning codes to meaning unit.
+# Defines the structure for code format assignments.
 class CodeFormat(BaseModel):
     codeList: List[CodeAssigned]
 
@@ -43,7 +43,7 @@ def parse_transcript(speaking_turn_string: str, prompt: str, completion_model: s
     
     Args:
         speaking_turn_string (str): The dialogue text from a speaker.
-        prompt (str): The complete prompt with speaker's name inserted.
+        prompt (str): The complete prompt with the speaker's name inserted.
         completion_model (str): The OpenAI model to use for parsing the transcript.
 
     Returns:
@@ -92,12 +92,22 @@ def initialize_faiss_index_from_formatted_file(
     batch_size: int = 32
 ) -> Tuple[faiss.IndexFlatL2, List[Dict[str, Any]]]:
     """
-    Reads a JSONL-formatted file and initializes a FAISS index directly using batch embedding.
+    Reads a JSONL-formatted file, processes code data, and initializes a FAISS index directly using batch embedding.
     Returns the FAISS index and the processed codes as dictionaries.
+    
+    Args:
+        codes_list_file (str): Path to the JSONL file containing code data.
+        embedding_model (str, optional): The OpenAI embedding model to use for generating embeddings. Defaults to "text-embedding-3-small".
+        batch_size (int, optional): Batch size for processing code embeddings to avoid large memory usage. Defaults to 32.
+
+    Returns:
+        Tuple[faiss.IndexFlatL2, List[Dict[str, Any]]]: A tuple containing:
+            - A FAISS index initialized with embeddings of the code data.
+            - A list of processed code data dictionaries.
     """
     embeddings = []
     processed_codes = []
-    combined_texts = []  # To store combined texts for batch processing
+    combined_texts = []  # For batch processing
 
     try:
         with open(codes_list_file, 'r', encoding='utf-8') as file:
@@ -171,6 +181,17 @@ def retrieve_relevant_codes(
     """
     Retrieves the top_k most relevant codes for a given meaning_unit_string using FAISS.
     Returns a list of code dictionaries with relevant information.
+    
+    Args:
+        speaker_id (str): The ID or name of the speaker.
+        meaning_unit_string (str): The textual content of the meaning unit.
+        index (faiss.IndexFlatL2): The FAISS index containing embedded code data.
+        processed_codes (List[Dict[str, Any]]): The list of processed code data dictionaries.
+        top_k (int, optional): The number of top relevant codes to retrieve. Defaults to 5.
+        embedding_model (str, optional): The OpenAI embedding model to use for generating embeddings. Defaults to "text-embedding-3-small".
+
+    Returns:
+        List[Dict[str, Any]]: A list of the most relevant code dictionaries based on FAISS search.
     """
     try:
         meaning_unit_string_with_speaker = f"{speaker_id}\nUnit: {meaning_unit_string}"
@@ -184,7 +205,8 @@ def retrieve_relevant_codes(
         distances, indices = index.search(meaning_unit_embedding, top_k)
         relevant_codes = [processed_codes[idx] for idx in indices[0]]
 
-        logger.debug(f"Retrieved top {top_k} relevant codes for speaker '{speaker_id}': {[code.get('text', 'Unnamed Code') for code in relevant_codes]}")
+        code_names = [code.get('text', 'Unnamed Code') for code in relevant_codes]
+        logger.debug(f"Retrieved top {top_k} relevant codes for speaker '{speaker_id}': {code_names}")
         return relevant_codes
 
     except Exception as e:
@@ -205,32 +227,30 @@ def assign_codes_to_meaning_units(
 ) -> List[MeaningUnit]:
     """
     Assigns codes to each MeaningUnit object, including contextual information from surrounding units.
+    Returns an updated list of MeaningUnit objects with assigned codes.
 
     Args:
-        meaning_unit_list (List[MeaningUnit]): List of MeaningUnit objects to be coded.
-        coding_instructions (str): Instructions for the coding task or custom coding prompt.
-        processed_codes (List[Dict[str, Any]], optional): List of processed codes with definitions and examples.
-        index (faiss.IndexFlatL2, optional): FAISS index for retrieving relevant codes.
-        top_k (Optional[int], optional): Number of top relevant codes to retrieve. Not applicable in inductive mode.
-                                         Defaults to 5.
-        context_size (int, optional): Number of preceding and following meaning units to include as context. Defaults to 5.
-        use_rag (bool, optional): Flag to determine whether to use RAG or include the entire codebase. Defaults to True.
-        codebase (List[Dict[str, Any]], optional): The entire codebase to include in the prompt when not using RAG.
-        completion_model (Optional[str], optional): The OpenAI model to use for generative tasks (assigning codes).
-                                                   Defaults to "gpt-4o-mini".
-        embedding_model (Optional[str], optional): The OpenAI embedding model used for retrieval. Not applicable in inductive mode.
-                                                   Defaults to "text-embedding-3-small".
+        meaning_unit_list (List[MeaningUnit]): A list of MeaningUnit objects to be coded.
+        coding_instructions (str): Instructions or a custom prompt for the coding task.
+        processed_codes (List[Dict[str, Any]], optional): The list of processed code data dictionaries.
+        index (faiss.IndexFlatL2, optional): The FAISS index for retrieving relevant codes (deductive coding).
+        top_k (Optional[int], optional): The number of top relevant codes to retrieve (deductive/RAG). Defaults to 5.
+        context_size (int, optional): The number of preceding and following meaning units to include as context. Defaults to 5.
+        use_rag (bool, optional): Whether to use Retrieval-Augmented Generation (RAG) for code assignment (deductive coding). Defaults to True.
+        codebase (List[Dict[str, Any]], optional): The entire codebase to include in the prompt for deductive coding without RAG.
+        completion_model (Optional[str], optional): The OpenAI model to use for generating code assignments. Defaults to "gpt-4o-mini".
+        embedding_model (Optional[str], optional): The OpenAI embedding model used for retrieval in RAG. Defaults to "text-embedding-3-small".
 
     Returns:
-        List[MeaningUnit]: List of MeaningUnit objects with assigned codes.
+        List[MeaningUnit]: A list of MeaningUnit objects with assigned codes.
     """
     try:
         total_units = len(meaning_unit_list)
         for idx, meaning_unit_object in enumerate(meaning_unit_list):
             unique_id = idx + 1  # Start unique_id at 1
-            meaning_unit_object.unique_id = unique_id  # Assign the unique ID to the meaning_unit_string
+            meaning_unit_object.unique_id = unique_id  # Assign a unique ID
 
-            # Determine if deductive or inductive based on presence of processed_codes and codebase
+            # Determine coding approach
             is_deductive = processed_codes is not None and index is not None
 
             if is_deductive and use_rag:
@@ -243,30 +263,26 @@ def assign_codes_to_meaning_units(
                     top_k=top_k,
                     embedding_model=embedding_model
                 )
-
-                # Format the relevant codes as their entire JSONL lines
                 codes_to_include = relevant_codes
             elif is_deductive and not use_rag and codebase:
-                # Include the entire codebase
+                # Deductive coding without RAG, using entire codebase
                 codes_to_include = codebase
             else:
                 # Inductive coding: No predefined codes
                 codes_to_include = None
 
+            # Format codes or guidelines as a string
             if codes_to_include is not None:
                 # Deductive coding: format codes as a string
-                codes_str = "\n\n".join([
-                    json.dumps(code, indent=2)
-                    for code in codes_to_include
-                ])
+                codes_str = "\n\n".join([json.dumps(code, indent=2) for code in codes_to_include])
             else:
-                # Inductive coding: No predefined codes
+                # Inductive coding: Provide only the guidelines
                 codes_str = "No predefined codes. Please generate codes based on the following guidelines."
 
-            # Retrieve previous and next meaning units for context
+            # Retrieve context for the current meaning unit
             context_excerpt = ""
 
-            # Collect previous context
+            # Collect previous units for context
             if context_size > 0 and idx > 0:
                 prev_units = meaning_unit_list[max(0, idx - context_size):idx]
                 context_excerpt += "\n".join([
@@ -274,10 +290,10 @@ def assign_codes_to_meaning_units(
                     for unit in prev_units
                 ]) + "\n"
 
-            # Add current excerpt embedded into context
+            # Add current excerpt to context
             context_excerpt += f"{meaning_unit_object.speaker_id}: {meaning_unit_object.meaning_unit_string}\n"
 
-            # Collect next context
+            # Collect following units for context
             if context_size > 0 and idx < total_units - 1:
                 next_units = meaning_unit_list[idx + 1: idx + 1 + context_size]
                 context_excerpt += "\n".join([
@@ -285,21 +301,21 @@ def assign_codes_to_meaning_units(
                     for unit in next_units
                 ]) + "\n"
 
-            # Separately label the current excerpt for coding
-            current_excerpt_labeled = (
+            # Construct the full prompt
+            if codes_to_include is not None:
+                code_heading = "Relevant Codes (full details):" if use_rag else "Full Codebase (all codes with details):"
+            else:
+                code_heading = "Guidelines for Inductive Coding:"
+
+            full_prompt = (
+                f"{coding_instructions}\n\n"
+                f"{code_heading}\n{codes_str}\n\n"
+                f"Contextual Excerpts:\n{context_excerpt}\n"
                 f"Current Excerpt for Coding:\n"
                 f"Speaker: {meaning_unit_object.speaker_id}\n"
                 f"Quote: {meaning_unit_object.meaning_unit_string}\n"
-            )
-
-            # Construct the full prompt with context and clearly labeled current excerpt
-            full_prompt = (
-                f"{coding_instructions}\n\n"
-                f"{'Relevant Codes (full details):' if codes_to_include else 'Guidelines for Inductive Coding:'}\n{codes_str}\n\n"
-                f"Contextual Excerpts:\n{context_excerpt}\n"
-                f"{current_excerpt_labeled}"
                 f"**Important:** Please use the provided contextual excerpts **only** as background information to understand the current excerpt better. "
-                f"{'**Apply codes exclusively to the current excerpt provided above. Do not assign codes to the contextual excerpts.**' if codes_to_include else '**Generate codes based on the current excerpt provided above using the guidelines.**'}\n\n"
+                f"{'**Apply codes exclusively to the current excerpt provided above. Do not assign codes to the contextual excerpts.**' if codes_to_include is not None else '**Generate codes based on the current excerpt provided above using the guidelines.**'}\n\n"
                 f"Please provide the assigned codes in the following JSON format:\n"
                 f"{{\n  \"codeList\": [\n    {{\"code_name\": \"<Name of the code>\", \"code_justification\": \"<Justification for the code>\"}},\n    ...\n  ]\n}}"
             )
@@ -322,21 +338,19 @@ def assign_codes_to_meaning_units(
                             "content": full_prompt
                         }
                     ],
-                    response_format=CodeFormat,  # Parse output using the CodeFormat model
+                    response_format=CodeFormat,
                     temperature=0.2,
                     max_tokens=1500,
                 )
 
-                # Retrieve the parsed response as a structured list of CodeAssigned
+                # Retrieve the parsed response
                 code_output = response.choices[0].message.parsed
                 logger.debug(f"LLM Code Assignment Output for ID {unique_id}:\n{code_output.codeList}")
 
                 # Append each code_name and code_justification to the meaning_unit_object
                 for code_item in code_output.codeList:
-                    # Access the fields with fallbacks to handle unexpected structures
-                    code_name = getattr(code_item, 'code_name', getattr(code_item, 'name', 'Unknown Code'))
+                    code_name = getattr(code_item, 'code_name', 'Unknown Code')
                     code_justification = getattr(code_item, 'code_justification', 'No justification provided')
-                    
                     meaning_unit_object.assigned_code_list.append(
                         CodeAssigned(code_name=code_name, code_justification=code_justification)
                     )
