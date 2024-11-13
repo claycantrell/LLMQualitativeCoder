@@ -1,6 +1,7 @@
 import re
 import json
 import sys
+import os
 
 def is_webvtt(file_path):
     """
@@ -109,10 +110,12 @@ def parse_webvtt(file_path):
 
 def main():
     if len(sys.argv) != 2:
-        print("Usage: python parse_webvtt.py <path_to_vtt_file>")
+        print("Usage: python parse_webvtt.py <filename>")
         sys.exit(1)
     
-    file_path = sys.argv[1]
+    filename = sys.argv[1]
+    # Construct the full path to the file within the vtt_transcripts directory
+    file_path = os.path.join('vtt_transcripts', filename)
     
     if not is_webvtt(file_path):
         print("The provided file is not a valid WebVTT file.")
@@ -125,7 +128,10 @@ def main():
     print(json_output)
     
     # Optionally, write the JSON to a file
-    output_file = "output_cues.json"
+    json_folder = 'json_transcripts'
+    os.makedirs(json_folder, exist_ok=True)  # Ensure the folder exists
+    output_file = os.path.join(json_folder, 'output_cues.json')
+
     try:
         with open(output_file, 'w', encoding='utf-8') as outfile:
             outfile.write(json_output)
