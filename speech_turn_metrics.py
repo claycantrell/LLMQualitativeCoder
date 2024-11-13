@@ -4,6 +4,7 @@ import json
 import sys
 from collections import defaultdict
 from typing import List, Dict
+import os
 
 
 class Cue:
@@ -170,12 +171,14 @@ def main():
     """
     Main function to execute the speech time and metrics calculator.
     """
-    # Ensure the filename is provided
-    if len(sys.argv) < 2:
-        print("Usage: python speech_turn_metrics.py <path_to_json_file>")
-        sys.exit(1)
+    # Use the default filename "output_cues.json" in the json_transcripts folder
+    filename = "output_cues.json"
+    json_file = os.path.join('json_transcripts', filename)
 
-    json_file = sys.argv[1]
+    # Check if the file exists
+    if not os.path.isfile(json_file):
+        print(f"Error: File '{json_file}' not found in the 'json_transcripts' folder.")
+        sys.exit(1)
 
     analyzer = TranscriptAnalyzer(json_file)
     analyzer.run_analysis()
