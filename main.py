@@ -2,12 +2,17 @@
 
 import os
 import json
+import logging
 from qual_functions import (
     MeaningUnit,
     parse_transcript,
     assign_codes_to_meaning_units,
     initialize_faiss_index_from_formatted_file
 )
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def main(use_parsing: bool = True, use_rag: bool = True):
     """
@@ -19,11 +24,12 @@ def main(use_parsing: bool = True, use_rag: bool = True):
                                       Defaults to True.
         use_rag (bool, optional): Whether to use Retrieval-Augmented Generation (RAG) for code assignment.
                                   If False, the entire codebase is included directly in the prompt.
-                                  Defaults to False.
+                                  Defaults to True.
     """
     # Set API Key from Environment Variable
     openai_api_key = os.getenv('OPENAI_API_KEY')
     if not openai_api_key:
+        logger.error("OPENAI_API_KEY environment variable is not set.")
         raise ValueError("Set the OPENAI_API_KEY environment variable.")
     
     # Define the path for the prompts folder
@@ -32,20 +38,22 @@ def main(use_parsing: bool = True, use_rag: bool = True):
     # JSON path (output from the VTT processing script)
     json_transcript_file = 'output_cues.json'
     if not os.path.exists(json_transcript_file):
+        logger.error(f"JSON file '{json_transcript_file}' not found.")
         raise FileNotFoundError(f"JSON file '{json_transcript_file}' not found.")
 
-    # Load JSON unit
+    # Load JSON data
     with open(json_transcript_file, 'r', encoding='utf-8') as file:
         try:
             json_data = json.load(file)  # Read and parse JSON unit
-            print(f"Loaded {len(json_data)} speaking turns from '{json_transcript_file}'.")
+            logger.info(f"Loaded {len(json_data)} speaking turns from '{json_transcript_file}'.")
         except json.JSONDecodeError as e:
-            print(f"Error decoding JSON from '{json_transcript_file}': {e}")
+            logger.error(f"Error decoding JSON from '{json_transcript_file}': {e}")
             return
 
     # Parsing instructions path
     parse_prompt_file = os.path.join(prompts_folder, 'parse_prompt.txt')
     if not os.path.exists(parse_prompt_file):
+        logger.error(f"Parse instructions file '{parse_prompt_file}' not found.")
         raise FileNotFoundError(f"Parse instructions file '{parse_prompt_file}' not found.")
 
     with open(parse_prompt_file, 'r', encoding='utf-8') as file:
@@ -59,7 +67,7 @@ def main(use_parsing: bool = True, use_rag: bool = True):
         for idx, speaking_turn in enumerate(json_data, start=1):
             speaker_id = speaking_turn.get('speaker_name', 'Unknown')
             speaking_turn_string = speaking_turn.get('text_context', '')
-            print(f"\nProcessing Speaking Turn {idx} (Parsing): Speaker - {speaker_id}")
+            logger.info(f"Processing Speaking Turn {idx} (Parsing): Speaker - {speaker_id}")
             
             # Replace the placeholder with the actual speaker's name
             formatted_prompt = parse_instructions.replace("{speaker_name}", speaker_id)
@@ -67,15 +75,15 @@ def main(use_parsing: bool = True, use_rag: bool = True):
             # Use parse_transcript to break the speaking turn into meaning units
             meaning_unit_list = parse_transcript(speaking_turn_string, formatted_prompt,)
             if not meaning_unit_list:
-                print(f"No meaning units extracted from Speaking Turn {idx}. Skipping.")
+                logger.warning(f"No meaning units extracted from Speaking Turn {idx}. Skipping.")
                 continue
             for unit_idx, unit in enumerate(meaning_unit_list, start=1):
                 meaning_unit_object = MeaningUnit(
                     speaker_id=unit.get('speaker_id', speaker_id),
                     meaning_unit_string=unit.get('meaning_unit_string', '')
                 )
-                # Debug: Print each meaning unit being added
-                print(f"  Added Meaning Unit {unit_idx}: Speaker - {meaning_unit_object.speaker_id}, Quote - {meaning_unit_object.meaning_unit_string}")
+                logger.debug(f"Added Meaning Unit {unit_idx}: Speaker - {meaning_unit_object.speaker_id}, "
+                             f"Quote - {meaning_unit_object.meaning_unit_string}")
                 meaning_unit_object_list.append(meaning_unit_object)
     else:
         # Use entire speaking turns as meaning units without parsing
@@ -83,25 +91,26 @@ def main(use_parsing: bool = True, use_rag: bool = True):
             speaker_id = speaking_turn.get('speaker_name', 'Unknown')
             speaking_turn_string = speaking_turn.get('text_context', '')
             if not speaking_turn_string:
-                print(f"No speaking turn text found for Speaking Turn {idx}. Skipping.")
+                logger.warning(f"No speaking turn text found for Speaking Turn {idx}. Skipping.")
                 continue
             
-            print(f"\nProcessing Speaking Turn {idx} (No Parsing): Speaker - {speaker_id}")
+            logger.info(f"Processing Speaking Turn {idx} (No Parsing): Speaker - {speaker_id}")
             meaning_unit_object = MeaningUnit(
                 speaker_id=speaker_id,
                 meaning_unit_string=speaking_turn_string
             )
-            # Debug: Print each meaning unit being added
-            print(f"  Added Meaning Unit: Speaker - {meaning_unit_object.speaker_id}, Quote - {meaning_unit_object.meaning_unit_string}")
+            logger.debug(f"Added Meaning Unit: Speaker - {meaning_unit_object.speaker_id}, "
+                         f"Quote - {meaning_unit_object.meaning_unit_string}")
             meaning_unit_object_list.append(meaning_unit_object)
 
     if not meaning_unit_object_list:
-        print("No meaning units extracted (or speaking turns processed). Exiting.")
+        logger.warning("No meaning units extracted (or speaking turns processed). Exiting.")
         return
 
     # Coding task prompt path
     coding_instructions_file = os.path.join(prompts_folder, 'coding_prompt.txt')
     if not os.path.exists(coding_instructions_file):
+        logger.error(f"Coding instructions file '{coding_instructions_file}' not found.")
         raise FileNotFoundError(f"Coding instructions file '{coding_instructions_file}' not found.")
 
     with open(coding_instructions_file, 'r', encoding='utf-8') as file:
@@ -110,6 +119,7 @@ def main(use_parsing: bool = True, use_rag: bool = True):
     # Codes list path
     list_of_codes_file = os.path.join(prompts_folder, 'new_schema.txt')
     if not os.path.exists(list_of_codes_file):
+        logger.error(f"List of codes file '{list_of_codes_file}' not found.")
         raise FileNotFoundError(f"List of codes file '{list_of_codes_file}' not found.")
 
     # Initialize FAISS index and get processed codes
@@ -117,11 +127,11 @@ def main(use_parsing: bool = True, use_rag: bool = True):
         faiss_index, processed_codes = initialize_faiss_index_from_formatted_file(list_of_codes_file)
 
         if not processed_codes:
-            print(f"No codes found in '{list_of_codes_file}' or failed to process correctly. Exiting.")
+            logger.warning(f"No codes found in '{list_of_codes_file}' or failed to process correctly. Exiting.")
             return
 
     except Exception as e:
-        print(f"An error occurred during FAISS index initialization: {e}")
+        logger.error(f"An error occurred during FAISS index initialization: {e}")
         return
 
     if use_rag:
@@ -148,21 +158,21 @@ def main(use_parsing: bool = True, use_rag: bool = True):
             codebase=processed_codes
         )
 
-    # Example: Print all info from meaning unit object
+    # Output information about each coded meaning unit
     for unit in coded_meaning_unit_list:
-        print(f"\nID: {unit.unique_id}")
-        print(f"Speaker: {unit.speaker_id}")
-        print(f"Quote: {unit.meaning_unit_string}")
+        logger.info(f"\nID: {unit.unique_id}")
+        logger.info(f"Speaker: {unit.speaker_id}")
+        logger.info(f"Quote: {unit.meaning_unit_string}")
         if unit.assigned_code_list:
             for code in unit.assigned_code_list:
-                print(f"  Code: {code.code_name}")
-                print(f"  Justification: {code.code_justification}\n")
+                logger.info(f"  Code: {code.code_name}")
+                logger.info(f"  Justification: {code.code_justification}")
         else:
-            print("  No codes assigned.\n")
+            logger.info("  No codes assigned.")
 
 if __name__ == "__main__":
     # Example usage:
     # 1. Parsing meaning units from speaking turns and then coding (use_parsing=True, use_rag=False)
     # 2. Directly coding speaking turns without parsing (use_parsing=False, use_rag=False)
-    # You can also toggle use_rag=True if you want to use RAG for code retrieval.
+    # You can also toggle use_rag to True if you want to use RAG for code retrieval.
     main(use_parsing=False, use_rag=False)

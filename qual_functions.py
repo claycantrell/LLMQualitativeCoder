@@ -1,5 +1,6 @@
 # qual_functions.py
 
+import logging
 from openai import OpenAI
 from dataclasses import dataclass, field
 from typing import List, Dict, Tuple, Any, Optional
@@ -9,6 +10,9 @@ import numpy as np
 from pydantic import BaseModel
 
 client = OpenAI()
+
+# Configure module-level logger
+logger = logging.getLogger(__name__)
 
 # Qualitative code with code_name and code_justification for assignment
 @dataclass
@@ -48,7 +52,10 @@ def parse_transcript(speaking_turn_string: str, prompt: str) -> List[dict]:
         response = client.beta.chat.completions.parse(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are a qualitative research assistant that breaks down speaking turns into smaller meaning units based on given instructions."},
+                {
+                    "role": "system", 
+                    "content": "You are a qualitative research assistant that breaks down speaking turns into smaller meaning units based on given instructions."
+                },
                 {
                     "role": "user",
                     "content": (
@@ -71,10 +78,11 @@ def parse_transcript(speaking_turn_string: str, prompt: str) -> List[dict]:
         # Create a list of meaning units
         meaning_units = [{"speaker_id": speaker_id, "meaning_unit_string": single_quote} for single_quote in meaningunit_stringlist_parsed]
         
+        logger.debug(f"Parsed transcript for speaker '{speaker_id}'. Extracted {len(meaning_units)} meaning units.")
         return meaning_units
 
     except Exception as e:
-        print(f"An error occurred while parsing transcript into meaning units: {e}")
+        logger.error(f"An error occurred while parsing transcript into meaning units: {e}")
         return []
 
 def initialize_faiss_index_from_formatted_file(
@@ -144,10 +152,11 @@ def initialize_faiss_index_from_formatted_file(
         else:
             raise ValueError("No valid embeddings found. Check the content of your JSONL file.")
 
+        logger.info(f"Initialized FAISS index with {len(processed_codes)} codes from file '{codes_list_file}'.")
         return index, processed_codes
 
     except Exception as e:
-        print(f"An error occurred while processing the file and initializing FAISS index: {e}")
+        logger.error(f"An error occurred while processing the file '{codes_list_file}' and initializing FAISS index: {e}")
         raise e
 
 def retrieve_relevant_codes(
@@ -174,14 +183,11 @@ def retrieve_relevant_codes(
         distances, indices = index.search(meaning_unit_embedding, top_k)
         relevant_codes = [processed_codes[idx] for idx in indices[0]]
 
-        print(f"\nSpeaker: {meaning_unit_string_with_speaker}")
-        for i, item in enumerate(relevant_codes):
-            print(f"Retrieved Code {i+1}: {item['metadata']['name']}")
-
+        logger.debug(f"Retrieved top {top_k} relevant codes for speaker '{speaker_id}': {relevant_codes}")
         return relevant_codes
 
     except Exception as e:
-        print(f"An error occurred while retrieving relevant codes: {e}")
+        logger.error(f"An error occurred while retrieving relevant codes: {e}")
         return []
 
 def assign_codes_to_meaning_units(
@@ -278,44 +284,45 @@ def assign_codes_to_meaning_units(
                 f"{{\n  \"codeList\": [\n    {{\"code_name\": \"<Name of the code>\", \"code_justification\": \"<Justification for the code>\"}},\n    ...\n  ]\n}}"
             )
 
-            print("Full Prompt:")
-            print(full_prompt)
+            logger.debug(f"Full Prompt for Unique ID {unique_id}:\n{full_prompt}")
 
-            response = client.beta.chat.completions.parse(
-                model="gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "system", 
-                        "content": (
-                            "You are tasked with applying qualitative codes to excerpts from a transcript between a teacher and a coach in a teacher coaching meeting. The purpose of this task is to identify all codes that best describe each excerpt based on the provided list of codes and their full details."
-                        )
-                    },
-                    {
-                        "role": "user",
-                        "content": full_prompt
-                    }
-                ],
-                response_format=CodeFormat,  # Parse output using the CodeFormat model
-                temperature=0.2,
-                max_tokens=1500,
-            )
-
-            # Retrieve the parsed response as a structured list of CodeAssigned
-            code_output = response.choices[0].message.parsed
-            print("LLM Code Assignment Output:")
-            print(code_output.codeList)
-
-            # Append each code_name and code_justification to the meaning_unit_object
-            for code_item in code_output.codeList:
-                # Access the fields with fallbacks to handle unexpected structures
-                code_name = getattr(code_item, 'code_name', getattr(code_item, 'name', 'Unknown Code'))
-                code_justification = getattr(code_item, 'code_justification', 'No justification provided')
-                
-                meaning_unit_object.assigned_code_list.append(
-                    CodeAssigned(code_name=code_name, code_justification=code_justification)
+            try:
+                response = client.beta.chat.completions.parse(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {
+                            "role": "system", 
+                            "content": (
+                                "You are tasked with applying qualitative codes to excerpts from a transcript between a teacher and a coach in a teacher coaching meeting. The purpose of this task is to identify all codes that best describe each excerpt based on the provided list of codes and their full details."
+                            )
+                        },
+                        {
+                            "role": "user",
+                            "content": full_prompt
+                        }
+                    ],
+                    response_format=CodeFormat,  # Parse output using the CodeFormat model
+                    temperature=0.2,
+                    max_tokens=1500,
                 )
 
+                # Retrieve the parsed response as a structured list of CodeAssigned
+                code_output = response.choices[0].message.parsed
+                logger.debug(f"LLM Code Assignment Output for ID {unique_id}:\n{code_output.codeList}")
+
+                # Append each code_name and code_justification to the meaning_unit_object
+                for code_item in code_output.codeList:
+                    # Access the fields with fallbacks to handle unexpected structures
+                    code_name = getattr(code_item, 'code_name', getattr(code_item, 'name', 'Unknown Code'))
+                    code_justification = getattr(code_item, 'code_justification', 'No justification provided')
+                    
+                    meaning_unit_object.assigned_code_list.append(
+                        CodeAssigned(code_name=code_name, code_justification=code_justification)
+                    )
+            except Exception as e:
+                logger.error(f"An error occurred while retrieving code assignments for Unique ID {unique_id}: {e}")
+
     except Exception as e:
-        print(f"An error occurred while assigning codes: {e}")
+        logger.error(f"An error occurred while assigning codes: {e}")
 
     return meaning_unit_list
