@@ -1,7 +1,7 @@
 import os
 import json
 import logging
-from typing import List, Dict, Any, Tuple
+from typing import Dict, Any, Tuple, List  # Added List here
 import faiss
 from qual_functions import (
     parse_transcript,
@@ -30,8 +30,15 @@ def load_coding_instructions(prompts_folder: str) -> str:
         logger.error(f"Coding instructions file '{coding_instructions_file}' not found.")
         raise FileNotFoundError(f"Coding instructions file '{coding_instructions_file}' not found.")
 
-    with open(coding_instructions_file, 'r', encoding='utf-8') as file:
-        coding_instructions = file.read().strip()
+    try:
+        with open(coding_instructions_file, 'r', encoding='utf-8') as file:
+            coding_instructions = file.read().strip()
+        if not coding_instructions:
+            logger.error("Coding instructions file is empty.")
+            raise ValueError("Coding instructions file is empty.")
+    except Exception as e:
+        logger.error(f"Error reading coding instructions file '{coding_instructions_file}': {e}")
+        raise
 
     return coding_instructions
 
@@ -44,8 +51,16 @@ def load_parse_instructions(prompts_folder: str) -> str:
         logger.error(f"Parse instructions file '{parse_prompt_file}' not found.")
         raise FileNotFoundError(f"Parse instructions file '{parse_prompt_file}' not found.")
 
-    with open(parse_prompt_file, 'r', encoding='utf-8') as file:
-        parse_instructions = file.read().strip()
+    try:
+        with open(parse_prompt_file, 'r', encoding='utf-8') as file:
+            parse_instructions = file.read().strip()
+    except Exception as e:
+        logger.error(f"Error reading parse instructions file '{parse_prompt_file}': {e}")
+        raise
+
+    if not parse_instructions:
+        logger.error("Parse instructions file is empty.")
+        raise ValueError("Parse instructions file is empty.")
 
     return parse_instructions
 
@@ -58,8 +73,12 @@ def load_custom_coding_prompt(prompts_folder: str) -> str:
         logger.error(f"Custom coding prompt file '{custom_coding_prompt_file}' not found.")
         raise FileNotFoundError(f"Custom coding prompt file '{custom_coding_prompt_file}' not found.")
 
-    with open(custom_coding_prompt_file, 'r', encoding='utf-8') as file:
-        custom_coding_prompt = file.read().strip()
+    try:
+        with open(custom_coding_prompt_file, 'r', encoding='utf-8') as file:
+            custom_coding_prompt = file.read().strip()
+    except Exception as e:
+        logger.error(f"Error reading custom coding prompt file '{custom_coding_prompt_file}': {e}")
+        raise
 
     if not custom_coding_prompt:
         logger.error("Custom coding prompt file is empty.")
@@ -77,7 +96,12 @@ def initialize_deductive_resources(
     Returns processed_codes, faiss_index, and coding_instructions.
     """
     # Load coding instructions for deductive coding
-    coding_instructions = load_coding_instructions(prompts_folder)
+    try:
+        coding_instructions = load_coding_instructions(prompts_folder)
+        logger.debug("Coding instructions loaded for deductive coding.")
+    except Exception as e:
+        logger.error(f"Failed to load coding instructions: {e}")
+        raise
 
     # Initialize FAISS index and get processed codes
     list_of_codes_file = os.path.join(codebase_folder, 'new_schema.txt')
@@ -85,10 +109,15 @@ def initialize_deductive_resources(
         logger.error(f"List of codes file '{list_of_codes_file}' not found.")
         raise FileNotFoundError(f"List of codes file '{list_of_codes_file}' not found.")
 
-    faiss_index, processed_codes = initialize_faiss_index_from_formatted_file(
-        list_of_codes_file,
-        embedding_model=initialize_embedding_model
-    )
+    try:
+        faiss_index, processed_codes = initialize_faiss_index_from_formatted_file(
+            list_of_codes_file,
+            embedding_model=initialize_embedding_model
+        )
+        logger.debug("FAISS index initialized with processed codes.")
+    except Exception as e:
+        logger.error(f"Failed to initialize FAISS index: {e}")
+        raise
 
     if not processed_codes:
         logger.warning(f"No codes found in '{list_of_codes_file}' or failed to process correctly.")
@@ -113,9 +142,13 @@ def load_schema_config(config_path: str) -> Dict[str, Dict[str, str]]:
     try:
         with open(config_path, 'r', encoding='utf-8') as file:
             config_data = json.load(file)
+        logger.debug(f"Schema configuration loaded from '{config_path}'.")
         return config_data
     except json.JSONDecodeError as e:
         logger.error(f"Error decoding JSON from '{config_path}': {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Error loading schema configuration: {e}")
         raise
 
 def create_dynamic_model_for_format(data_format: str, schema_config: Dict[str, Dict[str, str]]):
@@ -148,10 +181,15 @@ def create_dynamic_model_for_format(data_format: str, schema_config: Dict[str, D
         py_type = type_map.get(field_type_str, Any)  # Default to Any if not found
         dynamic_fields[field_name] = (py_type, ...)  # Required field by default
 
-    dynamic_model = create_model(
-        f"{data_format.capitalize()}DataModel",
-        **dynamic_fields,
-        __config__=type('Config', (), {'extra': 'allow'})  # Allow extra fields
-    )
+    try:
+        dynamic_model = create_model(
+            f"{data_format.capitalize()}DataModel",
+            **dynamic_fields,
+            __config__=type('Config', (), {'extra': 'allow'})  # Allow extra fields
+        )
+        logger.debug(f"Dynamic Pydantic model '{data_format.capitalize()}DataModel' created.")
+    except Exception as e:
+        logger.error(f"Failed to create dynamic Pydantic model for '{data_format}': {e}")
+        raise
 
     return dynamic_model

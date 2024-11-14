@@ -1,17 +1,23 @@
 import logging
 from openai import OpenAI
 from dataclasses import dataclass, field
-from typing import List, Dict, Tuple, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 import faiss
 import json
 import numpy as np
+import os
 from pydantic import BaseModel
 
 # Initialize OpenAI client
-client = OpenAI()
-
-# Configure module-level logger
-logger = logging.getLogger(__name__)
+try:
+    openai_api_key = os.getenv('OPENAI_API_KEY')
+    if not openai_api_key:
+        raise ValueError("OPENAI_API_KEY environment variable is not set.")
+    client = OpenAI(api_key=openai_api_key)
+    logger = logging.getLogger(__name__)
+except Exception as e:
+    logging.getLogger(__name__).error(f"Failed to initialize OpenAI client: {e}")
+    raise
 
 # -------------------------------
 # Data Classes
@@ -25,9 +31,9 @@ class CodeAssigned:
 @dataclass
 class MeaningUnit:
     unique_id: int
-    speaker_id: str
     meaning_unit_string: str
     assigned_code_list: List[CodeAssigned] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 @dataclass
 class TextData:
@@ -40,7 +46,7 @@ class TextData:
 # -------------------------------
 
 class ParseFormat(BaseModel):
-    speaker_id: str
+    speaker_id: Optional[str]
     meaning_unit_string_list: List[str]
 
 class CodeFormat(BaseModel):
@@ -50,18 +56,20 @@ class CodeFormat(BaseModel):
 # Core Functions
 # -------------------------------
 
-def parse_transcript(speaking_turn_string: str, prompt: str, completion_model: str) -> List[dict]:
+def parse_transcript(speaking_turn_string: str, prompt: str, completion_model: str, metadata: Dict[str, Any] = None) -> List[dict]:
     """
     Breaks up a speaking turn into smaller meaning units based on criteria in the LLM prompt.
     
     Args:
         speaking_turn_string (str): The dialogue text from a speaker.
-        prompt (str): The complete prompt with the speaker's name inserted.
+        prompt (str): The complete prompt with metadata included.
         completion_model (str): The OpenAI model to use for parsing the transcript.
+        metadata (Dict[str, Any], optional): Additional metadata to be provided as context.
 
     Returns:
         List[dict]: A list of meaning units with 'speaker_id' and 'meaning_unit_string'.
     """
+    metadata_section = f"Metadata:\n{json.dumps(metadata, indent=2)}\n\n" if metadata else ""
     try:
         response = client.beta.chat.completions.parse(
             model=completion_model,
@@ -74,6 +82,7 @@ def parse_transcript(speaking_turn_string: str, prompt: str, completion_model: s
                     "role": "user",
                     "content": (
                         f"{prompt}\n\n"
+                        f"{metadata_section}"
                         f"Speaking Turn:\n{speaking_turn_string}\n\n"
                     )
                 }
@@ -83,16 +92,32 @@ def parse_transcript(speaking_turn_string: str, prompt: str, completion_model: s
             max_tokens=1500,
         )
         
+        if not response.choices:
+            logger.error("No choices returned in the response from OpenAI API.")
+            return []
+        
         parsed_output = response.choices[0].message.parsed
 
-        # Extract 'speaker_id' and individual 'meaning_unit_string' entries from the parsed model
-        speaker_id = parsed_output.speaker_id
+        if not parsed_output:
+            logger.error("Parsed output is empty.")
+            return []
+
+        # Validate the structure of parsed_output
+        if not hasattr(parsed_output, 'meaning_unit_string_list'):
+            logger.error("Parsed output does not contain required field 'meaning_unit_string_list'.")
+            return []
+
+        speaker_id = getattr(parsed_output, 'speaker_id', 'Unknown')
         meaningunit_stringlist_parsed = parsed_output.meaning_unit_string_list
 
+        if not isinstance(meaningunit_stringlist_parsed, list):
+            logger.error("'meaning_unit_string_list' is not a list.")
+            return []
+
         # Create a list of meaning units
-        meaning_units = [{"speaker_id": speaker_id, "meaning_unit_string": single_quote} for single_quote in meaningunit_stringlist_parsed]
+        meaning_units = [{"speaker_id": speaker_id, "meaning_unit_string": mu} for mu in meaningunit_stringlist_parsed]
         
-        logger.debug(f"Parsed transcript for speaker '{speaker_id}'. Extracted {len(meaning_units)} meaning units.")
+        logger.debug(f"Parsed transcript with metadata. Extracted {len(meaning_units)} meaning units.")
         return meaning_units
 
     except Exception as e:
@@ -184,8 +209,7 @@ def initialize_faiss_index_from_formatted_file(
         raise e
 
 def retrieve_relevant_codes(
-    speaker_id: str, 
-    meaning_unit_string: str, 
+    meaning_unit: MeaningUnit, 
     index: faiss.IndexFlatL2, 
     processed_codes: List[Dict[str, Any]], 
     top_k: int = 5, 
@@ -196,8 +220,7 @@ def retrieve_relevant_codes(
     Returns a list of code dictionaries with relevant information.
     
     Args:
-        speaker_id (str): The ID or name of the speaker.
-        meaning_unit_string (str): The textual content of the meaning unit.
+        meaning_unit (MeaningUnit): The MeaningUnit object containing the excerpt and metadata.
         index (faiss.IndexFlatL2): The FAISS index containing embedded code data.
         processed_codes (List[Dict[str, Any]]): The list of processed code data dictionaries.
         top_k (int, optional): The number of top relevant codes to retrieve. Defaults to 5.
@@ -207,19 +230,22 @@ def retrieve_relevant_codes(
         List[Dict[str, Any]]: A list of the most relevant code dictionaries based on FAISS search.
     """
     try:
-        meaning_unit_string_with_speaker = f"{speaker_id}\nUnit: {meaning_unit_string}"
+        meaning_unit_string_with_metadata = f"{json.dumps(meaning_unit.metadata)}\nUnit: {meaning_unit.meaning_unit_string}"
 
         response = client.embeddings.create(
-            input=meaning_unit_string_with_speaker,
+            input=[meaning_unit_string_with_metadata],
             model=embedding_model
         )
+        if not response.data:
+            logger.error("No embedding data returned from OpenAI API.")
+            return []
         meaning_unit_embedding = np.array([response.data[0].embedding]).astype('float32')
 
         distances, indices = index.search(meaning_unit_embedding, top_k)
-        relevant_codes = [processed_codes[idx] for idx in indices[0]]
+        relevant_codes = [processed_codes[idx] for idx in indices[0] if idx < len(processed_codes)]
 
         code_names = [code.get('text', 'Unnamed Code') for code in relevant_codes]
-        logger.debug(f"Retrieved top {top_k} relevant codes for speaker '{speaker_id}': {code_names}")
+        logger.debug(f"Retrieved top {top_k} relevant codes for meaning unit ID {meaning_unit.unique_id}: {code_names}")
         return relevant_codes
 
     except Exception as e:
@@ -266,8 +292,7 @@ def assign_codes_to_meaning_units(
             if is_deductive and use_rag:
                 # Retrieve relevant codes using FAISS and the specified embedding model
                 relevant_codes = retrieve_relevant_codes(
-                    meaning_unit_object.speaker_id, 
-                    meaning_unit_object.meaning_unit_string, 
+                    meaning_unit_object, 
                     index, 
                     processed_codes, 
                     top_k=top_k,
@@ -295,21 +320,28 @@ def assign_codes_to_meaning_units(
             # Collect previous units for context
             if context_size > 0 and idx > 0:
                 prev_units = meaning_unit_list[max(0, idx - context_size):idx]
-                context_excerpt += "\n".join([
-                    f"{unit.speaker_id}: {unit.meaning_unit_string}"
-                    for unit in prev_units
-                ]) + "\n"
+                for unit in prev_units:
+                    context_excerpt += (
+                        f"Metadata:\n{json.dumps(unit.metadata, indent=2)}\n"
+                        f"Quote: {unit.meaning_unit_string}\n\n"
+                    )
 
             # Add current excerpt to context
-            context_excerpt += f"{meaning_unit_object.speaker_id}: {meaning_unit_object.meaning_unit_string}\n"
+            current_unit_excerpt = (
+                f"Metadata:\n{json.dumps(meaning_unit_object.metadata, indent=2)}\n"
+                f"Quote: {meaning_unit_object.meaning_unit_string}\n\n"
+            )
+
+            context_excerpt += current_unit_excerpt
 
             # Collect following units for context
             if context_size > 0 and idx < total_units - 1:
                 next_units = meaning_unit_list[idx + 1: idx + 1 + context_size]
-                context_excerpt += "\n".join([
-                    f"{unit.speaker_id}: {unit.meaning_unit_string}"
-                    for unit in next_units
-                ]) + "\n"
+                for unit in next_units:
+                    context_excerpt += (
+                        f"Metadata:\n{json.dumps(unit.metadata, indent=2)}\n"
+                        f"Quote: {unit.meaning_unit_string}\n\n"
+                    )
 
             # Construct the full prompt
             if codes_to_include is not None:
@@ -320,10 +352,7 @@ def assign_codes_to_meaning_units(
             full_prompt = (
                 f"{coding_instructions}\n\n"
                 f"{code_heading}\n{codes_str}\n\n"
-                f"Contextual Excerpts:\n{context_excerpt}\n"
-                f"Current Excerpt for Coding:\n"
-                f"Speaker: {meaning_unit_object.speaker_id}\n"
-                f"Quote: {meaning_unit_object.meaning_unit_string}\n"
+                f"Contextual Excerpts:\n{context_excerpt}"
                 f"**Important:** Please use the provided contextual excerpts **only** as background information to understand the current excerpt better. "
                 f"{'**Apply codes exclusively to the current excerpt provided above. Do not assign codes to the contextual excerpts.**' if codes_to_include is not None else '**Generate codes based on the current excerpt provided above using the guidelines.**'}\n\n"
                 f"Please provide the assigned codes in the following JSON format:\n"
@@ -339,7 +368,7 @@ def assign_codes_to_meaning_units(
                         {
                             "role": "system", 
                             "content": (
-                                "You are tasked with applying qualitative codes to excerpts from a transcript between a teacher and a coach in a teacher coaching meeting. "
+                                "You are tasked with applying qualitative codes to excerpts from a transcript or articles. "
                                 "The purpose of this task is to identify all codes that best describe each excerpt based on the provided instructions."
                             )
                         },
@@ -353,7 +382,10 @@ def assign_codes_to_meaning_units(
                     max_tokens=1500,
                 )
 
-                # Retrieve the parsed response
+                if not response.choices:
+                    logger.error(f"No choices returned for Unique ID {meaning_unit_object.unique_id}.")
+                    continue
+
                 code_output = response.choices[0].message.parsed
                 logger.debug(f"LLM Code Assignment Output for ID {meaning_unit_object.unique_id}:\n{code_output.codeList}")
 

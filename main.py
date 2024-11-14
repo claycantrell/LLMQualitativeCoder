@@ -19,7 +19,7 @@ from qual_functions import (
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,  # Changed from INFO to DEBUG for detailed logs
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
     handlers=[
         logging.StreamHandler()
@@ -43,9 +43,15 @@ def main(
     """
     Orchestrates the entire process of assigning qualitative codes to transcripts or articles based on the provided modes and configurations.
     """
+    logger.info("Starting the main pipeline.")
+    
     # Stage 1: Environment Setup
-    load_environment_variables()
-    logger.debug("Environment variables loaded and validated.")
+    try:
+        load_environment_variables()
+        logger.debug("Environment variables loaded and validated.")
+    except Exception as e:
+        logger.error(f"Failed to load environment variables: {e}")
+        return
 
     # Define paths
     prompts_folder = 'prompts'
@@ -54,18 +60,35 @@ def main(
     config_folder = 'configs'
 
     # Load parse instructions if parsing is enabled
-    parse_instructions = load_parse_instructions(prompts_folder) if use_parsing else ""
+    parse_instructions = ""
+    if use_parsing:
+        try:
+            parse_instructions = load_parse_instructions(prompts_folder)
+            logger.debug("Parse instructions loaded.")
+        except Exception as e:
+            logger.error(f"Failed to load parse instructions: {e}")
+            return
 
     # Load schema mapping configuration for dynamic model creation
     schema_config_path = os.path.join(config_folder, 'data_format_config.json')
-    schema_config = load_schema_config(schema_config_path)
+    try:
+        schema_config = load_schema_config(schema_config_path)
+        logger.debug("Schema configuration loaded.")
+    except Exception as e:
+        logger.error(f"Failed to load schema configuration: {e}")
+        return
 
     if data_format not in schema_config:
         logger.error(f"No schema configuration found for data format: {data_format}")
         raise ValueError(f"No schema configuration found for data format: {data_format}")
 
     # Create a dynamic Pydantic model for the specified data format
-    dynamic_data_model = create_dynamic_model_for_format(data_format, schema_config)
+    try:
+        dynamic_data_model = create_dynamic_model_for_format(data_format, schema_config)
+        logger.debug(f"Dynamic data model for '{data_format}' created.")
+    except Exception as e:
+        logger.error(f"Failed to create dynamic data model: {e}")
+        return
 
     # Determine the data file to load based on data format
     data_file_map = {
@@ -82,51 +105,22 @@ def main(
         logger.error(f"Data file '{file_path}' not found.")
         raise FileNotFoundError(f"Data file '{file_path}' not found.")
 
-    # Stage 2: Data Loading and Validation Using Dynamic Model
-    with open(file_path, 'r', encoding='utf-8') as file:
-        raw_data = json.load(file)
-
-    validated_data = []
-    for item in raw_data:
-        try:
-            validated_item = dynamic_data_model(**item)
-            validated_data.append(validated_item)
-        except Exception as e:
-            logger.error(f"Data validation error for item {item}: {e}")
-            continue
-
-    if not validated_data:
-        logger.warning("No valid data items after validation. Exiting.")
+    # Stage 2: Data Loading and Validation Using FlexibleDataHandler
+    try:
+        data_handler = FlexibleDataHandler(
+            file_path=file_path,
+            parse_instructions=parse_instructions,
+            completion_model=parse_model,
+            model_class=dynamic_data_model,
+            use_parsing=use_parsing
+        )
+        validated_data = data_handler.load_data()
+        logger.debug(f"Loaded {len(validated_data)} validated data items.")
+        meaning_unit_object_list = data_handler.transform_data(validated_data)
+        logger.debug(f"Transformed data into {len(meaning_unit_object_list)} meaning units.")
+    except Exception as e:
+        logger.error(f"Data loading and transformation failed: {e}")
         return
-
-    # Stage 3: Data Transformation
-    # We create meaning units directly, as data handlers have been generalized
-    # to handle partially unknown schemas. For advanced transformations, consider dynamic transformations.
-    meaning_unit_object_list = []
-    for idx, item in enumerate(validated_data, start=1):
-        if data_format == "interview":
-            # For interviews, assume entire speaking turn or parsed meaning units
-            speaker_id = getattr(item, 'speaker_name', 'Unknown')
-            text_content = getattr(item, 'text_context', '')
-            meaning_unit_object = MeaningUnit(
-                unique_id=idx,
-                speaker_id=speaker_id,
-                meaning_unit_string=text_content
-            )
-            meaning_unit_object_list.append(meaning_unit_object)
-        elif data_format == "news":
-            # For news articles, assume entire content as a meaning unit or parse further
-            author = getattr(item, 'author', 'Unknown')
-            content = getattr(item, 'content', '')
-            meaning_unit_object = MeaningUnit(
-                unique_id=idx,
-                speaker_id=author,
-                meaning_unit_string=content
-            )
-            meaning_unit_object_list.append(meaning_unit_object)
-        else:
-            logger.warning(f"Unsupported data format for transformation: {data_format}")
-            continue
 
     if not meaning_unit_object_list:
         logger.warning("No meaning units to process. Exiting.")
@@ -134,67 +128,85 @@ def main(
 
     # Stage 4: Code Assignment
     if coding_mode == "deductive":
-        processed_codes, faiss_index, coding_instructions = initialize_deductive_resources(
-            codebase_folder=codebase_folder,
-            prompts_folder=prompts_folder,
-            initialize_embedding_model=initialize_embedding_model
-        )
+        try:
+            processed_codes, faiss_index, coding_instructions = initialize_deductive_resources(
+                codebase_folder=codebase_folder,
+                prompts_folder=prompts_folder,
+                initialize_embedding_model=initialize_embedding_model
+            )
+            logger.debug(f"Initialized deductive resources with {len(processed_codes)} processed codes.")
+        except Exception as e:
+            logger.error(f"Failed to initialize deductive resources: {e}")
+            return
 
         if not processed_codes:
             logger.warning("No processed codes available for deductive coding. Exiting.")
             return
 
         # Assign codes to meaning units in deductive mode
-        if use_rag:
-            # Deductive coding with RAG
-            coded_meaning_unit_list = assign_codes_to_meaning_units(
-                meaning_unit_list=meaning_unit_object_list,
-                coding_instructions=coding_instructions,
-                processed_codes=processed_codes,
-                index=faiss_index,
-                top_k=5,
-                context_size=5,
-                use_rag=True,
-                completion_model=assign_model,
-                embedding_model=retrieve_embedding_model
-            )
-        else:
-            # Deductive coding without RAG (using full codebase)
-            coded_meaning_unit_list = assign_codes_to_meaning_units(
-                meaning_unit_list=meaning_unit_object_list,
-                coding_instructions=coding_instructions,
-                processed_codes=processed_codes,
-                index=faiss_index,
-                top_k=5,
-                context_size=5,
-                use_rag=False,
-                codebase=processed_codes,
-                completion_model=assign_model,
-                embedding_model=retrieve_embedding_model
-            )
+        try:
+            if use_rag:
+                # Deductive coding with RAG
+                coded_meaning_unit_list = assign_codes_to_meaning_units(
+                    meaning_unit_list=meaning_unit_object_list,
+                    coding_instructions=coding_instructions,
+                    processed_codes=processed_codes,
+                    index=faiss_index,
+                    top_k=5,
+                    context_size=5,
+                    use_rag=True,
+                    completion_model=assign_model,
+                    embedding_model=retrieve_embedding_model
+                )
+                logger.debug("Assigned codes using deductive mode with RAG.")
+            else:
+                # Deductive coding without RAG (using full codebase)
+                coded_meaning_unit_list = assign_codes_to_meaning_units(
+                    meaning_unit_list=meaning_unit_object_list,
+                    coding_instructions=coding_instructions,
+                    processed_codes=processed_codes,
+                    index=faiss_index,
+                    top_k=5,
+                    context_size=5,
+                    use_rag=False,
+                    codebase=processed_codes,
+                    completion_model=assign_model,
+                    embedding_model=retrieve_embedding_model
+                )
+                logger.debug("Assigned codes using deductive mode without RAG.")
+        except Exception as e:
+            logger.error(f"Failed to assign codes in deductive mode: {e}")
+            return
 
     else:  # Inductive coding
-        # Load custom coding prompt
-        coding_instructions = load_custom_coding_prompt(prompts_folder)
+        try:
+            # Load custom coding prompt
+            coding_instructions = load_custom_coding_prompt(prompts_folder)
+            logger.debug("Loaded custom coding prompt for inductive coding.")
 
-        # Assign codes to meaning units in inductive mode
-        coded_meaning_unit_list = assign_codes_to_meaning_units(
-            meaning_unit_list=meaning_unit_object_list,
-            coding_instructions=coding_instructions,
-            processed_codes=None,
-            index=None,
-            top_k=None,
-            context_size=5,
-            use_rag=False,
-            codebase=None,
-            completion_model=assign_model,
-            embedding_model=None  # Embeddings not needed in inductive mode
-        )
+            # Assign codes to meaning units in inductive mode
+            coded_meaning_unit_list = assign_codes_to_meaning_units(
+                meaning_unit_list=meaning_unit_object_list,
+                coding_instructions=coding_instructions,
+                processed_codes=None,
+                index=None,
+                top_k=None,
+                context_size=5,
+                use_rag=False,
+                codebase=None,
+                completion_model=assign_model,
+                embedding_model=None  # Embeddings not needed in inductive mode
+            )
+            logger.debug("Assigned codes using inductive mode.")
+        except Exception as e:
+            logger.error(f"Failed to assign codes in inductive mode: {e}")
+            return
 
     # Stage 5: Output Results
+    logger.info("Outputting coded meaning units:")
     for unit in coded_meaning_unit_list:
         logger.info(f"\nID: {unit.unique_id}")
-        logger.info(f"Speaker: {unit.speaker_id}")
+        logger.info(f"Metadata: {unit.metadata}")
         logger.info(f"Quote: {unit.meaning_unit_string}")
         if unit.assigned_code_list:
             for code in unit.assigned_code_list:
@@ -202,7 +214,6 @@ def main(
                 logger.info(f"  Justification: {code.code_justification}")
         else:
             logger.info("  No codes assigned.")
-
 
 if __name__ == "__main__":
     # Example usage:

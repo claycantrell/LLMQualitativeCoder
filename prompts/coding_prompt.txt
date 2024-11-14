@@ -1,44 +1,44 @@
-Instructions:
+**Instructions:**
 
-Code Selection
+**Code Selection**
 
-Identify Relevant Codes: For each excerpt, determine all applicable codes from the provided list that accurately describe the content of the excerpt.
+1. **Identify Relevant Codes**: For each excerpt, determine all applicable codes from the provided list that accurately describe the content of the excerpt.
 
-Utilize Contextual Excerpts: Leverage the surrounding excerpts to gain a comprehensive understanding of the current excerpt, ensuring accurate code assignments.
+2. **Utilize Metadata for Context**: Leverage the provided metadata to gain a comprehensive understanding of the excerpt, ensuring accurate code assignments.
 
-Handle Non-Applicable Excerpts: If none of the provided codes are relevant to a current excerpt, assign the code "VOID" in the "code_name" field and supply an appropriate justification.
+3. **Handle Non-Applicable Excerpts**: If none of the provided codes are relevant to a current excerpt, assign the code "VOID" in the "code_name" field and supply an appropriate justification.
 
-Provide Justifications
+**Provide Justifications**
 
-Explain Code Assignments: For every assigned code, include a 2-3 sentence justification detailing why the code is pertinent to the excerpt.
+4. **Explain Code Assignments**: For every assigned code, include a 2-3 sentence justification detailing why the code is pertinent to the excerpt.
 
-Justify "VOID" Assignments: If "VOID" is assigned, provide a 2-3 sentence explanation clarifying why none of the provided codes are suitable for the excerpt.
+5. **Justify "VOID" Assignments**: If "VOID" is assigned, provide a 2-3 sentence explanation clarifying why none of the provided codes are suitable for the excerpt.
 
-Formatting Requirements
+**Formatting Requirements**
 
-JSON Structure: Format the output as a JSON array where each object corresponds to a single excerpt. Each object should contain the following key:
+6. **JSON Structure**: Format the output as a JSON array where each object corresponds to a single excerpt. Each object should contain the following key:
 
-"codeList": An array of code assignments, each comprising:
-"code_name": The assigned code.
-"code_justification": The rationale for the code assignment.
-Maintain Order: Ensure that each JSON object aligns with the order of the provided excerpts.
+   - `"codeList"`: An array of code assignments, each comprising:
+     - `"code_name"`: The assigned code.
+     - `"code_justification"`: The rationale for the code assignment.
 
-Ensure JSON Validity
+7. **Maintain Order**: Ensure that each JSON object aligns with the order of the provided excerpts.
 
-Accurate Formatting: Construct the JSON meticulously to avoid syntax errors such as missing commas, brackets, or braces.
+**Ensure JSON Validity**
 
-No Extraneous Text: Do not include any additional text, explanations, or comments outside the JSON code block.
+8. **Accurate Formatting**: Construct the JSON meticulously to avoid syntax errors such as missing commas, brackets, or braces.
 
-Assigning Multiple Codes
+9. **No Extraneous Text**: Do not include any additional text, explanations, or comments outside the JSON code block.
 
-Comprehensive Coding: Assign all applicable codes to each excerpt; some excerpts may warrant multiple codes.
+**Assigning Multiple Codes**
 
-Use Defined Codes Only: Restrict assignments to codes explicitly defined in the provided list.
+10. **Comprehensive Coding**: Assign all applicable codes to each excerpt; some excerpts may warrant multiple codes.
 
-Example Output Format:
+11. **Use Defined Codes Only**: Restrict assignments to codes explicitly defined in the provided list.
 
-json
-Copy code
+**Example Output Format:**
+
+```json
 [
   {
     "codeList": [
@@ -61,3 +61,10 @@ Copy code
     ]
   }
 ]
+Contextual Metadata:
+
+You will receive a JSON object containing all relevant metadata for each excerpt. Use this metadata exclusively as context to inform your code assignments. Do not include any metadata in your output.
+
+Output:
+
+Submit your response as a JSON array containing only the codeList for each excerpt – do not add commentary or any non-JSON text.

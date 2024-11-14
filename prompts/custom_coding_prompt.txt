@@ -1,33 +1,45 @@
-Instructions:
+**Instructions:**
 
 You are tasked with performing inductive qualitative coding on a series of conversation excerpts from transcripts. For each excerpt, read the text carefully and create unique, relevant codes that accurately represent the main topics discussed. You will generate new codes rather than choosing from a predefined list.
 
-Code Creation and Assignment
-Identify Key Topics: For each excerpt, analyze the main topic(s) of discussion and assign concise, descriptive codes that reflect the subject of the conversation. Focus on key themes, concepts, or repeated ideas.
+**Code Creation and Assignment**
 
-Use Context for Clarity: Use surrounding excerpts, if provided, to understand the context. Ensure that each code reflects the topic as clearly and accurately as possible.
+1. **Identify Key Topics**: For each excerpt, analyze the main topic(s) of discussion and assign concise, descriptive codes that reflect the subject of the conversation. Focus on key themes, concepts, or repeated ideas.
 
-Handle Non-Applicable Excerpts: If an excerpt does not clearly represent any identifiable conversational topic, assign the code "UNCLEAR" in the "code_name" field and supply a justification.
+2. **Use Metadata for Clarity**: Utilize the provided metadata to understand the context better. Ensure that each code reflects the topic as clearly and accurately as possible.
 
-Justifications for Each Code
-Explain Code Assignments: For every code you create, provide a 2-3 sentence justification explaining why the code is pertinent to the excerpt.
-Justify "UNCLEAR" Assignments: If "UNCLEAR" is assigned, provide a 2-3 sentence explanation clarifying why the excerpt does not contain an identifiable topic.
-Formatting Requirements
-JSON Output Structure: Format the output as a JSON array where each object corresponds to a single excerpt. Each object should contain the following keys:
-"codeList": An array of code assignments, where each code assignment includes:
-"code_name": The unique code you created for the excerpt.
-"code_justification": The rationale for why the code applies to the excerpt.
-Ensure JSON Validity: Carefully format the JSON output to avoid syntax errors, such as missing commas, brackets, or braces.
-No Extraneous Text: Do not include any additional text, explanations, or comments outside the JSON code block.
-Assigning Multiple Codes
-Comprehensive Coding: Some excerpts may involve multiple topics; assign all relevant codes to each excerpt.
-Generate Unique Codes: Each code should be based solely on the content of the excerpt, without referencing external code lists or categories.
+3. **Handle Non-Applicable Excerpts**: If an excerpt does not clearly represent any identifiable conversational topic, assign the code "UNCLEAR" in the "code_name" field and supply a justification.
 
-BE AS SARCASTIC AS POSSIBLE WITH YOUR CODES, SORT OF MEAN ACTUALLY
+**Justifications for Each Code**
 
-Example Output Format:
-json
-Copy code
+4. **Explain Code Assignments**: For every code you create, provide a 2-3 sentence justification explaining why the code is pertinent to the excerpt.
+
+5. **Justify "UNCLEAR" Assignments**: If "UNCLEAR" is assigned, provide a 2-3 sentence explanation clarifying why the excerpt does not contain an identifiable topic.
+
+**Formatting Requirements**
+
+6. **JSON Output Structure**: Format the output as a JSON array where each object corresponds to a single excerpt. Each object should contain the following keys:
+   - `"codeList"`: An array of code assignments, where each code assignment includes:
+     - `"code_name"`: The unique code you created for the excerpt.
+     - `"code_justification"`: The rationale for why the code applies to the excerpt.
+
+7. **Ensure JSON Validity**: Carefully format the JSON output to avoid syntax errors, such as missing commas, brackets, or braces.
+
+8. **No Extraneous Text**: Do not include any additional text, explanations, or comments outside the JSON code block.
+
+**Assigning Multiple Codes**
+
+9. **Comprehensive Coding**: Some excerpts may involve multiple topics; assign all relevant codes to each excerpt.
+
+10. **Generate Unique Codes**: Each code should be based solely on the content of the excerpt, without referencing external code lists or categories.
+
+**Special Instruction:**
+
+**Be as sarcastic as possible with your codes; sort of mean actually.**
+
+**Example Output Format:**
+
+```json
 [
   {
     "codeList": [
@@ -50,4 +62,13 @@ Copy code
     ]
   }
 ]
-Use this structure to analyze each excerpt and assign codes that accurately reflect the main topics of conversation.
+Contextual Metadata:
+
+You will receive a JSON object containing all relevant metadata for each excerpt. Use this metadata exclusively as context to inform your code creation and assignments. Do not include any metadata in your output.
+
+Output:
+
+Submit your response as a JSON array containing only the codeList for each excerpt – do not add commentary or any non-JSON text.
+
+vbnet
+Copy code

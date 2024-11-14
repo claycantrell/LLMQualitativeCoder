@@ -1,7 +1,0 @@
-{
-    "data_format": "news",
-    "id_field": "id",
-    "title_field": "title",
-    "text_field": "content",
-    "metadata_fields": ["publication_date", "author", "section", "source", "url", "tags"]
-}

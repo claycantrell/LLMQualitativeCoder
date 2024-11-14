@@ -1,28 +1,38 @@
-You will receive a piece of spoken text attributed to {speaker_name}. Your task is to segment this text into discrete, self-contained "meaning units." Each meaning unit must be a direct, unaltered quote from the speaker. Do not rephrase, paraphrase, or summarize.
+You will receive a JSON object containing a piece of spoken text along with its associated metadata. Your task is to segment this text into discrete, self-contained "meaning units." Each meaning unit must be a direct, unaltered quote from the speaker. Do not rephrase, paraphrase, or summarize.
 
-Guidelines:
+**Guidelines:**
 
-Read for Context: First, read the entire text to understand its context.
+1. **Read for Context**: First, read the entire text and all provided metadata to understand its context.
 
-Segment by Logical Breaks: Break down the text where new ideas, thoughts, or actions naturally begin and end. Each segment can be a full sentence, phrase, or brief passage that conveys one idea completely.
+2. **Segment by Logical Breaks**: Break down the text where new ideas, thoughts, or actions naturally begin and end. Each segment can be a full sentence, phrase, or brief passage that conveys one idea completely.
 
-Direct Quotes Only – No Changes: Each meaning unit must use the speaker’s exact words without any alteration. Do not modify, change, summarize, or rephrase.
+3. **Direct Quotes Only – No Changes**: Each meaning unit must use the speaker’s exact words without any alteration. Do not modify, change, summarize, or rephrase.
 
-Do not change the language in any way – keep the original words as they are.
-Do not interpret or simplify – simply segment into distinct quotes.
-Avoid Over-Segmentation: Do not create overly short fragments unless a few words alone carry complete meaning.
+4. **Preserve Original Language**: Do not change the language in any way – keep the original words as they are.
 
-Speaker Identifier: Attach the speaker's name {speaker_name} to each segment.
+5. **Do Not Interpret or Simplify**: Simply segment into distinct quotes without adding interpretation or simplification.
 
-Output Format: Structure the output in JSON format, following these keys:
+6. **Incorporate Metadata**: Use all provided metadata to inform your segmentation. Metadata may include, but is not limited to, speaker identifiers, context details, and other relevant information.
 
-speaker_id: {speaker_name}.
-quote: The exact words of the segmented meaning unit.
-Example Output
-json
-Copy code
+7. **Avoid Over-Segmentation**: Do not create overly short fragments unless a few words alone carry complete meaning.
+
+**Output Format:**
+
+Structure the output in JSON format, following these keys:
+
+- `"quote"`: The exact words of the segmented meaning unit.
+
+**Example Output:**
+
+```json
 [
-  { "speaker_id": "John", "quote": "I believe we can make a difference by working together." },
-  { "speaker_id": "John", "quote": "Each of us brings unique skills to the table." }
+  { "quote": "I believe we can improve our teaching methods by incorporating more technology." },
+  { "quote": "Each of us brings unique skills to the table." }
 ]
-Output: Submit your response as a JSON array containing only exact quotes – do not add commentary or any non-JSON text.
+Ensure JSON Validity:
+
+Accurate Formatting: Construct the JSON meticulously to avoid syntax errors such as missing commas, brackets, or braces.
+No Extraneous Text: Do not include any additional text, explanations, or comments outside the JSON code block.
+Output:
+
+Submit your response as a JSON array containing only the quote for each meaning unit – do not add commentary or any non-JSON text.
