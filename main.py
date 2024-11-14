@@ -3,15 +3,17 @@
 import os
 import json
 import logging
-from typing import List, Dict, Optional, Any, Tuple  # Added Any and Tuple
+from typing import List, Dict, Optional, Any, Tuple
+from abc import ABC, abstractmethod
 from qual_functions import (
     MeaningUnit,
+    TextData,
     parse_transcript,
     assign_codes_to_meaning_units,
     initialize_faiss_index_from_formatted_file,
     CodeAssigned
 )
-import faiss  # Ensure faiss is imported if used
+import faiss
 
 # Configure logging
 logging.basicConfig(
@@ -23,6 +25,203 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# -------------------------------
+# Abstract Base Class for Data Handlers
+# -------------------------------
+class BaseDataHandler(ABC):
+    """
+    Abstract base class defining how data should be loaded and transformed.
+    Subclasses must implement the abstract methods:
+    - load_data()
+    - transform_data()
+    """
+
+    @abstractmethod
+    def load_data(self) -> List[dict]:
+        pass
+
+    @abstractmethod
+    def transform_data(self, data: List[dict]) -> List[MeaningUnit]:
+        pass
+
+# -------------------------------
+# Specialized Data Handler for Interview Transcripts
+# -------------------------------
+class InterviewDataHandler(BaseDataHandler):
+    """
+    A data handler for interview transcripts.
+    Expects JSON data with fields:
+    - id
+    - length_of_time_spoken_seconds
+    - text_context
+    - speaker_name
+    """
+
+    def __init__(self, file_path: str, parse_instructions: str, completion_model: str, coding_mode: str = "deductive", use_parsing: bool = True):
+        self.file_path = file_path
+        self.parse_instructions = parse_instructions
+        self.completion_model = completion_model
+        self.coding_mode = coding_mode
+        self.use_parsing = use_parsing
+
+    def load_data(self) -> List[dict]:
+        """
+        Loads the JSON data from a file containing interview transcripts.
+        """
+        if not os.path.exists(self.file_path):
+            logger.error(f"JSON file '{self.file_path}' not found.")
+            raise FileNotFoundError(f"JSON file '{self.file_path}' not found.")
+
+        try:
+            with open(self.file_path, 'r', encoding='utf-8') as file:
+                return json.load(file)
+        except json.JSONDecodeError as e:
+            logger.error(f"Error decoding JSON from '{self.file_path}': {e}")
+            raise
+
+    def transform_data(self, data: List[dict]) -> List[MeaningUnit]:
+        """
+        Transforms loaded data into a list of MeaningUnit objects.
+        If use_parsing is True, it parses each speaking turn into meaning units.
+        If use_parsing is False, it uses entire speaking turns as meaning units.
+        """
+        meaning_unit_list = []
+        for idx, speaking_turn in enumerate(data, start=1):
+            speaker_id = speaking_turn.get('speaker_name', 'Unknown')
+            speaking_turn_string = speaking_turn.get('text_context', '')
+            if not speaking_turn_string:
+                logger.warning(f"No speaking turn text found for Speaking Turn {idx}. Skipping.")
+                continue
+
+            if self.use_parsing:
+                # Parsing speaking turns
+                logger.info(f"Parsing Speaking Turn {idx}: Speaker - {speaker_id}")
+                formatted_prompt = self.parse_instructions.replace("{speaker_name}", speaker_id)
+                parsed_units = parse_transcript(
+                    speaking_turn_string,
+                    formatted_prompt,
+                    completion_model=self.completion_model
+                )
+                if not parsed_units:
+                    logger.warning(f"No meaning units extracted from Speaking Turn {idx}. Skipping.")
+                    continue
+
+                for unit_idx, unit in enumerate(parsed_units, start=1):
+                    meaning_unit_object = MeaningUnit(
+                        speaker_id=unit.get('speaker_id', speaker_id),
+                        meaning_unit_string=unit.get('meaning_unit_string', '')
+                    )
+                    logger.debug(f"Added Meaning Unit {unit_idx}: Speaker - {meaning_unit_object.speaker_id}, Quote - {meaning_unit_object.meaning_unit_string}")
+                    meaning_unit_list.append(meaning_unit_object)
+            else:
+                # Not parsing speaking turns
+                logger.info(f"Using entire speaking turn {idx} as a meaning unit: Speaker - {speaker_id}")
+                meaning_unit_object = MeaningUnit(
+                    speaker_id=speaker_id,
+                    meaning_unit_string=speaking_turn_string
+                )
+                logger.debug(f"Added Meaning Unit: Speaker - {meaning_unit_object.speaker_id}, Quote - {meaning_unit_object.meaning_unit_string}")
+                meaning_unit_list.append(meaning_unit_object)
+
+        if not meaning_unit_list:
+            logger.warning("No meaning units extracted from any speaking turns.")
+        return meaning_unit_list
+
+# -------------------------------
+# Specialized Data Handler for News Articles
+# -------------------------------
+class NewsDataHandler(BaseDataHandler):
+    """
+    A data handler for news articles.
+    Expects JSON data with fields:
+    - id
+    - title
+    - publication_date
+    - author
+    - content
+    - section
+    - source
+    - url
+    - tags (optional)
+    """
+
+    def __init__(self, file_path: str, parse_instructions: str, completion_model: str, coding_mode: str = "deductive", use_parsing: bool = True):
+        self.file_path = file_path
+        self.parse_instructions = parse_instructions
+        self.completion_model = completion_model
+        self.coding_mode = coding_mode
+        self.use_parsing = use_parsing
+
+    def load_data(self) -> List[dict]:
+        """
+        Loads the JSON data from a file containing news articles.
+        """
+        if not os.path.exists(self.file_path):
+            logger.error(f"News JSON file '{self.file_path}' not found.")
+            raise FileNotFoundError(f"News JSON file '{self.file_path}' not found.")
+
+        try:
+            with open(self.file_path, 'r', encoding='utf-8') as file:
+                return json.load(file)
+        except json.JSONDecodeError as e:
+            logger.error(f"Error decoding JSON from '{self.file_path}': {e}")
+            raise
+
+    def transform_data(self, data: List[dict]) -> List[MeaningUnit]:
+        """
+        Transforms loaded data into a list of MeaningUnit objects.
+        If use_parsing is True, it parses each article's content into meaning units.
+        If use_parsing is False, it uses the entire content as a single meaning unit.
+        """
+        meaning_unit_list = []
+        for idx, article in enumerate(data, start=1):
+            title = article.get('title', 'Untitled')
+            author = article.get('author', 'Unknown Author')
+            content = article.get('content', '')
+            if not content:
+                logger.warning(f"No content found for News Article {idx}. Skipping.")
+                continue
+
+            speaker_id = f"Author: {author}"  # For consistency with MeaningUnit structure
+
+            if self.use_parsing:
+                # Parsing article content
+                logger.info(f"Parsing News Article {idx}: Title - {title}")
+                formatted_prompt = self.parse_instructions.replace("{speaker_name}", author)
+                parsed_units = parse_transcript(
+                    content,
+                    formatted_prompt,
+                    completion_model=self.completion_model
+                )
+                if not parsed_units:
+                    logger.warning(f"No meaning units extracted from News Article {idx}. Skipping.")
+                    continue
+
+                for unit_idx, unit in enumerate(parsed_units, start=1):
+                    meaning_unit_object = MeaningUnit(
+                        speaker_id=unit.get('speaker_id', speaker_id),
+                        meaning_unit_string=unit.get('meaning_unit_string', '')
+                    )
+                    logger.debug(f"Added Meaning Unit {unit_idx}: Speaker - {meaning_unit_object.speaker_id}, Quote - {meaning_unit_object.meaning_unit_string}")
+                    meaning_unit_list.append(meaning_unit_object)
+            else:
+                # Not parsing article content
+                logger.info(f"Using entire content of News Article {idx} as a meaning unit: Title - {title}")
+                meaning_unit_object = MeaningUnit(
+                    speaker_id=speaker_id,
+                    meaning_unit_string=content
+                )
+                logger.debug(f"Added Meaning Unit: Speaker - {meaning_unit_object.speaker_id}, Quote - {meaning_unit_object.meaning_unit_string}")
+                meaning_unit_list.append(meaning_unit_object)
+
+        if not meaning_unit_list:
+            logger.warning("No meaning units extracted from any news articles.")
+        return meaning_unit_list
+
+# -------------------------------
+# Utility Functions
+# -------------------------------
+
 def load_environment_variables() -> None:
     """
     Loads and validates required environment variables.
@@ -32,23 +231,33 @@ def load_environment_variables() -> None:
         logger.error("OPENAI_API_KEY environment variable is not set.")
         raise ValueError("Set the OPENAI_API_KEY environment variable.")
 
-def load_transcript_data(json_folder: str) -> List[dict]:
+def load_coding_instructions(prompts_folder: str) -> str:
     """
-    Loads and returns JSON data from the transcript file.
+    Loads coding instructions for deductive coding from a file.
     """
-    json_transcript_file = os.path.join(json_folder, 'output_cues.json')
-    if not os.path.exists(json_transcript_file):
-        logger.error(f"JSON file '{json_transcript_file}' not found.")
-        raise FileNotFoundError(f"JSON file '{json_transcript_file}' not found.")
+    coding_instructions_file = os.path.join(prompts_folder, 'coding_prompt.txt')
+    if not os.path.exists(coding_instructions_file):
+        logger.error(f"Coding instructions file '{coding_instructions_file}' not found.")
+        raise FileNotFoundError(f"Coding instructions file '{coding_instructions_file}' not found.")
 
-    try:
-        with open(json_transcript_file, 'r', encoding='utf-8') as file:
-            json_data = json.load(file)
-            logger.info(f"Loaded {len(json_data)} speaking turns from '{json_transcript_file}'.")
-            return json_data
-    except json.JSONDecodeError as e:
-        logger.error(f"Error decoding JSON from '{json_transcript_file}': {e}")
-        raise
+    with open(coding_instructions_file, 'r', encoding='utf-8') as file:
+        coding_instructions = file.read().strip()
+
+    return coding_instructions
+
+def load_parse_instructions(prompts_folder: str) -> str:
+    """
+    Loads parse instructions from a file for breaking down speaking turns into meaning units.
+    """
+    parse_prompt_file = os.path.join(prompts_folder, 'parse_prompt.txt')
+    if not os.path.exists(parse_prompt_file):
+        logger.error(f"Parse instructions file '{parse_prompt_file}' not found.")
+        raise FileNotFoundError(f"Parse instructions file '{parse_prompt_file}' not found.")
+
+    with open(parse_prompt_file, 'r', encoding='utf-8') as file:
+        parse_instructions = file.read().strip()
+
+    return parse_instructions
 
 def load_custom_coding_prompt(prompts_folder: str) -> str:
     """
@@ -67,120 +276,6 @@ def load_custom_coding_prompt(prompts_folder: str) -> str:
         raise ValueError("Custom coding prompt file is empty.")
 
     return custom_coding_prompt
-
-def load_coding_instructions(prompts_folder: str) -> str:
-    """
-    Loads coding instructions for deductive coding from a file.
-    """
-    coding_instructions_file = os.path.join(prompts_folder, 'coding_prompt.txt')
-    if not os.path.exists(coding_instructions_file):
-        logger.error(f"Coding instructions file '{coding_instructions_file}' not found.")
-        raise FileNotFoundError(f"Coding instructions file '{coding_instructions_file}' not found.")
-
-    with open(coding_instructions_file, 'r', encoding='utf-8') as file:
-        coding_instructions = file.read().strip()
-
-    return coding_instructions
-
-def parse_speaking_turns(
-    json_data: List[dict],
-    prompts_folder: str,
-    coding_mode: str,
-    use_parsing: bool,
-    parse_model: str
-) -> List[MeaningUnit]:
-    """
-    Parses speaking turns into meaning units based on the coding mode and parsing option.
-    Returns a list of MeaningUnit objects.
-    """
-    meaning_unit_object_list = []
-
-    # Load parse prompt instructions if needed
-    parse_instructions = ""
-    parse_prompt_file = os.path.join(prompts_folder, 'parse_prompt.txt')
-    if coding_mode == "deductive" or (coding_mode == "inductive" and use_parsing):
-        if not os.path.exists(parse_prompt_file):
-            logger.error(f"Parse instructions file '{parse_prompt_file}' not found.")
-            raise FileNotFoundError(f"Parse instructions file '{parse_prompt_file}' not found.")
-
-        with open(parse_prompt_file, 'r', encoding='utf-8') as file:
-            parse_instructions = file.read().strip()
-
-    for idx, speaking_turn in enumerate(json_data, start=1):
-        speaker_id = speaking_turn.get('speaker_name', 'Unknown')
-        speaking_turn_string = speaking_turn.get('text_context', '')
-        if not speaking_turn_string:
-            logger.warning(f"No speaking turn text found for Speaking Turn {idx}. Skipping.")
-            continue
-
-        if coding_mode == "deductive":
-            if use_parsing:
-                # Parsing speaking turns for deductive coding
-                logger.info(f"Processing Speaking Turn {idx} (Parsing for Deductive Coding): Speaker - {speaker_id}")
-                formatted_prompt = parse_instructions.replace("{speaker_name}", speaker_id)
-                meaning_unit_list = parse_transcript(
-                    speaking_turn_string,
-                    formatted_prompt,
-                    completion_model=parse_model
-                )
-                if not meaning_unit_list:
-                    logger.warning(f"No meaning units extracted from Speaking Turn {idx}. Skipping.")
-                    continue
-
-                for unit_idx, unit in enumerate(meaning_unit_list, start=1):
-                    meaning_unit_object = MeaningUnit(
-                        speaker_id=unit.get('speaker_id', speaker_id),
-                        meaning_unit_string=unit.get('meaning_unit_string', '')
-                    )
-                    logger.debug(f"Added Meaning Unit {unit_idx} (Deductive/Parsed): Speaker - {meaning_unit_object.speaker_id}, "
-                                 f"Quote - {meaning_unit_object.meaning_unit_string}")
-                    meaning_unit_object_list.append(meaning_unit_object)
-            else:
-                # Using entire speaking turns as meaning units for deductive coding
-                logger.info(f"Processing Speaking Turn {idx} (Deductive Coding without Parsing): Speaker - {speaker_id}")
-                meaning_unit_object = MeaningUnit(
-                    speaker_id=speaker_id,
-                    meaning_unit_string=speaking_turn_string
-                )
-                logger.debug(f"Added Meaning Unit (Deductive/Unparsed): Speaker - {meaning_unit_object.speaker_id}, "
-                             f"Quote - {meaning_unit_object.meaning_unit_string}")
-                meaning_unit_object_list.append(meaning_unit_object)
-        else:  # Inductive mode
-            if use_parsing:
-                # Parsing speaking turns for inductive coding
-                logger.info(f"Processing Speaking Turn {idx} (Parsing for Inductive Coding): Speaker - {speaker_id}")
-                formatted_prompt = parse_instructions.replace("{speaker_name}", speaker_id)
-                meaning_unit_list = parse_transcript(
-                    speaking_turn_string,
-                    formatted_prompt,
-                    completion_model=parse_model
-                )
-                if not meaning_unit_list:
-                    logger.warning(f"No meaning units extracted from Speaking Turn {idx}. Skipping.")
-                    continue
-
-                for unit_idx, unit in enumerate(meaning_unit_list, start=1):
-                    meaning_unit_object = MeaningUnit(
-                        speaker_id=unit.get('speaker_id', speaker_id),
-                        meaning_unit_string=unit.get('meaning_unit_string', '')
-                    )
-                    logger.debug(f"Added Meaning Unit {unit_idx} (Inductive/Parsed): Speaker - {meaning_unit_object.speaker_id}, "
-                                 f"Quote - {meaning_unit_object.meaning_unit_string}")
-                    meaning_unit_object_list.append(meaning_unit_object)
-            else:
-                # Using entire speaking turns as meaning units for inductive coding
-                logger.info(f"Processing Speaking Turn {idx} (Inductive Coding without Parsing): Speaker - {speaker_id}")
-                meaning_unit_object = MeaningUnit(
-                    speaker_id=speaker_id,
-                    meaning_unit_string=speaking_turn_string
-                )
-                logger.debug(f"Added Meaning Unit (Inductive/Unparsed): Speaker - {meaning_unit_object.speaker_id}, "
-                             f"Quote - {meaning_unit_object.meaning_unit_string}")
-                meaning_unit_object_list.append(meaning_unit_object)
-
-    if not meaning_unit_object_list:
-        logger.warning("No meaning units extracted from any speaking turns.")
-    return meaning_unit_object_list
 
 def initialize_deductive_resources(
     codebase_folder: str,
@@ -211,6 +306,9 @@ def initialize_deductive_resources(
 
     return processed_codes, faiss_index, coding_instructions
 
+# -------------------------------
+# Main Function (Pipeline Orchestration)
+# -------------------------------
 def main(
     coding_mode: str = "deductive",
     use_parsing: bool = True,
@@ -218,12 +316,14 @@ def main(
     parse_model: str = "gpt-4o-mini",
     assign_model: str = "gpt-4o-mini",
     initialize_embedding_model: str = "text-embedding-3-small",
-    retrieve_embedding_model: str = "text-embedding-3-small"
+    retrieve_embedding_model: str = "text-embedding-3-small",
+    data_format: str = "interview"  # Added parameter to specify data format
 ):
     """
-    Orchestrates the entire process of assigning qualitative codes to transcripts based on the provided modes and configurations.
+    Orchestrates the entire process of assigning qualitative codes to transcripts or articles based on the provided modes and configurations.
     """
-    # Validate coding mode and load environment variables
+
+    # Stage 1: Environment Setup
     load_environment_variables()
     logger.debug("Environment variables loaded and validated.")
 
@@ -231,23 +331,50 @@ def main(
     prompts_folder = 'prompts'
     codebase_folder = 'qual_codebase'
     json_folder = 'json_transcripts'
+    config_folder = 'configs'
 
-    # Load transcript data
-    json_data = load_transcript_data(json_folder)
+    # Load parse instructions if parsing is enabled
+    parse_instructions = load_parse_instructions(prompts_folder) if use_parsing else ""
 
-    # Build meaning units
-    meaning_unit_object_list = parse_speaking_turns(
-        json_data=json_data,
-        prompts_folder=prompts_folder,
-        coding_mode=coding_mode,
-        use_parsing=use_parsing,
-        parse_model=parse_model
-    )
+    # Load schema mapping configuration
+    config_file = os.path.join(config_folder, f'{data_format}_config.json')
+    if not os.path.exists(config_file):
+        logger.error(f"Configuration file '{config_file}' not found.")
+        raise FileNotFoundError(f"Configuration file '{config_file}' not found.")
+
+    with open(config_file, 'r', encoding='utf-8') as file:
+        schema_mapping = json.load(file)
+
+    # Initialize Data Handler based on schema mapping
+    if data_format == "interview":
+        data_handler = InterviewDataHandler(
+            file_path=os.path.join(json_folder, 'output_cues.json'),
+            parse_instructions=parse_instructions,
+            completion_model=parse_model,
+            coding_mode=coding_mode,
+            use_parsing=use_parsing
+        )
+    elif data_format == "news":
+        data_handler = NewsDataHandler(
+            file_path=os.path.join(json_folder, 'news_articles.json'),
+            parse_instructions=parse_instructions,
+            completion_model=parse_model,
+            coding_mode=coding_mode,
+            use_parsing=use_parsing
+        )
+    else:
+        logger.error(f"Unsupported data format: {data_format}")
+        raise ValueError(f"Unsupported data format: {data_format}")
+
+    # Stage 2: Data Loading and Transformation
+    raw_data = data_handler.load_data()
+    meaning_unit_object_list = data_handler.transform_data(raw_data)
+
     if not meaning_unit_object_list:
         logger.warning("No meaning units to process. Exiting.")
         return
 
-    # Handle inductive or deductive coding mode
+    # Stage 3: Code Assignment
     if coding_mode == "deductive":
         processed_codes, faiss_index, coding_instructions = initialize_deductive_resources(
             codebase_folder=codebase_folder,
@@ -306,7 +433,7 @@ def main(
             embedding_model=None  # Embeddings not needed in inductive mode
         )
 
-    # Output coded meaning units
+    # Stage 4: Output Results
     for unit in coded_meaning_unit_list:
         logger.info(f"\nID: {unit.unique_id}")
         logger.info(f"Speaker: {unit.speaker_id}")
@@ -321,7 +448,7 @@ def main(
 if __name__ == "__main__":
     # Example usage:
 
-    # Deductive Coding with Parsing and RAG
+    # Deductive Coding with Parsing and RAG for Interview
     # main(
     #     coding_mode="deductive",
     #     use_parsing=True,
@@ -329,21 +456,23 @@ if __name__ == "__main__":
     #     parse_model="gpt-4o-mini",
     #     assign_model="gpt-4o-mini",
     #     initialize_embedding_model="text-embedding-3-small",
-    #     retrieve_embedding_model="text-embedding-3-small"
+    #     retrieve_embedding_model="text-embedding-3-small",
+    #     data_format="interview"
     # )
 
-    # Deductive Coding without Parsing and without RAG
-    main(
-        coding_mode="deductive",
-        use_parsing=False,
-        use_rag=False,
-        parse_model="gpt-4o-mini",
-        assign_model="gpt-4o-mini",
-        initialize_embedding_model="text-embedding-3-small",
-        retrieve_embedding_model="text-embedding-3-small"
-    )
+    # Deductive Coding without Parsing and without RAG for Interview
+    # main(
+    #     coding_mode="deductive",
+    #     use_parsing=False,
+    #     use_rag=False,
+    #     parse_model="gpt-4o-mini",
+    #     assign_model="gpt-4o-mini",
+    #     initialize_embedding_model="text-embedding-3-small",
+    #     retrieve_embedding_model="text-embedding-3-small",
+    #     data_format="interview"
+    # )
 
-    # Inductive Coding with Parsing
+    # Inductive Coding with Parsing for Interview
     # main(
     #     coding_mode="inductive",
     #     use_parsing=True,  # Enable parsing for inductive coding
@@ -351,10 +480,11 @@ if __name__ == "__main__":
     #     parse_model="gpt-4o-mini",  # Relevant only if use_parsing=True
     #     assign_model="gpt-4o-mini",
     #     initialize_embedding_model="text-embedding-3-small",  # Irrelevant in inductive mode
-    #     retrieve_embedding_model="text-embedding-3-small"    # Irrelevant in inductive mode
+    #     retrieve_embedding_model="text-embedding-3-small",    # Irrelevant in inductive mode
+    #     data_format="interview"
     # )
 
-    # Inductive Coding without Parsing
+    # Inductive Coding without Parsing for Interview
     # main(
     #     coding_mode="inductive",
     #     use_parsing=False,
@@ -362,5 +492,54 @@ if __name__ == "__main__":
     #     parse_model="gpt-4o-mini",  # Irrelevant if use_parsing=False
     #     assign_model="gpt-4o-mini",
     #     initialize_embedding_model="text-embedding-3-small",  # Irrelevant in inductive mode
-    #     retrieve_embedding_model="text-embedding-3-small"    # Irrelevant in inductive mode
+    #     retrieve_embedding_model="text-embedding-3-small",    # Irrelevant in inductive mode
+    #     data_format="interview"
+    # )
+
+    # Deductive Coding with Parsing and RAG for News Articles
+    main(
+        coding_mode="deductive",
+        use_parsing=True,
+        use_rag=True,
+        parse_model="gpt-4o-mini",
+        assign_model="gpt-4o-mini",
+        initialize_embedding_model="text-embedding-3-small",
+        retrieve_embedding_model="text-embedding-3-small",
+        data_format="news"
+    )
+
+    # Deductive Coding without Parsing and without RAG for News Articles
+    # main(
+    #     coding_mode="deductive",
+    #     use_parsing=False,
+    #     use_rag=False,
+    #     parse_model="gpt-4o-mini",
+    #     assign_model="gpt-4o-mini",
+    #     initialize_embedding_model="text-embedding-3-small",
+    #     retrieve_embedding_model="text-embedding-3-small",
+    #     data_format="news"
+    # )
+
+    # Inductive Coding with Parsing for News Articles
+    # main(
+    #     coding_mode="inductive",
+    #     use_parsing=True,
+    #     use_rag=False,
+    #     parse_model="gpt-4o-mini",
+    #     assign_model="gpt-4o-mini",
+    #     initialize_embedding_model="text-embedding-3-small",
+    #     retrieve_embedding_model="text-embedding-3-small",
+    #     data_format="news"
+    # )
+
+    # Inductive Coding without Parsing for News Articles
+    # main(
+    #     coding_mode="inductive",
+    #     use_parsing=False,
+    #     use_rag=False,
+    #     parse_model="gpt-4o-mini",
+    #     assign_model="gpt-4o-mini",
+    #     initialize_embedding_model="text-embedding-3-small",
+    #     retrieve_embedding_model="text-embedding-3-small",
+    #     data_format="news"
     # )

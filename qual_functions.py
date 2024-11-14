@@ -9,18 +9,21 @@ import json
 import numpy as np
 from pydantic import BaseModel
 
+# Initialize OpenAI client
 client = OpenAI()
 
 # Configure module-level logger
 logger = logging.getLogger(__name__)
 
-# Qualitative code structure
+# -------------------------------
+# Data Classes
+# -------------------------------
+
 @dataclass
 class CodeAssigned:
     code_name: str
     code_justification: str
 
-# Meaning unit structure
 @dataclass
 class MeaningUnit:
     unique_id: int = field(init=False)
@@ -28,14 +31,26 @@ class MeaningUnit:
     meaning_unit_string: str
     assigned_code_list: List[CodeAssigned] = field(default_factory=list) 
 
-# Defines the structure for parsing the transcript.
+@dataclass
+class TextData:
+    unique_id: int
+    text_content: str
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+# -------------------------------
+# Pydantic Models for Parsing
+# -------------------------------
+
 class ParseFormat(BaseModel):
     speaker_id: str
     meaning_unit_string_list: List[str]
 
-# Defines the structure for code format assignments.
 class CodeFormat(BaseModel):
     codeList: List[CodeAssigned]
+
+# -------------------------------
+# Core Functions
+# -------------------------------
 
 def parse_transcript(speaking_turn_string: str, prompt: str, completion_model: str) -> List[dict]:
     """
