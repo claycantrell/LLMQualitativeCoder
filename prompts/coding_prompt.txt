@@ -10,9 +10,9 @@
 
 **Provide Justifications**
 
-4. **Explain Code Assignments**: For every assigned code, include a 2-3 sentence justification detailing why the code is pertinent to the excerpt.
+4. **Explain Code Assignments**: For every assigned code, include a 2-3 sentence justification detailing why the code is pertinent to the CURRENT excerpt (not the context).
 
-5. **Justify "VOID" Assignments**: If "VOID" is assigned, provide a 2-3 sentence explanation clarifying why none of the provided codes are suitable for the excerpt.
+5. **Justify "VOID" Assignments**: If "VOID" is assigned, provide a 2-3 sentence explanation clarifying why none of the provided codes are suitable for the current excerpt.
 
 **Formatting Requirements**
 
@@ -63,7 +63,8 @@
 ]
 Contextual Metadata:
 
-You will receive a JSON object containing all relevant metadata for each excerpt. Use this metadata exclusively as context to inform your code assignments. Do not include any metadata in your output.
+You will receive a JSON object containing all relevant metadata for each current excerpt. Use this metadata exclusively as context to inform your code assignments. Do not include any metadata in your output.
+You will also recieve context from the conversation in which the current excerpt took place within. Do NOT code for this surrounding context,ONLY  code for the current excerpt.
 
 Output:
 

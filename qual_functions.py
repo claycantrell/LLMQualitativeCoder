@@ -15,6 +15,7 @@ try:
         raise ValueError("OPENAI_API_KEY environment variable is not set.")
     client = OpenAI(api_key=openai_api_key)
     logger = logging.getLogger(__name__)
+    logging.basicConfig(level=logging.INFO)  # Ensure DEBUG logs are captured
 except Exception as e:
     logging.getLogger(__name__).error(f"Failed to initialize OpenAI client: {e}")
     raise
@@ -46,7 +47,6 @@ class TextData:
 # -------------------------------
 
 class ParseFormat(BaseModel):
-    speaker_id: Optional[str]
     meaning_unit_string_list: List[str]
 
 class CodeFormat(BaseModel):
@@ -56,7 +56,12 @@ class CodeFormat(BaseModel):
 # Core Functions
 # -------------------------------
 
-def parse_transcript(speaking_turn_string: str, prompt: str, completion_model: str, metadata: Dict[str, Any] = None) -> List[dict]:
+def parse_transcript(
+    speaking_turn_string: str, 
+    prompt: str, 
+    completion_model: str, 
+    metadata: Dict[str, Any] = None
+) -> List[str]:
     """
     Breaks up a speaking turn into smaller meaning units based on criteria in the LLM prompt.
     
@@ -67,7 +72,7 @@ def parse_transcript(speaking_turn_string: str, prompt: str, completion_model: s
         metadata (Dict[str, Any], optional): Additional metadata to be provided as context.
 
     Returns:
-        List[dict]: A list of meaning units with 'speaker_id' and 'meaning_unit_string'.
+        List[str]: A list of meaning unit strings.
     """
     metadata_section = f"Metadata:\n{json.dumps(metadata, indent=2)}\n\n" if metadata else ""
     try:
@@ -107,18 +112,16 @@ def parse_transcript(speaking_turn_string: str, prompt: str, completion_model: s
             logger.error("Parsed output does not contain required field 'meaning_unit_string_list'.")
             return []
 
-        speaker_id = getattr(parsed_output, 'speaker_id', 'Unknown')
         meaningunit_stringlist_parsed = parsed_output.meaning_unit_string_list
 
         if not isinstance(meaningunit_stringlist_parsed, list):
             logger.error("'meaning_unit_string_list' is not a list.")
             return []
 
-        # Create a list of meaning units
-        meaning_units = [{"speaker_id": speaker_id, "meaning_unit_string": mu} for mu in meaningunit_stringlist_parsed]
-        
-        logger.debug(f"Parsed transcript with metadata. Extracted {len(meaning_units)} meaning units.")
-        return meaning_units
+        # Log the parsed meaning units
+        logger.debug(f"Parsed Meaning Units: {meaningunit_stringlist_parsed}")
+
+        return meaningunit_stringlist_parsed
 
     except Exception as e:
         logger.error(f"An error occurred while parsing transcript into meaning units: {e}")
@@ -322,13 +325,13 @@ def assign_codes_to_meaning_units(
                 prev_units = meaning_unit_list[max(0, idx - context_size):idx]
                 for unit in prev_units:
                     context_excerpt += (
-                        f"Metadata:\n{json.dumps(unit.metadata, indent=2)}\n"
+                        #f"Metadata:\n{json.dumps(unit.metadata, indent=2)}\n"
                         f"Quote: {unit.meaning_unit_string}\n\n"
                     )
 
             # Add current excerpt to context
             current_unit_excerpt = (
-                f"Metadata:\n{json.dumps(meaning_unit_object.metadata, indent=2)}\n"
+                #f"Metadata:\n{json.dumps(meaning_unit_object.metadata, indent=2)}\n"
                 f"Quote: {meaning_unit_object.meaning_unit_string}\n\n"
             )
 
@@ -339,7 +342,7 @@ def assign_codes_to_meaning_units(
                 next_units = meaning_unit_list[idx + 1: idx + 1 + context_size]
                 for unit in next_units:
                     context_excerpt += (
-                        f"Metadata:\n{json.dumps(unit.metadata, indent=2)}\n"
+                        #f"Metadata:\n{json.dumps(unit.metadata, indent=2)}\n"
                         f"Quote: {unit.meaning_unit_string}\n\n"
                     )
 
@@ -354,6 +357,7 @@ def assign_codes_to_meaning_units(
                 f"{code_heading}\n{codes_str}\n\n"
                 f"Contextual Excerpts:\n{context_excerpt}"
                 f"**Important:** Please use the provided contextual excerpts **only** as background information to understand the current excerpt better. "
+                f"Current Excerpt For Coding:\n{current_unit_excerpt}"
                 f"{'**Apply codes exclusively to the current excerpt provided above. Do not assign codes to the contextual excerpts.**' if codes_to_include is not None else '**Generate codes based on the current excerpt provided above using the guidelines.**'}\n\n"
                 f"Please provide the assigned codes in the following JSON format:\n"
                 f"{{\n  \"codeList\": [\n    {{\"code_name\": \"<Name of the code>\", \"code_justification\": \"<Justification for the code>\"}},\n    ...\n  ]\n}}"

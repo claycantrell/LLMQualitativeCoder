@@ -1,7 +1,7 @@
 import os
 import json
 import logging
-from typing import Dict, Any, Tuple, List  # Added List here
+from typing import Dict, Any, Tuple, List
 import faiss
 from qual_functions import (
     parse_transcript,
@@ -11,6 +11,7 @@ from pydantic import create_model
 
 # Configure logging for utils module
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)  # Ensure DEBUG logs are captured
 
 def load_environment_variables() -> None:
     """

@@ -10,6 +10,7 @@ from qual_functions import (
 
 # Configure logging for data_handlers module
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)  # Ensure DEBUG logs are captured
 
 # -------------------------------
 # Abstract Base Class for Data Handlers
@@ -38,7 +39,14 @@ class FlexibleDataHandler(BaseDataHandler):
     A data handler that dynamically processes data based on a provided schema.
     """
 
-    def __init__(self, file_path: str, parse_instructions: str, completion_model: str, model_class, use_parsing: bool = True):
+    def __init__(
+        self, 
+        file_path: str, 
+        parse_instructions: str, 
+        completion_model: str, 
+        model_class, 
+        use_parsing: bool = True
+    ):
         self.file_path = file_path
         self.parse_instructions = parse_instructions
         self.completion_model = completion_model
@@ -95,6 +103,7 @@ class FlexibleDataHandler(BaseDataHandler):
             speaker_id = 'Unknown'
             if 'speaker_name' in item_dict:
                 speaker_id = item_dict.pop('speaker_name')
+                logger.debug(f"Extracted speaker_id: {speaker_id} for item {idx}")
 
             if not content:
                 logger.warning(f"No content found for item {idx}. Skipping.")
@@ -110,16 +119,16 @@ class FlexibleDataHandler(BaseDataHandler):
                 )
                 if not parsed_units:
                     logger.warning(f"No meaning units extracted for item {idx}. Using entire text as a single meaning unit.")
-                    parsed_units = [{"speaker_id": speaker_id, "meaning_unit_string": content}]
-                
-                for unit_data in parsed_units:
+                    parsed_units = [content]  # Changed to list of strings
+
+                for unit_string in parsed_units:
                     unique_id = len(meaning_unit_list) + 1
                     current_metadata = dict(item_dict)  # Create a shallow copy of metadata
-                    current_metadata['speaker_id'] = unit_data.get('speaker_id', speaker_id)
+                    current_metadata['speaker_id'] = speaker_id
                     meaning_unit_object = MeaningUnit(
                         unique_id=unique_id,
                         metadata=current_metadata,
-                        meaning_unit_string=unit_data.get('meaning_unit_string', '')
+                        meaning_unit_string=unit_string
                     )
                     logger.debug(f"Added Meaning Unit {meaning_unit_object.unique_id}: Metadata - {meaning_unit_object.metadata}, Quote - {meaning_unit_object.meaning_unit_string}")
                     meaning_unit_list.append(meaning_unit_object)

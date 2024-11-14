@@ -19,7 +19,7 @@ from qual_functions import (
 
 # Configure logging
 logging.basicConfig(
-    level=logging.DEBUG,  # Changed from INFO to DEBUG for detailed logs
+    level=logging.INFO,  # Changed from INFO to DEBUG for detailed logs
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
     handlers=[
         logging.StreamHandler()
@@ -38,7 +38,7 @@ def main(
     assign_model: str = "gpt-4o-mini",
     initialize_embedding_model: str = "text-embedding-3-small",
     retrieve_embedding_model: str = "text-embedding-3-small",
-    data_format: str = "interview"
+    data_format: str = "interview"  # Default to "interview" as per user issue
 ):
     """
     Orchestrates the entire process of assigning qualitative codes to transcripts or articles based on the provided modes and configurations.
@@ -227,5 +227,5 @@ if __name__ == "__main__":
         assign_model="gpt-4o-mini",
         initialize_embedding_model="text-embedding-3-small",
         retrieve_embedding_model="text-embedding-3-small",
-        data_format="interview"
+        data_format="news"  # Changed to "interview" as per user issue
     )
