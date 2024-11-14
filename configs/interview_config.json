@@ -1,0 +1,6 @@
+{
+    "data_format": "interview",
+    "id_field": "id",
+    "text_field": "text_context",
+    "metadata_fields": ["length_of_time_spoken_seconds", "speaker_name"]
+}

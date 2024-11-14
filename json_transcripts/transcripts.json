@@ -1,0 +1,25 @@
+[
+    {
+        "id": 1,
+        "date": "2024-05-15",
+        "participants": ["John Doe", "Jane Smith"],
+        "location": "Conference Room A",
+        "content": [
+            {
+                "speaker": "John Doe",
+                "timestamp": "00:00:10",
+                "text": "Good morning, everyone. Let's get started with today's meeting."
+            },
+            {
+                "speaker": "Jane Smith",
+                "timestamp": "00:01:20",
+                "text": "Thank you, John. I'd like to discuss the progress on our latest project."
+            },
+            {
+                "speaker": "John Doe",
+                "timestamp": "00:02:35",
+                "text": "Absolutely, Jane. Please go ahead."
+            }
+        ]
+    }
+]
