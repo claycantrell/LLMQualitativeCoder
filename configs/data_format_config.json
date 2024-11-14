@@ -1,0 +1,18 @@
+{
+  "interview": {
+    "id": "int",
+    "length_of_time_spoken_seconds": "float",
+    "text_context": "str",
+    "speaker_name": "str"
+  },
+  "news": {
+    "id": "int",
+    "title": "str",
+    "author": "str",
+    "publication_date": "str",
+    "content": "str",
+    "source": "str",
+    "tags": "list",
+    "url": "str"
+  }
+}

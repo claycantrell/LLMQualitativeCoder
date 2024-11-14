@@ -1,5 +1,3 @@
-# utils.py
-
 import os
 import json
 import logging
@@ -9,10 +7,10 @@ from qual_functions import (
     parse_transcript,
     initialize_faiss_index_from_formatted_file
 )
+from pydantic import create_model
 
 # Configure logging for utils module
 logger = logging.getLogger(__name__)
-
 
 def load_environment_variables() -> None:
     """
@@ -22,7 +20,6 @@ def load_environment_variables() -> None:
     if not openai_api_key:
         logger.error("OPENAI_API_KEY environment variable is not set.")
         raise ValueError("Set the OPENAI_API_KEY environment variable.")
-
 
 def load_coding_instructions(prompts_folder: str) -> str:
     """
@@ -38,7 +35,6 @@ def load_coding_instructions(prompts_folder: str) -> str:
 
     return coding_instructions
 
-
 def load_parse_instructions(prompts_folder: str) -> str:
     """
     Loads parse instructions from a file for breaking down speaking turns into meaning units.
@@ -52,7 +48,6 @@ def load_parse_instructions(prompts_folder: str) -> str:
         parse_instructions = file.read().strip()
 
     return parse_instructions
-
 
 def load_custom_coding_prompt(prompts_folder: str) -> str:
     """
@@ -71,7 +66,6 @@ def load_custom_coding_prompt(prompts_folder: str) -> str:
         raise ValueError("Custom coding prompt file is empty.")
 
     return custom_coding_prompt
-
 
 def initialize_deductive_resources(
     codebase_folder: str,
@@ -101,3 +95,63 @@ def initialize_deductive_resources(
         processed_codes = []
 
     return processed_codes, faiss_index, coding_instructions
+
+def load_schema_config(config_path: str) -> Dict[str, Dict[str, str]]:
+    """
+    Loads schema configuration from the given JSON file path.
+
+    Args:
+        config_path (str): The file path to the JSON configuration file defining data schemas.
+
+    Returns:
+        Dict[str, Dict[str, str]]: A dictionary where keys are data format names (e.g., 'interview') and values are dictionaries mapping field names to types.
+    """
+    if not os.path.exists(config_path):
+        logger.error(f"Schema configuration file '{config_path}' not found.")
+        raise FileNotFoundError(f"Schema configuration file '{config_path}' not found.")
+
+    try:
+        with open(config_path, 'r', encoding='utf-8') as file:
+            config_data = json.load(file)
+        return config_data
+    except json.JSONDecodeError as e:
+        logger.error(f"Error decoding JSON from '{config_path}': {e}")
+        raise
+
+def create_dynamic_model_for_format(data_format: str, schema_config: Dict[str, Dict[str, str]]):
+    """
+    Creates a dynamic Pydantic model for the given data format based on the provided schema configuration.
+
+    Args:
+        data_format (str): The data format for which to create a dynamic model (e.g., 'interview', 'news').
+        schema_config (Dict[str, Dict[str, str]]): The schema configuration dictionary loaded from a JSON file.
+
+    Returns:
+        Type[BaseModel]: A dynamically created Pydantic model class.
+    """
+    if data_format not in schema_config:
+        raise ValueError(f"No schema configuration found for data format '{data_format}'")
+
+    fields = schema_config[data_format]
+    type_map = {
+        "str": str,
+        "int": int,
+        "float": float,
+        "list": list,
+        "dict": dict,
+        "bool": bool,
+        # Additional mappings as needed
+    }
+
+    dynamic_fields = {}
+    for field_name, field_type_str in fields.items():
+        py_type = type_map.get(field_type_str, Any)  # Default to Any if not found
+        dynamic_fields[field_name] = (py_type, ...)  # Required field by default
+
+    dynamic_model = create_model(
+        f"{data_format.capitalize()}DataModel",
+        **dynamic_fields,
+        __config__=type('Config', (), {'extra': 'allow'})  # Allow extra fields
+    )
+
+    return dynamic_model

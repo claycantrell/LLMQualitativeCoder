@@ -1,5 +1,3 @@
-# qual_functions.py
-
 import logging
 from openai import OpenAI
 from dataclasses import dataclass, field
@@ -26,10 +24,10 @@ class CodeAssigned:
 
 @dataclass
 class MeaningUnit:
-    unique_id: int = field(init=False)
+    unique_id: int
     speaker_id: str
     meaning_unit_string: str
-    assigned_code_list: List[CodeAssigned] = field(default_factory=list) 
+    assigned_code_list: List[CodeAssigned] = field(default_factory=list)
 
 @dataclass
 class TextData:
@@ -262,9 +260,6 @@ def assign_codes_to_meaning_units(
     try:
         total_units = len(meaning_unit_list)
         for idx, meaning_unit_object in enumerate(meaning_unit_list):
-            unique_id = idx + 1  # Start unique_id at 1
-            meaning_unit_object.unique_id = unique_id  # Assign a unique ID
-
             # Determine coding approach
             is_deductive = processed_codes is not None and index is not None
 
@@ -335,7 +330,7 @@ def assign_codes_to_meaning_units(
                 f"{{\n  \"codeList\": [\n    {{\"code_name\": \"<Name of the code>\", \"code_justification\": \"<Justification for the code>\"}},\n    ...\n  ]\n}}"
             )
 
-            logger.debug(f"Full Prompt for Unique ID {unique_id}:\n{full_prompt}")
+            logger.debug(f"Full Prompt for Unique ID {meaning_unit_object.unique_id}:\n{full_prompt}")
 
             try:
                 response = client.beta.chat.completions.parse(
@@ -360,7 +355,7 @@ def assign_codes_to_meaning_units(
 
                 # Retrieve the parsed response
                 code_output = response.choices[0].message.parsed
-                logger.debug(f"LLM Code Assignment Output for ID {unique_id}:\n{code_output.codeList}")
+                logger.debug(f"LLM Code Assignment Output for ID {meaning_unit_object.unique_id}:\n{code_output.codeList}")
 
                 # Append each code_name and code_justification to the meaning_unit_object
                 for code_item in code_output.codeList:
@@ -371,7 +366,7 @@ def assign_codes_to_meaning_units(
                     )
 
             except Exception as e:
-                logger.error(f"An error occurred while retrieving code assignments for Unique ID {unique_id}: {e}")
+                logger.error(f"An error occurred while retrieving code assignments for Unique ID {meaning_unit_object.unique_id}: {e}")
 
     except Exception as e:
         logger.error(f"An error occurred while assigning codes: {e}")

@@ -1,19 +1,16 @@
-# main.py
-
 import os
 import json
 import logging
-from typing import List, Dict, Optional, Any, Tuple
+from typing import List, Dict, Optional, Any, Tuple, Type
 import faiss
-from data_handlers import (
-    InterviewDataHandler,
-    NewsDataHandler
-)
+from data_handlers import BaseDataHandler, FlexibleDataHandler
 from utils import (
     load_environment_variables,
     load_parse_instructions,
     load_custom_coding_prompt,
-    initialize_deductive_resources
+    initialize_deductive_resources,
+    create_dynamic_model_for_format,
+    load_schema_config
 )
 from qual_functions import (
     MeaningUnit,
@@ -41,12 +38,11 @@ def main(
     assign_model: str = "gpt-4o-mini",
     initialize_embedding_model: str = "text-embedding-3-small",
     retrieve_embedding_model: str = "text-embedding-3-small",
-    data_format: str = "interview"  # Added parameter to specify data format
+    data_format: str = "interview"
 ):
     """
     Orchestrates the entire process of assigning qualitative codes to transcripts or articles based on the provided modes and configurations.
     """
-
     # Stage 1: Environment Setup
     load_environment_variables()
     logger.debug("Environment variables loaded and validated.")
@@ -60,45 +56,83 @@ def main(
     # Load parse instructions if parsing is enabled
     parse_instructions = load_parse_instructions(prompts_folder) if use_parsing else ""
 
-    # Load schema mapping configuration
-    config_file = os.path.join(config_folder, f'{data_format}_config.json')
-    if not os.path.exists(config_file):
-        logger.error(f"Configuration file '{config_file}' not found.")
-        raise FileNotFoundError(f"Configuration file '{config_file}' not found.")
+    # Load schema mapping configuration for dynamic model creation
+    schema_config_path = os.path.join(config_folder, 'data_format_config.json')
+    schema_config = load_schema_config(schema_config_path)
 
-    with open(config_file, 'r', encoding='utf-8') as file:
-        schema_mapping = json.load(file)
+    if data_format not in schema_config:
+        logger.error(f"No schema configuration found for data format: {data_format}")
+        raise ValueError(f"No schema configuration found for data format: {data_format}")
 
-    # Initialize Data Handler based on schema mapping
-    if data_format == "interview":
-        data_handler = InterviewDataHandler(
-            file_path=os.path.join(json_folder, 'output_cues.json'),
-            parse_instructions=parse_instructions,
-            completion_model=parse_model,
-            coding_mode=coding_mode,
-            use_parsing=use_parsing
-        )
-    elif data_format == "news":
-        data_handler = NewsDataHandler(
-            file_path=os.path.join(json_folder, 'news_articles.json'),
-            parse_instructions=parse_instructions,
-            completion_model=parse_model,
-            coding_mode=coding_mode,
-            use_parsing=use_parsing
-        )
-    else:
-        logger.error(f"Unsupported data format: {data_format}")
-        raise ValueError(f"Unsupported data format: {data_format}")
+    # Create a dynamic Pydantic model for the specified data format
+    dynamic_data_model = create_dynamic_model_for_format(data_format, schema_config)
 
-    # Stage 2: Data Loading and Transformation
-    raw_data = data_handler.load_data()
-    meaning_unit_object_list = data_handler.transform_data(raw_data)
+    # Determine the data file to load based on data format
+    data_file_map = {
+        "interview": "output_cues.json",
+        "news": "news_articles.json"
+    }
+    data_file = data_file_map.get(data_format, None)
+    if not data_file:
+        logger.error(f"No data file mapped for data format: {data_format}")
+        raise ValueError(f"No data file mapped for data format: {data_format}")
+
+    file_path = os.path.join(json_folder, data_file)
+    if not os.path.exists(file_path):
+        logger.error(f"Data file '{file_path}' not found.")
+        raise FileNotFoundError(f"Data file '{file_path}' not found.")
+
+    # Stage 2: Data Loading and Validation Using Dynamic Model
+    with open(file_path, 'r', encoding='utf-8') as file:
+        raw_data = json.load(file)
+
+    validated_data = []
+    for item in raw_data:
+        try:
+            validated_item = dynamic_data_model(**item)
+            validated_data.append(validated_item)
+        except Exception as e:
+            logger.error(f"Data validation error for item {item}: {e}")
+            continue
+
+    if not validated_data:
+        logger.warning("No valid data items after validation. Exiting.")
+        return
+
+    # Stage 3: Data Transformation
+    # We create meaning units directly, as data handlers have been generalized
+    # to handle partially unknown schemas. For advanced transformations, consider dynamic transformations.
+    meaning_unit_object_list = []
+    for idx, item in enumerate(validated_data, start=1):
+        if data_format == "interview":
+            # For interviews, assume entire speaking turn or parsed meaning units
+            speaker_id = getattr(item, 'speaker_name', 'Unknown')
+            text_content = getattr(item, 'text_context', '')
+            meaning_unit_object = MeaningUnit(
+                unique_id=idx,
+                speaker_id=speaker_id,
+                meaning_unit_string=text_content
+            )
+            meaning_unit_object_list.append(meaning_unit_object)
+        elif data_format == "news":
+            # For news articles, assume entire content as a meaning unit or parse further
+            author = getattr(item, 'author', 'Unknown')
+            content = getattr(item, 'content', '')
+            meaning_unit_object = MeaningUnit(
+                unique_id=idx,
+                speaker_id=author,
+                meaning_unit_string=content
+            )
+            meaning_unit_object_list.append(meaning_unit_object)
+        else:
+            logger.warning(f"Unsupported data format for transformation: {data_format}")
+            continue
 
     if not meaning_unit_object_list:
         logger.warning("No meaning units to process. Exiting.")
         return
 
-    # Stage 3: Code Assignment
+    # Stage 4: Code Assignment
     if coding_mode == "deductive":
         processed_codes, faiss_index, coding_instructions = initialize_deductive_resources(
             codebase_folder=codebase_folder,
@@ -157,7 +191,7 @@ def main(
             embedding_model=None  # Embeddings not needed in inductive mode
         )
 
-    # Stage 4: Output Results
+    # Stage 5: Output Results
     for unit in coded_meaning_unit_list:
         logger.info(f"\nID: {unit.unique_id}")
         logger.info(f"Speaker: {unit.speaker_id}")
@@ -174,97 +208,13 @@ if __name__ == "__main__":
     # Example usage:
 
     # Deductive Coding with Parsing and RAG for Interview
-    # main(
-    #     coding_mode="deductive",
-    #     use_parsing=True,
-    #     use_rag=True,
-    #     parse_model="gpt-4o-mini",
-    #     assign_model="gpt-4o-mini",
-    #     initialize_embedding_model="text-embedding-3-small",
-    #     retrieve_embedding_model="text-embedding-3-small",
-    #     data_format="interview"
-    # )
-
-    # Deductive Coding without Parsing and without RAG for Interview
-    # main(
-    #     coding_mode="deductive",
-    #     use_parsing=False,
-    #     use_rag=False,
-    #     parse_model="gpt-4o-mini",
-    #     assign_model="gpt-4o-mini",
-    #     initialize_embedding_model="text-embedding-3-small",
-    #     retrieve_embedding_model="text-embedding-3-small",
-    #     data_format="interview"
-    # )
-
-    # Inductive Coding with Parsing for Interview
-    # main(
-    #     coding_mode="inductive",
-    #     use_parsing=True,  # Enable parsing for inductive coding
-    #     use_rag=False,     # RAG not applicable in inductive mode
-    #     parse_model="gpt-4o-mini",  # Relevant only if use_parsing=True
-    #     assign_model="gpt-4o-mini",
-    #     initialize_embedding_model="text-embedding-3-small",  # Irrelevant in inductive mode
-    #     retrieve_embedding_model="text-embedding-3-small",    # Irrelevant in inductive mode
-    #     data_format="interview"
-    # )
-
-    # Inductive Coding without Parsing for Interview
-    # main(
-    #     coding_mode="inductive",
-    #     use_parsing=False,
-    #     use_rag=False,
-    #     parse_model="gpt-4o-mini",  # Irrelevant if use_parsing=False
-    #     assign_model="gpt-4o-mini",
-    #     initialize_embedding_model="text-embedding-3-small",  # Irrelevant in inductive mode
-    #     retrieve_embedding_model="text-embedding-3-small",    # Irrelevant in inductive mode
-    #     data_format="interview"
-    # )
-
-    # Deductive Coding with Parsing and RAG for News Articles
     main(
         coding_mode="deductive",
-        use_parsing=False,
-        use_rag=False,
+        use_parsing=True,
+        use_rag=True,
         parse_model="gpt-4o-mini",
         assign_model="gpt-4o-mini",
         initialize_embedding_model="text-embedding-3-small",
         retrieve_embedding_model="text-embedding-3-small",
-        data_format="news"
+        data_format="interview"
     )
-
-    # Deductive Coding without Parsing and without RAG for News Articles
-    # main(
-    #     coding_mode="deductive",
-    #     use_parsing=False,
-    #     use_rag=False,
-    #     parse_model="gpt-4o-mini",
-    #     assign_model="gpt-4o-mini",
-    #     initialize_embedding_model="text-embedding-3-small",
-    #     retrieve_embedding_model="text-embedding-3-small",
-    #     data_format="news"
-    # )
-
-    # Inductive Coding with Parsing for News Articles
-    # main(
-    #     coding_mode="inductive",
-    #     use_parsing=True,
-    #     use_rag=False,
-    #     parse_model="gpt-4o-mini",
-    #     assign_model="gpt-4o-mini",
-    #     initialize_embedding_model="text-embedding-3-small",
-    #     retrieve_embedding_model="text-embedding-3-small",
-    #     data_format="news"
-    # )
-
-    # Inductive Coding without Parsing for News Articles
-    # main(
-    #     coding_mode="inductive",
-    #     use_parsing=False,
-    #     use_rag=False,
-    #     parse_model="gpt-4o-mini",
-    #     assign_model="gpt-4o-mini",
-    #     initialize_embedding_model="text-embedding-3-small",
-    #     retrieve_embedding_model="text-embedding-3-small",
-    #     data_format="news"
-    # )

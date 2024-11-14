@@ -1,5 +1,3 @@
-# data_handlers.py
-
 import os
 import json
 import logging
@@ -12,7 +10,6 @@ from qual_functions import (
 
 # Configure logging for data_handlers module
 logger = logging.getLogger(__name__)
-
 
 # -------------------------------
 # Abstract Base Class for Data Handlers
@@ -35,28 +32,23 @@ class BaseDataHandler(ABC):
 
 
 # -------------------------------
-# Specialized Data Handler for Interview Transcripts
+# Flexible Data Handler for Various JSON Formats
 # -------------------------------
-class InterviewDataHandler(BaseDataHandler):
+class FlexibleDataHandler(BaseDataHandler):
     """
-    A data handler for interview transcripts.
-    Expects JSON data with fields:
-    - id
-    - length_of_time_spoken_seconds
-    - text_context
-    - speaker_name
+    A data handler that dynamically processes data based on a provided schema.
     """
 
-    def __init__(self, file_path: str, parse_instructions: str, completion_model: str, coding_mode: str = "deductive", use_parsing: bool = True):
+    def __init__(self, file_path: str, parse_instructions: str, completion_model: str, model_class, use_parsing: bool = True):
         self.file_path = file_path
         self.parse_instructions = parse_instructions
         self.completion_model = completion_model
-        self.coding_mode = coding_mode
+        self.model_class = model_class
         self.use_parsing = use_parsing
 
     def load_data(self) -> List[dict]:
         """
-        Loads the JSON data from a file containing interview transcripts.
+        Loads and validates the JSON data using the dynamic model.
         """
         if not os.path.exists(self.file_path):
             logger.error(f"JSON file '{self.file_path}' not found.")
@@ -64,141 +56,60 @@ class InterviewDataHandler(BaseDataHandler):
 
         try:
             with open(self.file_path, 'r', encoding='utf-8') as file:
-                return json.load(file)
+                raw_data = json.load(file)
         except json.JSONDecodeError as e:
             logger.error(f"Error decoding JSON from '{self.file_path}': {e}")
             raise
+        
+        validated_data = []
+        for item in raw_data:
+            try:
+                validated_item = self.model_class(**item)
+                validated_data.append(validated_item)
+            except Exception as e:
+                logger.error(f"Data validation error: {e}, Item: {item}")
+        return validated_data
 
-    def transform_data(self, data: List[dict]) -> List[MeaningUnit]:
+    def transform_data(self, data: List) -> List[MeaningUnit]:
         """
         Transforms loaded data into a list of MeaningUnit objects.
-        If use_parsing is True, it parses each speaking turn into meaning units.
-        If use_parsing is False, it uses entire speaking turns as meaning units.
-        """
-        meaning_unit_list = []
-        for idx, speaking_turn in enumerate(data, start=1):
-            speaker_id = speaking_turn.get('speaker_name', 'Unknown')
-            speaking_turn_string = speaking_turn.get('text_context', '')
-            if not speaking_turn_string:
-                logger.warning(f"No speaking turn text found for Speaking Turn {idx}. Skipping.")
-                continue
-
-            if self.use_parsing:
-                # Parsing speaking turns
-                logger.info(f"Parsing Speaking Turn {idx}: Speaker - {speaker_id}")
-                formatted_prompt = self.parse_instructions.replace("{speaker_name}", speaker_id)
-                parsed_units = parse_transcript(
-                    speaking_turn_string,
-                    formatted_prompt,
-                    completion_model=self.completion_model
-                )
-                if not parsed_units:
-                    logger.warning(f"No meaning units extracted from Speaking Turn {idx}. Skipping.")
-                    continue
-
-                for unit_idx, unit in enumerate(parsed_units, start=1):
-                    meaning_unit_object = MeaningUnit(
-                        speaker_id=unit.get('speaker_id', speaker_id),
-                        meaning_unit_string=unit.get('meaning_unit_string', '')
-                    )
-                    logger.debug(f"Added Meaning Unit {unit_idx}: Speaker - {meaning_unit_object.speaker_id}, Quote - {meaning_unit_object.meaning_unit_string}")
-                    meaning_unit_list.append(meaning_unit_object)
-            else:
-                # Not parsing speaking turns
-                logger.info(f"Using entire speaking turn {idx} as a meaning unit: Speaker - {speaker_id}")
-                meaning_unit_object = MeaningUnit(
-                    speaker_id=speaker_id,
-                    meaning_unit_string=speaking_turn_string
-                )
-                logger.debug(f"Added Meaning Unit: Speaker - {meaning_unit_object.speaker_id}, Quote - {meaning_unit_object.meaning_unit_string}")
-                meaning_unit_list.append(meaning_unit_object)
-
-        if not meaning_unit_list:
-            logger.warning("No meaning units extracted from any speaking turns.")
-        return meaning_unit_list
-
-
-# -------------------------------
-# Specialized Data Handler for News Articles
-# -------------------------------
-class NewsDataHandler(BaseDataHandler):
-    """
-    A data handler for news articles.
-    Expects JSON data with fields:
-    - id
-    - title
-    - publication_date
-    - author
-    - content
-    - section
-    - source
-    - url
-    - tags (optional)
-    """
-
-    def __init__(self, file_path: str, parse_instructions: str, completion_model: str, coding_mode: str = "deductive", use_parsing: bool = True):
-        self.file_path = file_path
-        self.parse_instructions = parse_instructions
-        self.completion_model = completion_model
-        self.coding_mode = coding_mode
-        self.use_parsing = use_parsing
-
-    def load_data(self) -> List[dict]:
-        """
-        Loads the JSON data from a file containing news articles.
-        """
-        if not os.path.exists(self.file_path):
-            logger.error(f"News JSON file '{self.file_path}' not found.")
-            raise FileNotFoundError(f"News JSON file '{self.file_path}' not found.")
-
-        try:
-            with open(self.file_path, 'r', encoding='utf-8') as file:
-                return json.load(file)
-        except json.JSONDecodeError as e:
-            logger.error(f"Error decoding JSON from '{self.file_path}': {e}")
-            raise
-
-    def transform_data(self, data: List[dict]) -> List[MeaningUnit]:
-        """
-        Transforms loaded data into a list of MeaningUnit objects.
-        If use_parsing is True, it parses each article's content into meaning units.
+        If use_parsing is True, it can parse textual content into meaning units.
         If use_parsing is False, it uses the entire content as a single meaning unit.
+        The transformation logic here must be tailored based on actual fields in data and instructions.
         """
         meaning_unit_list = []
-        for idx, article in enumerate(data, start=1):
-            title = article.get('title', 'Untitled')
-            author = article.get('author', 'Unknown Author')
-            content = article.get('content', '')
+        for idx, item in enumerate(data, start=1):
+            # Example logic: if the model has 'speaker_name' and 'text_context' fields
+            speaker_id = getattr(item, 'speaker_name', 'Unknown')
+            content = getattr(item, 'content', '') or getattr(item, 'text_context', '')
             if not content:
-                logger.warning(f"No content found for News Article {idx}. Skipping.")
+                logger.warning(f"No content found for item {idx}. Skipping.")
                 continue
 
-            speaker_id = f"Author: {author}"  # For consistency with MeaningUnit structure
-
             if self.use_parsing:
-                # Parsing article content
-                logger.info(f"Parsing News Article {idx}: Title - {title}")
-                formatted_prompt = self.parse_instructions.replace("{speaker_name}", author)
+                # Parse the content to extract meaning units
+                formatted_prompt = self.parse_instructions.replace("{speaker_name}", speaker_id)
                 parsed_units = parse_transcript(
                     content,
                     formatted_prompt,
                     completion_model=self.completion_model
                 )
                 if not parsed_units:
-                    logger.warning(f"No meaning units extracted from News Article {idx}. Skipping.")
+                    logger.warning(f"No meaning units extracted for item {idx}. Skipping.")
                     continue
 
                 for unit_idx, unit in enumerate(parsed_units, start=1):
                     meaning_unit_object = MeaningUnit(
+                        unique_id=(idx * 1000) + unit_idx,
                         speaker_id=unit.get('speaker_id', speaker_id),
                         meaning_unit_string=unit.get('meaning_unit_string', '')
                     )
-                    logger.debug(f"Added Meaning Unit {unit_idx}: Speaker - {meaning_unit_object.speaker_id}, Quote - {meaning_unit_object.meaning_unit_string}")
+                    logger.debug(f"Added Meaning Unit {meaning_unit_object.unique_id}: Speaker - {meaning_unit_object.speaker_id}, Quote - {meaning_unit_object.meaning_unit_string}")
                     meaning_unit_list.append(meaning_unit_object)
             else:
-                # Not parsing article content
-                logger.info(f"Using entire content of News Article {idx} as a meaning unit: Title - {title}")
+                # Use the entire content as one meaning unit
                 meaning_unit_object = MeaningUnit(
+                    unique_id=idx,
                     speaker_id=speaker_id,
                     meaning_unit_string=content
                 )
@@ -206,5 +117,5 @@ class NewsDataHandler(BaseDataHandler):
                 meaning_unit_list.append(meaning_unit_object)
 
         if not meaning_unit_list:
-            logger.warning("No meaning units extracted from any news articles.")
+            logger.warning("No meaning units extracted from any items.")
         return meaning_unit_list
