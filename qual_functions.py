@@ -15,7 +15,7 @@ try:
         raise ValueError("OPENAI_API_KEY environment variable is not set.")
     client = OpenAI(api_key=openai_api_key)
     logger = logging.getLogger(__name__)
-    logging.basicConfig(level=logging.INFO)  # Ensure DEBUG logs are captured
+    logging.basicConfig(level=logging.DEBUG)  # Ensure DEBUG logs are captured
 except Exception as e:
     logging.getLogger(__name__).error(f"Failed to initialize OpenAI client: {e}")
     raise
@@ -325,13 +325,11 @@ def assign_codes_to_meaning_units(
                 prev_units = meaning_unit_list[max(0, idx - context_size):idx]
                 for unit in prev_units:
                     context_excerpt += (
-                        #f"Metadata:\n{json.dumps(unit.metadata, indent=2)}\n"
                         f"Quote: {unit.meaning_unit_string}\n\n"
                     )
 
             # Add current excerpt to context
             current_unit_excerpt = (
-                #f"Metadata:\n{json.dumps(meaning_unit_object.metadata, indent=2)}\n"
                 f"Quote: {meaning_unit_object.meaning_unit_string}\n\n"
             )
 
@@ -342,7 +340,6 @@ def assign_codes_to_meaning_units(
                 next_units = meaning_unit_list[idx + 1: idx + 1 + context_size]
                 for unit in next_units:
                     context_excerpt += (
-                        #f"Metadata:\n{json.dumps(unit.metadata, indent=2)}\n"
                         f"Quote: {unit.meaning_unit_string}\n\n"
                     )
 

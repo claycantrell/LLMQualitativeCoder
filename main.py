@@ -19,7 +19,7 @@ from qual_functions import (
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,  # Changed from INFO to DEBUG for detailed logs
+    level=logging.DEBUG,  # Changed from INFO to DEBUG for detailed logs
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
     handlers=[
         logging.StreamHandler()
@@ -84,7 +84,7 @@ def main(
 
     # Create a dynamic Pydantic model for the specified data format
     try:
-        dynamic_data_model = create_dynamic_model_for_format(data_format, schema_config)
+        dynamic_data_model, content_field = create_dynamic_model_for_format(data_format, schema_config)
         logger.debug(f"Dynamic data model for '{data_format}' created.")
     except Exception as e:
         logger.error(f"Failed to create dynamic data model: {e}")
@@ -112,6 +112,7 @@ def main(
             parse_instructions=parse_instructions,
             completion_model=parse_model,
             model_class=dynamic_data_model,
+            content_field=content_field,
             use_parsing=use_parsing
         )
         validated_data = data_handler.load_data()
@@ -227,5 +228,5 @@ if __name__ == "__main__":
         assign_model="gpt-4o-mini",
         initialize_embedding_model="text-embedding-3-small",
         retrieve_embedding_model="text-embedding-3-small",
-        data_format="news"  # Changed to "interview" as per user issue
+        data_format="interview"  # Changed to "interview" as per user issue
     )

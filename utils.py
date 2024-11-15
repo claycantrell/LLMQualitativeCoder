@@ -1,17 +1,17 @@
 import os
 import json
 import logging
-from typing import Dict, Any, Tuple, List
+from typing import Dict, Any, Tuple, List, Type
 import faiss
 from qual_functions import (
     parse_transcript,
     initialize_faiss_index_from_formatted_file
 )
-from pydantic import create_model
+from pydantic import create_model, BaseModel, Extra, ConfigDict
 
 # Configure logging for utils module
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)  # Ensure DEBUG logs are captured
+logging.basicConfig(level=logging.DEBUG)  # Ensure DEBUG logs are captured
 
 def load_environment_variables() -> None:
     """
@@ -152,21 +152,28 @@ def load_schema_config(config_path: str) -> Dict[str, Dict[str, str]]:
         logger.error(f"Error loading schema configuration: {e}")
         raise
 
-def create_dynamic_model_for_format(data_format: str, schema_config: Dict[str, Dict[str, str]]):
+def create_dynamic_model_for_format(data_format: str, schema_config: Dict[str, Dict[str, Any]]) -> Tuple[Type[BaseModel], str]:
     """
     Creates a dynamic Pydantic model for the given data format based on the provided schema configuration.
+    Compatible with Pydantic v2.
 
     Args:
         data_format (str): The data format for which to create a dynamic model (e.g., 'interview', 'news').
-        schema_config (Dict[str, Dict[str, str]]): The schema configuration dictionary loaded from a JSON file.
+        schema_config (Dict[str, Dict[str, Any]]): The schema configuration dictionary loaded from a JSON file.
 
     Returns:
-        Type[BaseModel]: A dynamically created Pydantic model class.
+        Tuple[Type[BaseModel], str]: A tuple containing the dynamically created Pydantic model class and the content_field string.
     """
     if data_format not in schema_config:
         raise ValueError(f"No schema configuration found for data format '{data_format}'")
 
-    fields = schema_config[data_format]
+    format_config = schema_config[data_format]
+    if 'fields' not in format_config or 'content_field' not in format_config:
+        raise ValueError(f"Configuration for data format '{data_format}' must include 'fields' and 'content_field'.")
+
+    fields = format_config["fields"]
+    content_field = format_config["content_field"]
+
     type_map = {
         "str": str,
         "int": int,
@@ -182,15 +189,19 @@ def create_dynamic_model_for_format(data_format: str, schema_config: Dict[str, D
         py_type = type_map.get(field_type_str, Any)  # Default to Any if not found
         dynamic_fields[field_name] = (py_type, ...)  # Required field by default
 
+    # Use Pydantic v2's configuration for handling extra fields
+    model_config = ConfigDict(extra='allow')
+
     try:
         dynamic_model = create_model(
             f"{data_format.capitalize()}DataModel",
+            __base__=BaseModel,
             **dynamic_fields,
-            __config__=type('Config', (), {'extra': 'allow'})  # Allow extra fields
+            model_config=model_config  # For Pydantic v2, to allow extra fields
         )
-        logger.debug(f"Dynamic Pydantic model '{data_format.capitalize()}DataModel' created.")
+        logger.debug(f"Dynamic Pydantic model '{data_format.capitalize()}DataModel' created with content_field '{content_field}'.")
     except Exception as e:
-        logger.error(f"Failed to create dynamic Pydantic model for '{data_format}': {e}")
+        logger.error(f"Failed to create dynamic Pydantic model for '{data_format}': {type(e).__name__}: {e}")
         raise
 
-    return dynamic_model
+    return dynamic_model, content_field

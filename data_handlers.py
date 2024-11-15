@@ -3,14 +3,11 @@ import json
 import logging
 from typing import List, Dict, Any
 from abc import ABC, abstractmethod
-from qual_functions import (
-    MeaningUnit,
-    parse_transcript
-)
+from qual_functions import MeaningUnit, parse_transcript
 
 # Configure logging for data_handlers module
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)  # Ensure DEBUG logs are captured
+logging.basicConfig(level=logging.DEBUG)  # Ensure DEBUG logs are captured
 
 # -------------------------------
 # Abstract Base Class for Data Handlers
@@ -45,12 +42,14 @@ class FlexibleDataHandler(BaseDataHandler):
         parse_instructions: str, 
         completion_model: str, 
         model_class, 
+        content_field: str,
         use_parsing: bool = True
     ):
         self.file_path = file_path
         self.parse_instructions = parse_instructions
         self.completion_model = completion_model
         self.model_class = model_class
+        self.content_field = content_field
         self.use_parsing = use_parsing
 
     def load_data(self) -> List[Any]:
@@ -87,27 +86,21 @@ class FlexibleDataHandler(BaseDataHandler):
         Transforms loaded data into a list of MeaningUnit objects.
         If use_parsing is True, it can parse textual content into meaning units.
         If use_parsing is False, it uses the entire content as a single meaning unit.
-        The transformation logic here must be tailored based on actual fields in data and instructions.
         """
         meaning_unit_list = []
         for idx, item in enumerate(data, start=1):
             item_dict = item.dict()
-            # Determine which field contains the main textual content
-            content = ''
-            if 'content' in item_dict:
-                content = item_dict.pop('content')
-            elif 'text_context' in item_dict:
-                content = item_dict.pop('text_context')
+            # Use the content_field from configuration
+            content = item_dict.pop(self.content_field, '')
+            if not content:
+                logger.warning(f"No content found in field '{self.content_field}' for item {idx}. Skipping.")
+                continue
 
             # Determine speaker ID or name if present
             speaker_id = 'Unknown'
             if 'speaker_name' in item_dict:
                 speaker_id = item_dict.pop('speaker_name')
                 logger.debug(f"Extracted speaker_id: {speaker_id} for item {idx}")
-
-            if not content:
-                logger.warning(f"No content found for item {idx}. Skipping.")
-                continue
 
             if self.use_parsing and self.parse_instructions:
                 # Parse the content to extract meaning units
@@ -119,11 +112,11 @@ class FlexibleDataHandler(BaseDataHandler):
                 )
                 if not parsed_units:
                     logger.warning(f"No meaning units extracted for item {idx}. Using entire text as a single meaning unit.")
-                    parsed_units = [content]  # Changed to list of strings
+                    parsed_units = [content]  # Use entire content as a single meaning unit
 
                 for unit_string in parsed_units:
                     unique_id = len(meaning_unit_list) + 1
-                    current_metadata = dict(item_dict)  # Create a shallow copy of metadata
+                    current_metadata = dict(item_dict)  # Shallow copy of metadata
                     current_metadata['speaker_id'] = speaker_id
                     meaning_unit_object = MeaningUnit(
                         unique_id=unique_id,
@@ -135,7 +128,7 @@ class FlexibleDataHandler(BaseDataHandler):
             else:
                 # Without parsing, use the entire content as a single meaning unit
                 unique_id = len(meaning_unit_list) + 1
-                current_metadata = dict(item_dict)  # Create a shallow copy of metadata
+                current_metadata = dict(item_dict)  # Shallow copy of metadata
                 current_metadata['speaker_id'] = speaker_id
                 meaning_unit_object = MeaningUnit(
                     unique_id=unique_id,
