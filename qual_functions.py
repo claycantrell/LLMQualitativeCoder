@@ -1,3 +1,4 @@
+#qual_functions.py
 import logging
 from openai import OpenAI
 from dataclasses import dataclass, field
@@ -15,7 +16,6 @@ try:
         raise ValueError("OPENAI_API_KEY environment variable is not set.")
     client = OpenAI(api_key=openai_api_key)
     logger = logging.getLogger(__name__)
-    logging.basicConfig(level=logging.DEBUG)  # Ensure DEBUG logs are captured
 except Exception as e:
     logging.getLogger(__name__).error(f"Failed to initialize OpenAI client: {e}")
     raise
@@ -35,6 +35,14 @@ class MeaningUnit:
     meaning_unit_string: str
     assigned_code_list: List[CodeAssigned] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "unique_id": self.unique_id,
+            "meaning_unit_string": self.meaning_unit_string,
+            "assigned_code_list": [code.__dict__ for code in self.assigned_code_list],
+            "metadata": self.metadata
+        }
 
 # -------------------------------
 # Pydantic Models for Parsing
@@ -58,6 +66,15 @@ def parse_transcript(
 ) -> List[str]:
     """
     Breaks up a speaking turn into smaller meaning units based on criteria in the LLM prompt.
+
+    Args:
+        speaking_turn_string (str): The speaking turn text.
+        prompt (str): The prompt instructions for parsing.
+        completion_model (str): The language model to use.
+        metadata (Dict[str, Any], optional): Additional metadata.
+
+    Returns:
+        List[str]: A list of meaning units extracted from the speaking turn.
     """
     metadata_section = f"Metadata:\n{json.dumps(metadata, indent=2)}\n\n" if metadata else ""
     try:
@@ -120,6 +137,14 @@ def initialize_faiss_index_from_formatted_file(
     """
     Reads a JSONL-formatted file, processes code data, and initializes a FAISS index directly using batch embedding.
     Returns the FAISS index and the processed codes as dictionaries.
+
+    Args:
+        codes_list_file (str): Path to the JSONL codebase file.
+        embedding_model (str, optional): Embedding model to use.
+        batch_size (int, optional): Number of items to process in each batch.
+
+    Returns:
+        Tuple[faiss.IndexFlatL2, List[Dict[str, Any]]]: FAISS index and processed codes.
     """
     embeddings = []
     processed_codes = []
@@ -196,6 +221,16 @@ def retrieve_relevant_codes(
     """
     Retrieves the top_k most relevant codes for a given meaning_unit_string using FAISS.
     Returns a list of code dictionaries with relevant information.
+
+    Args:
+        meaning_unit (MeaningUnit): The meaning unit object.
+        index (faiss.IndexFlatL2): The FAISS index.
+        processed_codes (List[Dict[str, Any]]): List of processed codes.
+        top_k (int, optional): Number of top similar codes to retrieve.
+        embedding_model (str, optional): Embedding model to use.
+
+    Returns:
+        List[Dict[str, Any]]: List of relevant code dictionaries.
     """
     try:
         # Combine metadata and meaning unit string for embedding
@@ -236,6 +271,21 @@ def assign_codes_to_meaning_units(
     """
     Assigns codes to each MeaningUnit object, including contextual information from surrounding units.
     Returns an updated list of MeaningUnit objects with assigned codes.
+
+    Args:
+        meaning_unit_list (List[MeaningUnit]): List of meaning units to process.
+        coding_instructions (str): Coding instructions prompt.
+        processed_codes (Optional[List[Dict[str, Any]]], optional): List of processed codes for deductive coding.
+        index (Optional[faiss.IndexFlatL2], optional): FAISS index for RAG.
+        top_k (Optional[int], optional): Number of top similar codes to retrieve.
+        context_size (int, optional): Number of surrounding meaning units to include as context.
+        use_rag (bool, optional): Whether to use RAG for code retrieval.
+        codebase (Optional[List[Dict[str, Any]]], optional): Entire codebase for deductive coding without RAG.
+        completion_model (Optional[str], optional): Language model to use for code assignment.
+        embedding_model (Optional[str], optional): Embedding model to use for code retrieval.
+
+    Returns:
+        List[MeaningUnit]: Updated list with assigned codes.
     """
     try:
         total_units = len(meaning_unit_list)

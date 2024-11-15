@@ -1,3 +1,4 @@
+#utils.py
 import os
 import json
 import logging
@@ -9,7 +10,6 @@ from pydantic import create_model, BaseModel, ConfigDict
 
 # Configure logging for utils module
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)  # Ensure DEBUG logs are captured
 
 def load_environment_variables() -> None:
     """
@@ -20,11 +20,44 @@ def load_environment_variables() -> None:
         logger.error("OPENAI_API_KEY environment variable is not set.")
         raise ValueError("Set the OPENAI_API_KEY environment variable.")
 
-def load_coding_instructions(prompts_folder: str) -> str:
+def load_config(config_file_path: str) -> Dict[str, Any]:
     """
-    Loads coding instructions for deductive coding from a file.
+    Loads the configuration from a JSON file.
+
+    Args:
+        config_file_path (str): Path to the configuration file.
+
+    Returns:
+        Dict[str, Any]: Configuration dictionary.
     """
-    coding_instructions_file = os.path.join(prompts_folder, 'coding_prompt.txt')
+    if not os.path.exists(config_file_path):
+        logger.error(f"Configuration file '{config_file_path}' not found.")
+        raise FileNotFoundError(f"Configuration file '{config_file_path}' not found.")
+
+    try:
+        with open(config_file_path, 'r', encoding='utf-8') as file:
+            config = json.load(file)
+        logger.debug(f"Configuration loaded from '{config_file_path}'.")
+        return config
+    except json.JSONDecodeError as e:
+        logger.error(f"Error decoding JSON from '{config_file_path}': {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Error loading configuration: {e}")
+        raise
+
+def load_coding_instructions(prompts_folder: str, prompt_file: str) -> str:
+    """
+    Loads coding instructions from a specified prompt file.
+
+    Args:
+        prompts_folder (str): Directory where prompt files are stored.
+        prompt_file (str): Name of the prompt file.
+
+    Returns:
+        str: Coding instructions as a string.
+    """
+    coding_instructions_file = os.path.join(prompts_folder, prompt_file)
     if not os.path.exists(coding_instructions_file):
         logger.error(f"Coding instructions file '{coding_instructions_file}' not found.")
         raise FileNotFoundError(f"Coding instructions file '{coding_instructions_file}' not found.")
@@ -41,20 +74,27 @@ def load_coding_instructions(prompts_folder: str) -> str:
 
     return coding_instructions
 
-def load_parse_instructions(prompts_folder: str) -> str:
+def load_parse_instructions(prompts_folder: str, parse_prompt_file: str) -> str:
     """
-    Loads parse instructions from a file for breaking down speaking turns into meaning units.
+    Loads parse instructions from a specified prompt file for breaking down speaking turns into meaning units.
+
+    Args:
+        prompts_folder (str): Directory where prompt files are stored.
+        parse_prompt_file (str): Name of the parse prompt file.
+
+    Returns:
+        str: Parse instructions as a string.
     """
-    parse_prompt_file = os.path.join(prompts_folder, 'parse_prompt.txt')
-    if not os.path.exists(parse_prompt_file):
-        logger.error(f"Parse instructions file '{parse_prompt_file}' not found.")
-        raise FileNotFoundError(f"Parse instructions file '{parse_prompt_file}' not found.")
+    parse_prompt_path = os.path.join(prompts_folder, parse_prompt_file)
+    if not os.path.exists(parse_prompt_path):
+        logger.error(f"Parse instructions file '{parse_prompt_path}' not found.")
+        raise FileNotFoundError(f"Parse instructions file '{parse_prompt_path}' not found.")
 
     try:
-        with open(parse_prompt_file, 'r', encoding='utf-8') as file:
+        with open(parse_prompt_path, 'r', encoding='utf-8') as file:
             parse_instructions = file.read().strip()
     except Exception as e:
-        logger.error(f"Error reading parse instructions file '{parse_prompt_file}': {e}")
+        logger.error(f"Error reading parse instructions file '{parse_prompt_path}': {e}")
         raise
 
     if not parse_instructions:
@@ -63,48 +103,97 @@ def load_parse_instructions(prompts_folder: str) -> str:
 
     return parse_instructions
 
-def load_custom_coding_prompt(prompts_folder: str) -> str:
+def load_inductive_coding_prompt(prompts_folder: str, inductive_prompt_file: str) -> str:
     """
-    Loads a custom coding prompt for inductive coding from a file.
+    Loads the inductive coding prompt from a specified file.
+
+    Args:
+        prompts_folder (str): Directory where prompt files are stored.
+        inductive_prompt_file (str): Name of the inductive coding prompt file.
+
+    Returns:
+        str: Inductive coding prompt as a string.
     """
-    custom_coding_prompt_file = os.path.join(prompts_folder, 'custom_coding_prompt.txt')
-    if not os.path.exists(custom_coding_prompt_file):
-        logger.error(f"Custom coding prompt file '{custom_coding_prompt_file}' not found.")
-        raise FileNotFoundError(f"Custom coding prompt file '{custom_coding_prompt_file}' not found.")
+    inductive_coding_prompt_path = os.path.join(prompts_folder, inductive_prompt_file)
+    if not os.path.exists(inductive_coding_prompt_path):
+        logger.error(f"Inductive coding prompt file '{inductive_coding_prompt_path}' not found.")
+        raise FileNotFoundError(f"Inductive coding prompt file '{inductive_coding_prompt_path}' not found.")
 
     try:
-        with open(custom_coding_prompt_file, 'r', encoding='utf-8') as file:
-            custom_coding_prompt = file.read().strip()
+        with open(inductive_coding_prompt_path, 'r', encoding='utf-8') as file:
+            inductive_coding_prompt = file.read().strip()
     except Exception as e:
-        logger.error(f"Error reading custom coding prompt file '{custom_coding_prompt_file}': {e}")
+        logger.error(f"Error reading inductive coding prompt file '{inductive_coding_prompt_path}': {e}")
         raise
 
-    if not custom_coding_prompt:
-        logger.error("Custom coding prompt file is empty.")
-        raise ValueError("Custom coding prompt file is empty.")
+    if not inductive_coding_prompt:
+        logger.error("Inductive coding prompt file is empty.")
+        raise ValueError("Inductive coding prompt file is empty.")
 
-    return custom_coding_prompt
+    return inductive_coding_prompt
+
+def load_deductive_coding_prompt(prompts_folder: str, deductive_prompt_file: str) -> str:
+    """
+    Loads the deductive coding prompt from a specified file.
+
+    Args:
+        prompts_folder (str): Directory where prompt files are stored.
+        deductive_prompt_file (str): Name of the deductive coding prompt file.
+
+    Returns:
+        str: Deductive coding prompt as a string.
+    """
+    deductive_coding_prompt_path = os.path.join(prompts_folder, deductive_prompt_file)
+    if not os.path.exists(deductive_coding_prompt_path):
+        logger.error(f"Deductive coding prompt file '{deductive_coding_prompt_path}' not found.")
+        raise FileNotFoundError(f"Deductive coding prompt file '{deductive_coding_prompt_path}' not found.")
+
+    try:
+        with open(deductive_coding_prompt_path, 'r', encoding='utf-8') as file:
+            deductive_coding_prompt = file.read().strip()
+    except Exception as e:
+        logger.error(f"Error reading deductive coding prompt file '{deductive_coding_prompt_path}': {e}")
+        raise
+
+    if not deductive_coding_prompt:
+        logger.error("Deductive coding prompt file is empty.")
+        raise ValueError("Deductive coding prompt file is empty.")
+
+    return deductive_coding_prompt
 
 def initialize_deductive_resources(
     codebase_folder: str,
     prompts_folder: str,
     initialize_embedding_model: str,
-    use_rag: bool
+    use_rag: bool,
+    selected_codebase: str,
+    deductive_prompt_file: str
 ) -> Tuple[List[Dict[str, Any]], Optional[Any], str]:
     """
     Initializes resources needed for deductive coding: loads code instructions, codebase, and builds a FAISS index if use_rag is True.
     Returns processed_codes, faiss_index (or None), and coding_instructions.
+
+    Args:
+        codebase_folder (str): Directory where the codebase files are stored.
+        prompts_folder (str): Directory where prompt files are stored.
+        initialize_embedding_model (str): Embedding model to use for FAISS.
+        use_rag (bool): Whether to use Retrieval-Augmented Generation.
+        selected_codebase (str): Specific codebase file to use.
+        deductive_prompt_file (str): Name of the deductive coding prompt file.
+
+    Returns:
+        Tuple[List[Dict[str, Any]], Optional[Any], str]: Processed codes, FAISS index, and coding instructions.
     """
     # Load coding instructions for deductive coding
     try:
-        coding_instructions = load_coding_instructions(prompts_folder)
+        coding_instructions = load_coding_instructions(prompts_folder, deductive_prompt_file)
         logger.debug("Coding instructions loaded for deductive coding.")
     except Exception as e:
         logger.error(f"Failed to load coding instructions: {e}")
         raise
 
-    # Load processed codes from .jsonl file
-    list_of_codes_file = os.path.join(codebase_folder, 'new_schema.jsonl')  # Ensure the file exists
+    # Load processed codes from specified codebase file
+    list_of_codes_file = os.path.join(codebase_folder, selected_codebase)
     if not os.path.exists(list_of_codes_file):
         logger.error(f"List of codes file '{list_of_codes_file}' not found.")
         raise FileNotFoundError(f"List of codes file '{list_of_codes_file}' not found.")
@@ -136,6 +225,12 @@ def initialize_deductive_resources(
 def load_schema_config(config_path: str) -> Dict[str, Dict[str, Any]]:
     """
     Loads schema configuration from the given JSON file path.
+
+    Args:
+        config_path (str): Path to the schema configuration file.
+
+    Returns:
+        Dict[str, Dict[str, Any]]: Schema configuration dictionary.
     """
     if not os.path.exists(config_path):
         logger.error(f"Schema configuration file '{config_path}' not found.")
@@ -156,6 +251,13 @@ def load_schema_config(config_path: str) -> Dict[str, Dict[str, Any]]:
 def create_dynamic_model_for_format(data_format: str, schema_config: Dict[str, Dict[str, Any]]) -> Tuple[Type[BaseModel], str]:
     """
     Creates a dynamic Pydantic model for the given data format based on the provided schema configuration.
+
+    Args:
+        data_format (str): The format of the data (e.g., "interview").
+        schema_config (Dict[str, Dict[str, Any]]): Schema configuration for different data formats.
+
+    Returns:
+        Tuple[Type[BaseModel], str]: The dynamic Pydantic model and the content field name.
     """
     if data_format not in schema_config:
         raise ValueError(f"No schema configuration found for data format '{data_format}'")
@@ -198,29 +300,3 @@ def create_dynamic_model_for_format(data_format: str, schema_config: Dict[str, D
         raise
 
     return dynamic_model, content_field
-
-def load_config(config_file_path: str) -> Dict[str, Any]:
-    """
-    Loads the configuration from a JSON file.
-
-    Args:
-        config_file_path (str): Path to the configuration file.
-
-    Returns:
-        Dict[str, Any]: Configuration dictionary.
-    """
-    if not os.path.exists(config_file_path):
-        logger.error(f"Configuration file '{config_file_path}' not found.")
-        raise FileNotFoundError(f"Configuration file '{config_file_path}' not found.")
-
-    try:
-        with open(config_file_path, 'r', encoding='utf-8') as file:
-            config = json.load(file)
-        logger.debug(f"Configuration loaded from '{config_file_path}'.")
-        return config
-    except json.JSONDecodeError as e:
-        logger.error(f"Error decoding JSON from '{config_file_path}': {e}")
-        raise
-    except Exception as e:
-        logger.error(f"Error loading configuration: {e}")
-        raise

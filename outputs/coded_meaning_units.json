@@ -1,0 +1,42 @@
+[
+  {
+    "unique_id": 1,
+    "meaning_unit_string": "In a significant advancement, scientists at GreenTech Labs have developed a new solar panel that is 30% more efficient than current models.",
+    "assigned_code_list": [
+      {
+        "code_name": "Innovation",
+        "code_justification": "This code was applied because the excerpt discusses the development of a new solar panel, which represents the introduction of new ideas or methods in renewable energy technology."
+      },
+      {
+        "code_name": "Research and Development",
+        "code_justification": "This code was applied as the excerpt highlights the scientific advancement achieved by GreenTech Labs, indicating an investigation and creation of new products in the field of solar energy."
+      }
+    ],
+    "metadata": {
+      "id": 1,
+      "title": "Breakthrough in Renewable Energy Technology"
+    }
+  },
+  {
+    "unique_id": 1,
+    "meaning_unit_string": "This breakthrough promises to revolutionize the renewable energy sector by making solar power more accessible and affordable.",
+    "assigned_code_list": [
+      {
+        "code_name": "Innovation",
+        "code_justification": "This code was applied because the excerpt discusses a breakthrough that introduces new methods in solar power technology."
+      },
+      {
+        "code_name": "Sustainability",
+        "code_justification": "This code was applied as the excerpt emphasizes making solar power more accessible and affordable, which aligns with long-term environmental and economic viability."
+      },
+      {
+        "code_name": "Market Impact",
+        "code_justification": "This code was applied because the excerpt suggests that the breakthrough will have a significant effect on the renewable energy market by enhancing accessibility and affordability."
+      }
+    ],
+    "metadata": {
+      "id": 1,
+      "title": "Breakthrough in Renewable Energy Technology"
+    }
+  }
+]

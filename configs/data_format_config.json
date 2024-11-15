@@ -12,9 +12,8 @@
         "content_field": "content",
         "fields": {
             "id": "int",
-            "headline": "str",
-            "content": "str",
-            "source": "str"
+            "title": "str",
+            "content": "str"
         }
     }
 }

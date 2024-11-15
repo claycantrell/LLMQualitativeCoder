@@ -1,0 +1,390 @@
+2024-11-15 13:29:44,726 [INFO] __main__: Starting the main pipeline.
+2024-11-15 13:29:46,167 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2024-11-15 13:29:46,658 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2024-11-15 13:29:46,671 [INFO] qual_functions: Initialized FAISS index with 4 codes from file 'qual_codebase/news_schema.jsonl'.
+2024-11-15 13:29:46,874 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2024-11-15 13:29:48,754 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2024-11-15 13:29:48,990 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2024-11-15 13:29:51,183 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2024-11-15 13:29:51,186 [INFO] __main__: Coded meaning units saved to 'outputs/coded_meaning_units.json'.
+2024-11-15 13:31:09,960 [INFO] __main__: Starting the main pipeline.
+2024-11-15 13:31:09,961 [DEBUG] __main__: Environment variables loaded and validated.
+2024-11-15 13:31:09,963 [DEBUG] __main__: Parse instructions loaded.
+2024-11-15 13:31:09,965 [DEBUG] utils: Schema configuration loaded from 'configs/data_format_config.json'.
+2024-11-15 13:31:09,965 [DEBUG] __main__: Schema configuration loaded.
+2024-11-15 13:31:09,970 [DEBUG] utils: Dynamic Pydantic model 'NewsDataModel' created with content_field 'content'.
+2024-11-15 13:31:09,971 [DEBUG] __main__: Dynamic data model for 'news' created.
+2024-11-15 13:31:09,972 [DEBUG] data_handlers: Loaded 1 records from 'json_transcripts/news_articles.json'.
+2024-11-15 13:31:09,974 [DEBUG] data_handlers: Validated 1 records.
+2024-11-15 13:31:09,974 [DEBUG] __main__: Loaded 1 validated data items.
+2024-11-15 13:31:09,995 [DEBUG] openai._base_client: Request options: {'method': 'post', 'url': '/chat/completions', 'headers': {'X-Stainless-Helper-Method': 'beta.chat.completions.parse'}, 'files': None, 'post_parser': <function Completions.parse.<locals>.parser at 0x104de68e0>, 'json_data': {'messages': [{'role': 'system', 'content': 'You are a qualitative research assistant that breaks down speaking turns into smaller meaning units based on given instructions.'}, {'role': 'user', 'content': 'You will receive a JSON object containing a piece of spoken text along with its associated metadata. Your task is to segment this text into discrete, self-contained "meaning units." Each meaning unit must be a direct, unaltered quote from the speaker. Do not rephrase, paraphrase, or summarize.\n\n**Guidelines:**\n\n1. **Read for Context**: First, read the entire text and all provided metadata to understand its context.\n\n2. **Segment by Logical Breaks**: Break down the text where new ideas, thoughts, or actions naturally begin and end. Each segment can be a full sentence, phrase, or brief passage that conveys one idea completely.\n\n3. **Direct Quotes Only – No Changes**: Each meaning unit must use the speaker’s exact words without any alteration. Do not modify, change, summarize, or rephrase.\n\n4. **Preserve Original Language**: Do not change the language in any way – keep the original words as they are.\n\n5. **Do Not Interpret or Simplify**: Simply segment into distinct quotes without adding interpretation or simplification.\n\n6. **Incorporate Metadata**: Use all provided metadata to inform your segmentation. Metadata may include, but is not limited to, speaker identifiers, context details, and other relevant information.\n\n7. **Avoid Over-Segmentation**: Do not create overly short fragments unless a few words alone carry complete meaning.\n\n**Output Format:**\n\nStructure the output in JSON format, following these keys:\n\n- `"quote"`: The exact words of the segmented meaning unit.\n\n**Example Output:**\n\n```json\n[\n  { "quote": "I believe we can improve our teaching methods by incorporating more technology." },\n  { "quote": "Each of us brings unique skills to the table." }\n]\nEnsure JSON Validity:\n\nAccurate Formatting: Construct the JSON meticulously to avoid syntax errors such as missing commas, brackets, or braces.\nNo Extraneous Text: Do not include any additional text, explanations, or comments outside the JSON code block.\nOutput:\n\nSubmit your response as a JSON array containing only the quote for each meaning unit – do not add commentary or any non-JSON text.\n\nMetadata:\n{\n  "id": 1,\n  "title": "Breakthrough in Renewable Energy Technology"\n}\n\nSpeaking Turn:\nIn a significant advancement, scientists at GreenTech Labs have developed a new solar panel that is 30% more efficient than current models. This breakthrough promises to revolutionize the renewable energy sector by making solar power more accessible and affordable...\n\n'}], 'model': 'gpt-4o-mini', 'max_tokens': 1500, 'response_format': {'type': 'json_schema', 'json_schema': {'schema': {'properties': {'meaning_unit_string_list': {'items': {'type': 'string'}, 'title': 'Meaning Unit String List', 'type': 'array'}}, 'required': ['meaning_unit_string_list'], 'title': 'ParseFormat', 'type': 'object', 'additionalProperties': False}, 'name': 'ParseFormat', 'strict': True}}, 'stream': False, 'temperature': 0.2}}
+2024-11-15 13:31:10,042 [DEBUG] openai._base_client: Sending HTTP Request: POST https://api.openai.com/v1/chat/completions
+2024-11-15 13:31:10,043 [DEBUG] httpcore.connection: connect_tcp.started host='api.openai.com' port=443 local_address=None timeout=5.0 socket_options=None
+2024-11-15 13:31:10,095 [DEBUG] httpcore.connection: connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x104e5d370>
+2024-11-15 13:31:10,095 [DEBUG] httpcore.connection: start_tls.started ssl_context=<ssl.SSLContext object at 0x10427e450> server_hostname='api.openai.com' timeout=5.0
+2024-11-15 13:31:10,135 [DEBUG] httpcore.connection: start_tls.complete return_value=<httpcore._backends.sync.SyncStream object at 0x104e1dfd0>
+2024-11-15 13:31:10,136 [DEBUG] httpcore.http11: send_request_headers.started request=<Request [b'POST']>
+2024-11-15 13:31:10,137 [DEBUG] httpcore.http11: send_request_headers.complete
+2024-11-15 13:31:10,138 [DEBUG] httpcore.http11: send_request_body.started request=<Request [b'POST']>
+2024-11-15 13:31:10,138 [DEBUG] httpcore.http11: send_request_body.complete
+2024-11-15 13:31:10,138 [DEBUG] httpcore.http11: receive_response_headers.started request=<Request [b'POST']>
+2024-11-15 13:31:11,669 [DEBUG] httpcore.http11: receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Fri, 15 Nov 2024 21:31:11 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'user-e5hnzpyhl9nzqjuf47rjzmcg'), (b'openai-processing-ms', b'1274'), (b'openai-version', b'2020-10-01'), (b'x-ratelimit-limit-requests', b'10000'), (b'x-ratelimit-limit-tokens', b'200000'), (b'x-ratelimit-remaining-requests', b'9999'), (b'x-ratelimit-remaining-tokens', b'197851'), (b'x-ratelimit-reset-requests', b'8.64s'), (b'x-ratelimit-reset-tokens', b'644ms'), (b'x-request-id', b'req_41d7dcac8cafac90edba7625c24bfafb'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'CF-Cache-Status', b'DYNAMIC'), (b'Set-Cookie', b'__cf_bm=i6sm7QHTnkHGDMkA7wCRKLl_pHjG8.TY1Wnm9Uqj83Y-1731706271-1.0.1.1-jT7IPtecF3lX2qqj6uHGTQsFDb5NzCiqkgLct46guC6ckXJx63OqWgVWa50wMUlop37DsUGAjeYF4m5p_luTJw; path=/; expires=Fri, 15-Nov-24 22:01:11 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None'), (b'X-Content-Type-Options', b'nosniff'), (b'Set-Cookie', b'_cfuvid=nNOUrwlX.ErRuUe5FJ62Q6gigVplcsilCmsEQd9R0X0-1731706271600-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None'), (b'Server', b'cloudflare'), (b'CF-RAY', b'8e3258bd1e737e74-LAX'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2024-11-15 13:31:11,672 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2024-11-15 13:31:11,672 [DEBUG] httpcore.http11: receive_response_body.started request=<Request [b'POST']>
+2024-11-15 13:31:11,673 [DEBUG] httpcore.http11: receive_response_body.complete
+2024-11-15 13:31:11,673 [DEBUG] httpcore.http11: response_closed.started
+2024-11-15 13:31:11,673 [DEBUG] httpcore.http11: response_closed.complete
+2024-11-15 13:31:11,674 [DEBUG] openai._base_client: HTTP Response: POST https://api.openai.com/v1/chat/completions "200 OK" Headers([('date', 'Fri, 15 Nov 2024 21:31:11 GMT'), ('content-type', 'application/json'), ('transfer-encoding', 'chunked'), ('connection', 'keep-alive'), ('access-control-expose-headers', 'X-Request-ID'), ('openai-organization', 'user-e5hnzpyhl9nzqjuf47rjzmcg'), ('openai-processing-ms', '1274'), ('openai-version', '2020-10-01'), ('x-ratelimit-limit-requests', '10000'), ('x-ratelimit-limit-tokens', '200000'), ('x-ratelimit-remaining-requests', '9999'), ('x-ratelimit-remaining-tokens', '197851'), ('x-ratelimit-reset-requests', '8.64s'), ('x-ratelimit-reset-tokens', '644ms'), ('x-request-id', 'req_41d7dcac8cafac90edba7625c24bfafb'), ('strict-transport-security', 'max-age=31536000; includeSubDomains; preload'), ('cf-cache-status', 'DYNAMIC'), ('set-cookie', '__cf_bm=i6sm7QHTnkHGDMkA7wCRKLl_pHjG8.TY1Wnm9Uqj83Y-1731706271-1.0.1.1-jT7IPtecF3lX2qqj6uHGTQsFDb5NzCiqkgLct46guC6ckXJx63OqWgVWa50wMUlop37DsUGAjeYF4m5p_luTJw; path=/; expires=Fri, 15-Nov-24 22:01:11 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None'), ('x-content-type-options', 'nosniff'), ('set-cookie', '_cfuvid=nNOUrwlX.ErRuUe5FJ62Q6gigVplcsilCmsEQd9R0X0-1731706271600-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None'), ('server', 'cloudflare'), ('cf-ray', '8e3258bd1e737e74-LAX'), ('content-encoding', 'gzip'), ('alt-svc', 'h3=":443"; ma=86400')])
+2024-11-15 13:31:11,676 [DEBUG] openai._base_client: request_id: req_41d7dcac8cafac90edba7625c24bfafb
+2024-11-15 13:31:11,749 [DEBUG] qual_functions: Parsed Meaning Units: ['In a significant advancement, scientists at GreenTech Labs have developed a new solar panel that is 30% more efficient than current models.', 'This breakthrough promises to revolutionize the renewable energy sector by making solar power more accessible and affordable.']
+2024-11-15 13:31:11,750 [DEBUG] data_handlers: Transformed data into 2 meaning units.
+2024-11-15 13:31:11,751 [DEBUG] __main__: Transformed data into 2 meaning units.
+2024-11-15 13:31:11,752 [DEBUG] utils: Coding instructions loaded for deductive coding.
+2024-11-15 13:31:11,752 [DEBUG] utils: Loaded 4 codes from 'qual_codebase/news_schema.jsonl'.
+2024-11-15 13:31:11,754 [DEBUG] openai._base_client: Request options: {'method': 'post', 'url': '/embeddings', 'files': None, 'post_parser': <function Embeddings.create.<locals>.parser at 0x1039eb880>, 'json_data': {'input': ["Innovation Metadata: {'description': 'Introduction of new ideas or methods.'}", "Sustainability Metadata: {'description': 'Focus on long-term environmental and economic viability.'}", "Market Impact Metadata: {'description': 'Effect on market trends and consumer behavior.'}", "Research and Development Metadata: {'description': 'Investigation and creation of new products or knowledge.'}"], 'model': 'text-embedding-3-small', 'encoding_format': 'base64'}}
+2024-11-15 13:31:11,759 [DEBUG] openai._base_client: Sending HTTP Request: POST https://api.openai.com/v1/embeddings
+2024-11-15 13:31:11,760 [DEBUG] httpcore.http11: send_request_headers.started request=<Request [b'POST']>
+2024-11-15 13:31:11,761 [DEBUG] httpcore.http11: send_request_headers.complete
+2024-11-15 13:31:11,761 [DEBUG] httpcore.http11: send_request_body.started request=<Request [b'POST']>
+2024-11-15 13:31:11,761 [DEBUG] httpcore.http11: send_request_body.complete
+2024-11-15 13:31:11,761 [DEBUG] httpcore.http11: receive_response_headers.started request=<Request [b'POST']>
+2024-11-15 13:31:12,010 [DEBUG] httpcore.http11: receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Fri, 15 Nov 2024 21:31:12 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-allow-origin', b'*'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-model', b'text-embedding-3-small'), (b'openai-organization', b'user-e5hnzpyhl9nzqjuf47rjzmcg'), (b'openai-processing-ms', b'181'), (b'openai-version', b'2020-10-01'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'x-ratelimit-limit-requests', b'3000'), (b'x-ratelimit-limit-tokens', b'1000000'), (b'x-ratelimit-remaining-requests', b'2999'), (b'x-ratelimit-remaining-tokens', b'999906'), (b'x-ratelimit-reset-requests', b'20ms'), (b'x-ratelimit-reset-tokens', b'5ms'), (b'x-request-id', b'req_5dd1fc4f0cc068cee8d865682ddcbb38'), (b'CF-Cache-Status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'8e3258c7481d7e74-LAX'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2024-11-15 13:31:12,011 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2024-11-15 13:31:12,012 [DEBUG] httpcore.http11: receive_response_body.started request=<Request [b'POST']>
+2024-11-15 13:31:12,029 [DEBUG] httpcore.http11: receive_response_body.complete
+2024-11-15 13:31:12,030 [DEBUG] httpcore.http11: response_closed.started
+2024-11-15 13:31:12,030 [DEBUG] httpcore.http11: response_closed.complete
+2024-11-15 13:31:12,030 [DEBUG] openai._base_client: HTTP Response: POST https://api.openai.com/v1/embeddings "200 OK" Headers({'date': 'Fri, 15 Nov 2024 21:31:12 GMT', 'content-type': 'application/json', 'transfer-encoding': 'chunked', 'connection': 'keep-alive', 'access-control-allow-origin': '*', 'access-control-expose-headers': 'X-Request-ID', 'openai-model': 'text-embedding-3-small', 'openai-organization': 'user-e5hnzpyhl9nzqjuf47rjzmcg', 'openai-processing-ms': '181', 'openai-version': '2020-10-01', 'strict-transport-security': 'max-age=31536000; includeSubDomains; preload', 'x-ratelimit-limit-requests': '3000', 'x-ratelimit-limit-tokens': '1000000', 'x-ratelimit-remaining-requests': '2999', 'x-ratelimit-remaining-tokens': '999906', 'x-ratelimit-reset-requests': '20ms', 'x-ratelimit-reset-tokens': '5ms', 'x-request-id': 'req_5dd1fc4f0cc068cee8d865682ddcbb38', 'cf-cache-status': 'DYNAMIC', 'x-content-type-options': 'nosniff', 'server': 'cloudflare', 'cf-ray': '8e3258c7481d7e74-LAX', 'content-encoding': 'gzip', 'alt-svc': 'h3=":443"; ma=86400'})
+2024-11-15 13:31:12,030 [DEBUG] openai._base_client: request_id: req_5dd1fc4f0cc068cee8d865682ddcbb38
+2024-11-15 13:31:12,034 [INFO] qual_functions: Initialized FAISS index with 4 codes from file 'qual_codebase/news_schema.jsonl'.
+2024-11-15 13:31:12,039 [DEBUG] utils: FAISS index initialized with processed codes.
+2024-11-15 13:31:12,039 [DEBUG] __main__: Initialized deductive resources with 4 processed codes.
+2024-11-15 13:31:12,040 [DEBUG] openai._base_client: Request options: {'method': 'post', 'url': '/embeddings', 'files': None, 'post_parser': <function Embeddings.create.<locals>.parser at 0x1039eb880>, 'json_data': {'input': ['Metadata:\n{"id": 1, "title": "Breakthrough in Renewable Energy Technology"}\nUnit: In a significant advancement, scientists at GreenTech Labs have developed a new solar panel that is 30% more efficient than current models.'], 'model': 'text-embedding-3-small', 'encoding_format': 'base64'}}
+2024-11-15 13:31:12,046 [DEBUG] openai._base_client: Sending HTTP Request: POST https://api.openai.com/v1/embeddings
+2024-11-15 13:31:12,047 [DEBUG] httpcore.http11: send_request_headers.started request=<Request [b'POST']>
+2024-11-15 13:31:12,047 [DEBUG] httpcore.http11: send_request_headers.complete
+2024-11-15 13:31:12,047 [DEBUG] httpcore.http11: send_request_body.started request=<Request [b'POST']>
+2024-11-15 13:31:12,047 [DEBUG] httpcore.http11: send_request_body.complete
+2024-11-15 13:31:12,048 [DEBUG] httpcore.http11: receive_response_headers.started request=<Request [b'POST']>
+2024-11-15 13:31:12,281 [DEBUG] httpcore.http11: receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Fri, 15 Nov 2024 21:31:12 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-allow-origin', b'*'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-model', b'text-embedding-3-small'), (b'openai-organization', b'user-e5hnzpyhl9nzqjuf47rjzmcg'), (b'openai-processing-ms', b'112'), (b'openai-version', b'2020-10-01'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'x-ratelimit-limit-requests', b'3000'), (b'x-ratelimit-limit-tokens', b'1000000'), (b'x-ratelimit-remaining-requests', b'2999'), (b'x-ratelimit-remaining-tokens', b'999944'), (b'x-ratelimit-reset-requests', b'20ms'), (b'x-ratelimit-reset-tokens', b'3ms'), (b'x-request-id', b'req_488251947254ed17fc622d01f85c96bd'), (b'CF-Cache-Status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'8e3258c90a417e74-LAX'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2024-11-15 13:31:12,282 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2024-11-15 13:31:12,283 [DEBUG] httpcore.http11: receive_response_body.started request=<Request [b'POST']>
+2024-11-15 13:31:12,283 [DEBUG] httpcore.http11: receive_response_body.complete
+2024-11-15 13:31:12,284 [DEBUG] httpcore.http11: response_closed.started
+2024-11-15 13:31:12,284 [DEBUG] httpcore.http11: response_closed.complete
+2024-11-15 13:31:12,284 [DEBUG] openai._base_client: HTTP Response: POST https://api.openai.com/v1/embeddings "200 OK" Headers({'date': 'Fri, 15 Nov 2024 21:31:12 GMT', 'content-type': 'application/json', 'transfer-encoding': 'chunked', 'connection': 'keep-alive', 'access-control-allow-origin': '*', 'access-control-expose-headers': 'X-Request-ID', 'openai-model': 'text-embedding-3-small', 'openai-organization': 'user-e5hnzpyhl9nzqjuf47rjzmcg', 'openai-processing-ms': '112', 'openai-version': '2020-10-01', 'strict-transport-security': 'max-age=31536000; includeSubDomains; preload', 'x-ratelimit-limit-requests': '3000', 'x-ratelimit-limit-tokens': '1000000', 'x-ratelimit-remaining-requests': '2999', 'x-ratelimit-remaining-tokens': '999944', 'x-ratelimit-reset-requests': '20ms', 'x-ratelimit-reset-tokens': '3ms', 'x-request-id': 'req_488251947254ed17fc622d01f85c96bd', 'cf-cache-status': 'DYNAMIC', 'x-content-type-options': 'nosniff', 'server': 'cloudflare', 'cf-ray': '8e3258c90a417e74-LAX', 'content-encoding': 'gzip', 'alt-svc': 'h3=":443"; ma=86400'})
+2024-11-15 13:31:12,284 [DEBUG] openai._base_client: request_id: req_488251947254ed17fc622d01f85c96bd
+2024-11-15 13:31:12,301 [DEBUG] qual_functions: Retrieved top 5 relevant codes for meaning unit ID 1: ['Innovation', 'Sustainability', 'Market Impact', 'Research and Development', 'Research and Development']
+2024-11-15 13:31:12,302 [DEBUG] qual_functions: Full Prompt for Unique ID 1:
+**Instructions:**
+
+**Code Selection**
+
+1. **Identify Relevant Codes**: For each excerpt, determine all applicable codes from the provided list that accurately describe the content of the excerpt.
+
+2. **Utilize Metadata for Context**: Leverage the provided metadata to gain a comprehensive understanding of the excerpt, ensuring accurate code assignments.
+
+3. **Handle Non-Applicable Excerpts**: If none of the provided codes are relevant to a current excerpt, assign the code "VOID" in the "code_name" field and supply an appropriate justification.
+
+**Provide Justifications**
+
+4. **Explain Code Assignments**: For every assigned code, include a 2-3 sentence justification detailing why the code is pertinent to the CURRENT excerpt (not the context).
+
+5. **Justify "VOID" Assignments**: If "VOID" is assigned, provide a 2-3 sentence explanation clarifying why none of the provided codes are suitable for the current excerpt.
+
+**Formatting Requirements**
+
+6. **JSON Structure**: Format the output as a JSON array where each object corresponds to a single excerpt. Each object should contain the following key:
+
+   - `"codeList"`: An array of code assignments, each comprising:
+     - `"code_name"`: The assigned code.
+     - `"code_justification"`: The rationale for the code assignment.
+
+7. **Maintain Order**: Ensure that each JSON object aligns with the order of the provided excerpts.
+
+**Ensure JSON Validity**
+
+8. **Accurate Formatting**: Construct the JSON meticulously to avoid syntax errors such as missing commas, brackets, or braces.
+
+9. **No Extraneous Text**: Do not include any additional text, explanations, or comments outside the JSON code block.
+
+**Assigning Multiple Codes**
+
+10. **Comprehensive Coding**: Assign all applicable codes to each excerpt; some excerpts may warrant multiple codes.
+
+11. **Use Defined Codes Only**: Restrict assignments to codes explicitly defined in the provided list.
+
+**Example Output Format:**
+
+```json
+[
+  {
+    "codeList": [
+      {
+        "code_name": "Sample_Code1",
+        "code_justification": "This code was applied because the excerpt discusses..."
+      },
+      {
+        "code_name": "Sample_Code2",
+        "code_justification": "This code was applied because the excerpt also relates to..."
+      }
+    ]
+  },
+  {
+    "codeList": [
+      {
+        "code_name": "VOID",
+        "code_justification": "No code was applicable as the excerpt does not align with any provided categories."
+      }
+    ]
+  }
+]
+Contextual Metadata:
+
+You will receive a JSON object containing all relevant metadata for each current excerpt. Use this metadata exclusively as context to inform your code assignments. Do not include any metadata in your output.
+You will also recieve context from the conversation in which the current excerpt took place within. Do NOT code for this surrounding context,ONLY  code for the current excerpt.
+
+Output:
+
+Submit your response as a JSON array containing only the codeList for each excerpt – do not add commentary or any non-JSON text.
+
+Relevant Codes (full details):
+{
+  "text": "Innovation",
+  "metadata": {
+    "description": "Introduction of new ideas or methods."
+  }
+}
+
+{
+  "text": "Sustainability",
+  "metadata": {
+    "description": "Focus on long-term environmental and economic viability."
+  }
+}
+
+{
+  "text": "Market Impact",
+  "metadata": {
+    "description": "Effect on market trends and consumer behavior."
+  }
+}
+
+{
+  "text": "Research and Development",
+  "metadata": {
+    "description": "Investigation and creation of new products or knowledge."
+  }
+}
+
+{
+  "text": "Research and Development",
+  "metadata": {
+    "description": "Investigation and creation of new products or knowledge."
+  }
+}
+
+Contextual Excerpts:
+Quote: In a significant advancement, scientists at GreenTech Labs have developed a new solar panel that is 30% more efficient than current models.
+
+Quote: This breakthrough promises to revolutionize the renewable energy sector by making solar power more accessible and affordable.
+
+**Important:** Please use the provided contextual excerpts **only** as background information to understand the current excerpt better. Current Excerpt For Coding:
+Quote: In a significant advancement, scientists at GreenTech Labs have developed a new solar panel that is 30% more efficient than current models.
+
+**Apply codes exclusively to the current excerpt provided above. Do not assign codes to the contextual excerpts.**
+
+Please provide the assigned codes in the following JSON format:
+{
+  "codeList": [
+    {"code_name": "<Name of the code>", "code_justification": "<Justification for the code>"},
+    ...
+  ]
+}
+2024-11-15 13:31:12,316 [DEBUG] openai._base_client: Request options: {'method': 'post', 'url': '/chat/completions', 'headers': {'X-Stainless-Helper-Method': 'beta.chat.completions.parse'}, 'files': None, 'post_parser': <function Completions.parse.<locals>.parser at 0x104e82700>, 'json_data': {'messages': [{'role': 'system', 'content': 'You are tasked with applying qualitative codes to excerpts from a transcript or articles. The purpose of this task is to identify all codes that best describe each excerpt based on the provided instructions.'}, {'role': 'user', 'content': '**Instructions:**\n\n**Code Selection**\n\n1. **Identify Relevant Codes**: For each excerpt, determine all applicable codes from the provided list that accurately describe the content of the excerpt.\n\n2. **Utilize Metadata for Context**: Leverage the provided metadata to gain a comprehensive understanding of the excerpt, ensuring accurate code assignments.\n\n3. **Handle Non-Applicable Excerpts**: If none of the provided codes are relevant to a current excerpt, assign the code "VOID" in the "code_name" field and supply an appropriate justification.\n\n**Provide Justifications**\n\n4. **Explain Code Assignments**: For every assigned code, include a 2-3 sentence justification detailing why the code is pertinent to the CURRENT excerpt (not the context).\n\n5. **Justify "VOID" Assignments**: If "VOID" is assigned, provide a 2-3 sentence explanation clarifying why none of the provided codes are suitable for the current excerpt.\n\n**Formatting Requirements**\n\n6. **JSON Structure**: Format the output as a JSON array where each object corresponds to a single excerpt. Each object should contain the following key:\n\n   - `"codeList"`: An array of code assignments, each comprising:\n     - `"code_name"`: The assigned code.\n     - `"code_justification"`: The rationale for the code assignment.\n\n7. **Maintain Order**: Ensure that each JSON object aligns with the order of the provided excerpts.\n\n**Ensure JSON Validity**\n\n8. **Accurate Formatting**: Construct the JSON meticulously to avoid syntax errors such as missing commas, brackets, or braces.\n\n9. **No Extraneous Text**: Do not include any additional text, explanations, or comments outside the JSON code block.\n\n**Assigning Multiple Codes**\n\n10. **Comprehensive Coding**: Assign all applicable codes to each excerpt; some excerpts may warrant multiple codes.\n\n11. **Use Defined Codes Only**: Restrict assignments to codes explicitly defined in the provided list.\n\n**Example Output Format:**\n\n```json\n[\n  {\n    "codeList": [\n      {\n        "code_name": "Sample_Code1",\n        "code_justification": "This code was applied because the excerpt discusses..."\n      },\n      {\n        "code_name": "Sample_Code2",\n        "code_justification": "This code was applied because the excerpt also relates to..."\n      }\n    ]\n  },\n  {\n    "codeList": [\n      {\n        "code_name": "VOID",\n        "code_justification": "No code was applicable as the excerpt does not align with any provided categories."\n      }\n    ]\n  }\n]\nContextual Metadata:\n\nYou will receive a JSON object containing all relevant metadata for each current excerpt. Use this metadata exclusively as context to inform your code assignments. Do not include any metadata in your output.\nYou will also recieve context from the conversation in which the current excerpt took place within. Do NOT code for this surrounding context,ONLY  code for the current excerpt.\n\nOutput:\n\nSubmit your response as a JSON array containing only the codeList for each excerpt – do not add commentary or any non-JSON text.\n\nRelevant Codes (full details):\n{\n  "text": "Innovation",\n  "metadata": {\n    "description": "Introduction of new ideas or methods."\n  }\n}\n\n{\n  "text": "Sustainability",\n  "metadata": {\n    "description": "Focus on long-term environmental and economic viability."\n  }\n}\n\n{\n  "text": "Market Impact",\n  "metadata": {\n    "description": "Effect on market trends and consumer behavior."\n  }\n}\n\n{\n  "text": "Research and Development",\n  "metadata": {\n    "description": "Investigation and creation of new products or knowledge."\n  }\n}\n\n{\n  "text": "Research and Development",\n  "metadata": {\n    "description": "Investigation and creation of new products or knowledge."\n  }\n}\n\nContextual Excerpts:\nQuote: In a significant advancement, scientists at GreenTech Labs have developed a new solar panel that is 30% more efficient than current models.\n\nQuote: This breakthrough promises to revolutionize the renewable energy sector by making solar power more accessible and affordable.\n\n**Important:** Please use the provided contextual excerpts **only** as background information to understand the current excerpt better. Current Excerpt For Coding:\nQuote: In a significant advancement, scientists at GreenTech Labs have developed a new solar panel that is 30% more efficient than current models.\n\n**Apply codes exclusively to the current excerpt provided above. Do not assign codes to the contextual excerpts.**\n\nPlease provide the assigned codes in the following JSON format:\n{\n  "codeList": [\n    {"code_name": "<Name of the code>", "code_justification": "<Justification for the code>"},\n    ...\n  ]\n}'}], 'model': 'gpt-4o-mini', 'max_tokens': 1500, 'response_format': {'type': 'json_schema', 'json_schema': {'schema': {'$defs': {'CodeAssigned': {'properties': {'code_name': {'title': 'Code Name', 'type': 'string'}, 'code_justification': {'title': 'Code Justification', 'type': 'string'}}, 'required': ['code_name', 'code_justification'], 'title': 'CodeAssigned', 'type': 'object', 'additionalProperties': False}}, 'properties': {'codeList': {'items': {'$ref': '#/$defs/CodeAssigned'}, 'title': 'Codelist', 'type': 'array'}}, 'required': ['codeList'], 'title': 'CodeFormat', 'type': 'object', 'additionalProperties': False}, 'name': 'CodeFormat', 'strict': True}}, 'stream': False, 'temperature': 0.2}}
+2024-11-15 13:31:12,318 [DEBUG] openai._base_client: Sending HTTP Request: POST https://api.openai.com/v1/chat/completions
+2024-11-15 13:31:12,318 [DEBUG] httpcore.http11: send_request_headers.started request=<Request [b'POST']>
+2024-11-15 13:31:12,319 [DEBUG] httpcore.http11: send_request_headers.complete
+2024-11-15 13:31:12,319 [DEBUG] httpcore.http11: send_request_body.started request=<Request [b'POST']>
+2024-11-15 13:31:12,319 [DEBUG] httpcore.http11: send_request_body.complete
+2024-11-15 13:31:12,320 [DEBUG] httpcore.http11: receive_response_headers.started request=<Request [b'POST']>
+2024-11-15 13:31:13,668 [DEBUG] httpcore.http11: receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Fri, 15 Nov 2024 21:31:13 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'user-e5hnzpyhl9nzqjuf47rjzmcg'), (b'openai-processing-ms', b'1269'), (b'openai-version', b'2020-10-01'), (b'x-ratelimit-limit-requests', b'10000'), (b'x-ratelimit-limit-tokens', b'200000'), (b'x-ratelimit-remaining-requests', b'9998'), (b'x-ratelimit-remaining-tokens', b'197293'), (b'x-ratelimit-reset-requests', b'15.102s'), (b'x-ratelimit-reset-tokens', b'811ms'), (b'x-request-id', b'req_440ba0fe04b429f87b8778c63f246160'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'CF-Cache-Status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'8e3258cabbe57e74-LAX'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2024-11-15 13:31:13,669 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2024-11-15 13:31:13,670 [DEBUG] httpcore.http11: receive_response_body.started request=<Request [b'POST']>
+2024-11-15 13:31:13,670 [DEBUG] httpcore.http11: receive_response_body.complete
+2024-11-15 13:31:13,671 [DEBUG] httpcore.http11: response_closed.started
+2024-11-15 13:31:13,671 [DEBUG] httpcore.http11: response_closed.complete
+2024-11-15 13:31:13,671 [DEBUG] openai._base_client: HTTP Response: POST https://api.openai.com/v1/chat/completions "200 OK" Headers({'date': 'Fri, 15 Nov 2024 21:31:13 GMT', 'content-type': 'application/json', 'transfer-encoding': 'chunked', 'connection': 'keep-alive', 'access-control-expose-headers': 'X-Request-ID', 'openai-organization': 'user-e5hnzpyhl9nzqjuf47rjzmcg', 'openai-processing-ms': '1269', 'openai-version': '2020-10-01', 'x-ratelimit-limit-requests': '10000', 'x-ratelimit-limit-tokens': '200000', 'x-ratelimit-remaining-requests': '9998', 'x-ratelimit-remaining-tokens': '197293', 'x-ratelimit-reset-requests': '15.102s', 'x-ratelimit-reset-tokens': '811ms', 'x-request-id': 'req_440ba0fe04b429f87b8778c63f246160', 'strict-transport-security': 'max-age=31536000; includeSubDomains; preload', 'cf-cache-status': 'DYNAMIC', 'x-content-type-options': 'nosniff', 'server': 'cloudflare', 'cf-ray': '8e3258cabbe57e74-LAX', 'content-encoding': 'gzip', 'alt-svc': 'h3=":443"; ma=86400'})
+2024-11-15 13:31:13,672 [DEBUG] openai._base_client: request_id: req_440ba0fe04b429f87b8778c63f246160
+2024-11-15 13:31:13,683 [DEBUG] qual_functions: LLM Code Assignment Output for ID 1:
+[CodeAssigned(code_name='Innovation', code_justification='This code was applied because the excerpt discusses the development of a new solar panel, which represents the introduction of new ideas or methods in renewable energy technology.'), CodeAssigned(code_name='Research and Development', code_justification='This code was applied as the excerpt highlights the scientific advancement achieved by GreenTech Labs, indicating an investigation and creation of new products in the field of solar energy.')]
+2024-11-15 13:31:13,684 [DEBUG] openai._base_client: Request options: {'method': 'post', 'url': '/embeddings', 'files': None, 'post_parser': <function Embeddings.create.<locals>.parser at 0x104e827a0>, 'json_data': {'input': ['Metadata:\n{"id": 1, "title": "Breakthrough in Renewable Energy Technology"}\nUnit: This breakthrough promises to revolutionize the renewable energy sector by making solar power more accessible and affordable.'], 'model': 'text-embedding-3-small', 'encoding_format': 'base64'}}
+2024-11-15 13:31:13,684 [DEBUG] openai._base_client: Sending HTTP Request: POST https://api.openai.com/v1/embeddings
+2024-11-15 13:31:13,685 [DEBUG] httpcore.http11: send_request_headers.started request=<Request [b'POST']>
+2024-11-15 13:31:13,686 [DEBUG] httpcore.http11: send_request_headers.complete
+2024-11-15 13:31:13,686 [DEBUG] httpcore.http11: send_request_body.started request=<Request [b'POST']>
+2024-11-15 13:31:13,686 [DEBUG] httpcore.http11: send_request_body.complete
+2024-11-15 13:31:13,686 [DEBUG] httpcore.http11: receive_response_headers.started request=<Request [b'POST']>
+2024-11-15 13:31:14,077 [DEBUG] httpcore.http11: receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Fri, 15 Nov 2024 21:31:14 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-allow-origin', b'*'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-model', b'text-embedding-3-small'), (b'openai-organization', b'user-e5hnzpyhl9nzqjuf47rjzmcg'), (b'openai-processing-ms', b'190'), (b'openai-version', b'2020-10-01'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'x-ratelimit-limit-requests', b'3000'), (b'x-ratelimit-limit-tokens', b'1000000'), (b'x-ratelimit-remaining-requests', b'2999'), (b'x-ratelimit-remaining-tokens', b'999948'), (b'x-ratelimit-reset-requests', b'20ms'), (b'x-ratelimit-reset-tokens', b'3ms'), (b'x-request-id', b'req_8405a8a8d58e4c22f4558304278db895'), (b'CF-Cache-Status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'8e3258d34c847e74-LAX'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2024-11-15 13:31:14,079 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2024-11-15 13:31:14,079 [DEBUG] httpcore.http11: receive_response_body.started request=<Request [b'POST']>
+2024-11-15 13:31:14,080 [DEBUG] httpcore.http11: receive_response_body.complete
+2024-11-15 13:31:14,081 [DEBUG] httpcore.http11: response_closed.started
+2024-11-15 13:31:14,081 [DEBUG] httpcore.http11: response_closed.complete
+2024-11-15 13:31:14,081 [DEBUG] openai._base_client: HTTP Response: POST https://api.openai.com/v1/embeddings "200 OK" Headers({'date': 'Fri, 15 Nov 2024 21:31:14 GMT', 'content-type': 'application/json', 'transfer-encoding': 'chunked', 'connection': 'keep-alive', 'access-control-allow-origin': '*', 'access-control-expose-headers': 'X-Request-ID', 'openai-model': 'text-embedding-3-small', 'openai-organization': 'user-e5hnzpyhl9nzqjuf47rjzmcg', 'openai-processing-ms': '190', 'openai-version': '2020-10-01', 'strict-transport-security': 'max-age=31536000; includeSubDomains; preload', 'x-ratelimit-limit-requests': '3000', 'x-ratelimit-limit-tokens': '1000000', 'x-ratelimit-remaining-requests': '2999', 'x-ratelimit-remaining-tokens': '999948', 'x-ratelimit-reset-requests': '20ms', 'x-ratelimit-reset-tokens': '3ms', 'x-request-id': 'req_8405a8a8d58e4c22f4558304278db895', 'cf-cache-status': 'DYNAMIC', 'x-content-type-options': 'nosniff', 'server': 'cloudflare', 'cf-ray': '8e3258d34c847e74-LAX', 'content-encoding': 'gzip', 'alt-svc': 'h3=":443"; ma=86400'})
+2024-11-15 13:31:14,082 [DEBUG] openai._base_client: request_id: req_8405a8a8d58e4c22f4558304278db895
+2024-11-15 13:31:14,086 [DEBUG] qual_functions: Retrieved top 5 relevant codes for meaning unit ID 1: ['Innovation', 'Sustainability', 'Market Impact', 'Research and Development', 'Research and Development']
+2024-11-15 13:31:14,088 [DEBUG] qual_functions: Full Prompt for Unique ID 1:
+**Instructions:**
+
+**Code Selection**
+
+1. **Identify Relevant Codes**: For each excerpt, determine all applicable codes from the provided list that accurately describe the content of the excerpt.
+
+2. **Utilize Metadata for Context**: Leverage the provided metadata to gain a comprehensive understanding of the excerpt, ensuring accurate code assignments.
+
+3. **Handle Non-Applicable Excerpts**: If none of the provided codes are relevant to a current excerpt, assign the code "VOID" in the "code_name" field and supply an appropriate justification.
+
+**Provide Justifications**
+
+4. **Explain Code Assignments**: For every assigned code, include a 2-3 sentence justification detailing why the code is pertinent to the CURRENT excerpt (not the context).
+
+5. **Justify "VOID" Assignments**: If "VOID" is assigned, provide a 2-3 sentence explanation clarifying why none of the provided codes are suitable for the current excerpt.
+
+**Formatting Requirements**
+
+6. **JSON Structure**: Format the output as a JSON array where each object corresponds to a single excerpt. Each object should contain the following key:
+
+   - `"codeList"`: An array of code assignments, each comprising:
+     - `"code_name"`: The assigned code.
+     - `"code_justification"`: The rationale for the code assignment.
+
+7. **Maintain Order**: Ensure that each JSON object aligns with the order of the provided excerpts.
+
+**Ensure JSON Validity**
+
+8. **Accurate Formatting**: Construct the JSON meticulously to avoid syntax errors such as missing commas, brackets, or braces.
+
+9. **No Extraneous Text**: Do not include any additional text, explanations, or comments outside the JSON code block.
+
+**Assigning Multiple Codes**
+
+10. **Comprehensive Coding**: Assign all applicable codes to each excerpt; some excerpts may warrant multiple codes.
+
+11. **Use Defined Codes Only**: Restrict assignments to codes explicitly defined in the provided list.
+
+**Example Output Format:**
+
+```json
+[
+  {
+    "codeList": [
+      {
+        "code_name": "Sample_Code1",
+        "code_justification": "This code was applied because the excerpt discusses..."
+      },
+      {
+        "code_name": "Sample_Code2",
+        "code_justification": "This code was applied because the excerpt also relates to..."
+      }
+    ]
+  },
+  {
+    "codeList": [
+      {
+        "code_name": "VOID",
+        "code_justification": "No code was applicable as the excerpt does not align with any provided categories."
+      }
+    ]
+  }
+]
+Contextual Metadata:
+
+You will receive a JSON object containing all relevant metadata for each current excerpt. Use this metadata exclusively as context to inform your code assignments. Do not include any metadata in your output.
+You will also recieve context from the conversation in which the current excerpt took place within. Do NOT code for this surrounding context,ONLY  code for the current excerpt.
+
+Output:
+
+Submit your response as a JSON array containing only the codeList for each excerpt – do not add commentary or any non-JSON text.
+
+Relevant Codes (full details):
+{
+  "text": "Innovation",
+  "metadata": {
+    "description": "Introduction of new ideas or methods."
+  }
+}
+
+{
+  "text": "Sustainability",
+  "metadata": {
+    "description": "Focus on long-term environmental and economic viability."
+  }
+}
+
+{
+  "text": "Market Impact",
+  "metadata": {
+    "description": "Effect on market trends and consumer behavior."
+  }
+}
+
+{
+  "text": "Research and Development",
+  "metadata": {
+    "description": "Investigation and creation of new products or knowledge."
+  }
+}
+
+{
+  "text": "Research and Development",
+  "metadata": {
+    "description": "Investigation and creation of new products or knowledge."
+  }
+}
+
+Contextual Excerpts:
+Quote: In a significant advancement, scientists at GreenTech Labs have developed a new solar panel that is 30% more efficient than current models.
+
+Quote: This breakthrough promises to revolutionize the renewable energy sector by making solar power more accessible and affordable.
+
+**Important:** Please use the provided contextual excerpts **only** as background information to understand the current excerpt better. Current Excerpt For Coding:
+Quote: This breakthrough promises to revolutionize the renewable energy sector by making solar power more accessible and affordable.
+
+**Apply codes exclusively to the current excerpt provided above. Do not assign codes to the contextual excerpts.**
+
+Please provide the assigned codes in the following JSON format:
+{
+  "codeList": [
+    {"code_name": "<Name of the code>", "code_justification": "<Justification for the code>"},
+    ...
+  ]
+}
+2024-11-15 13:31:14,096 [DEBUG] openai._base_client: Request options: {'method': 'post', 'url': '/chat/completions', 'headers': {'X-Stainless-Helper-Method': 'beta.chat.completions.parse'}, 'files': None, 'post_parser': <function Completions.parse.<locals>.parser at 0x104e827a0>, 'json_data': {'messages': [{'role': 'system', 'content': 'You are tasked with applying qualitative codes to excerpts from a transcript or articles. The purpose of this task is to identify all codes that best describe each excerpt based on the provided instructions.'}, {'role': 'user', 'content': '**Instructions:**\n\n**Code Selection**\n\n1. **Identify Relevant Codes**: For each excerpt, determine all applicable codes from the provided list that accurately describe the content of the excerpt.\n\n2. **Utilize Metadata for Context**: Leverage the provided metadata to gain a comprehensive understanding of the excerpt, ensuring accurate code assignments.\n\n3. **Handle Non-Applicable Excerpts**: If none of the provided codes are relevant to a current excerpt, assign the code "VOID" in the "code_name" field and supply an appropriate justification.\n\n**Provide Justifications**\n\n4. **Explain Code Assignments**: For every assigned code, include a 2-3 sentence justification detailing why the code is pertinent to the CURRENT excerpt (not the context).\n\n5. **Justify "VOID" Assignments**: If "VOID" is assigned, provide a 2-3 sentence explanation clarifying why none of the provided codes are suitable for the current excerpt.\n\n**Formatting Requirements**\n\n6. **JSON Structure**: Format the output as a JSON array where each object corresponds to a single excerpt. Each object should contain the following key:\n\n   - `"codeList"`: An array of code assignments, each comprising:\n     - `"code_name"`: The assigned code.\n     - `"code_justification"`: The rationale for the code assignment.\n\n7. **Maintain Order**: Ensure that each JSON object aligns with the order of the provided excerpts.\n\n**Ensure JSON Validity**\n\n8. **Accurate Formatting**: Construct the JSON meticulously to avoid syntax errors such as missing commas, brackets, or braces.\n\n9. **No Extraneous Text**: Do not include any additional text, explanations, or comments outside the JSON code block.\n\n**Assigning Multiple Codes**\n\n10. **Comprehensive Coding**: Assign all applicable codes to each excerpt; some excerpts may warrant multiple codes.\n\n11. **Use Defined Codes Only**: Restrict assignments to codes explicitly defined in the provided list.\n\n**Example Output Format:**\n\n```json\n[\n  {\n    "codeList": [\n      {\n        "code_name": "Sample_Code1",\n        "code_justification": "This code was applied because the excerpt discusses..."\n      },\n      {\n        "code_name": "Sample_Code2",\n        "code_justification": "This code was applied because the excerpt also relates to..."\n      }\n    ]\n  },\n  {\n    "codeList": [\n      {\n        "code_name": "VOID",\n        "code_justification": "No code was applicable as the excerpt does not align with any provided categories."\n      }\n    ]\n  }\n]\nContextual Metadata:\n\nYou will receive a JSON object containing all relevant metadata for each current excerpt. Use this metadata exclusively as context to inform your code assignments. Do not include any metadata in your output.\nYou will also recieve context from the conversation in which the current excerpt took place within. Do NOT code for this surrounding context,ONLY  code for the current excerpt.\n\nOutput:\n\nSubmit your response as a JSON array containing only the codeList for each excerpt – do not add commentary or any non-JSON text.\n\nRelevant Codes (full details):\n{\n  "text": "Innovation",\n  "metadata": {\n    "description": "Introduction of new ideas or methods."\n  }\n}\n\n{\n  "text": "Sustainability",\n  "metadata": {\n    "description": "Focus on long-term environmental and economic viability."\n  }\n}\n\n{\n  "text": "Market Impact",\n  "metadata": {\n    "description": "Effect on market trends and consumer behavior."\n  }\n}\n\n{\n  "text": "Research and Development",\n  "metadata": {\n    "description": "Investigation and creation of new products or knowledge."\n  }\n}\n\n{\n  "text": "Research and Development",\n  "metadata": {\n    "description": "Investigation and creation of new products or knowledge."\n  }\n}\n\nContextual Excerpts:\nQuote: In a significant advancement, scientists at GreenTech Labs have developed a new solar panel that is 30% more efficient than current models.\n\nQuote: This breakthrough promises to revolutionize the renewable energy sector by making solar power more accessible and affordable.\n\n**Important:** Please use the provided contextual excerpts **only** as background information to understand the current excerpt better. Current Excerpt For Coding:\nQuote: This breakthrough promises to revolutionize the renewable energy sector by making solar power more accessible and affordable.\n\n**Apply codes exclusively to the current excerpt provided above. Do not assign codes to the contextual excerpts.**\n\nPlease provide the assigned codes in the following JSON format:\n{\n  "codeList": [\n    {"code_name": "<Name of the code>", "code_justification": "<Justification for the code>"},\n    ...\n  ]\n}'}], 'model': 'gpt-4o-mini', 'max_tokens': 1500, 'response_format': {'type': 'json_schema', 'json_schema': {'schema': {'$defs': {'CodeAssigned': {'properties': {'code_name': {'title': 'Code Name', 'type': 'string'}, 'code_justification': {'title': 'Code Justification', 'type': 'string'}}, 'required': ['code_name', 'code_justification'], 'title': 'CodeAssigned', 'type': 'object', 'additionalProperties': False}}, 'properties': {'codeList': {'items': {'$ref': '#/$defs/CodeAssigned'}, 'title': 'Codelist', 'type': 'array'}}, 'required': ['codeList'], 'title': 'CodeFormat', 'type': 'object', 'additionalProperties': False}, 'name': 'CodeFormat', 'strict': True}}, 'stream': False, 'temperature': 0.2}}
+2024-11-15 13:31:14,097 [DEBUG] openai._base_client: Sending HTTP Request: POST https://api.openai.com/v1/chat/completions
+2024-11-15 13:31:14,097 [DEBUG] httpcore.http11: send_request_headers.started request=<Request [b'POST']>
+2024-11-15 13:31:14,098 [DEBUG] httpcore.http11: send_request_headers.complete
+2024-11-15 13:31:14,098 [DEBUG] httpcore.http11: send_request_body.started request=<Request [b'POST']>
+2024-11-15 13:31:14,098 [DEBUG] httpcore.http11: send_request_body.complete
+2024-11-15 13:31:14,098 [DEBUG] httpcore.http11: receive_response_headers.started request=<Request [b'POST']>
+2024-11-15 13:31:16,277 [DEBUG] httpcore.http11: receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Fri, 15 Nov 2024 21:31:16 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'user-e5hnzpyhl9nzqjuf47rjzmcg'), (b'openai-processing-ms', b'1990'), (b'openai-version', b'2020-10-01'), (b'x-ratelimit-limit-requests', b'10000'), (b'x-ratelimit-limit-tokens', b'200000'), (b'x-ratelimit-remaining-requests', b'9997'), (b'x-ratelimit-remaining-tokens', b'197297'), (b'x-ratelimit-reset-requests', b'21.946s'), (b'x-ratelimit-reset-tokens', b'810ms'), (b'x-request-id', b'req_a78358352214aaf4e1b033289427b5fb'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'CF-Cache-Status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'8e3258d5df1a7e74-LAX'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2024-11-15 13:31:16,278 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2024-11-15 13:31:16,279 [DEBUG] httpcore.http11: receive_response_body.started request=<Request [b'POST']>
+2024-11-15 13:31:16,279 [DEBUG] httpcore.http11: receive_response_body.complete
+2024-11-15 13:31:16,280 [DEBUG] httpcore.http11: response_closed.started
+2024-11-15 13:31:16,280 [DEBUG] httpcore.http11: response_closed.complete
+2024-11-15 13:31:16,280 [DEBUG] openai._base_client: HTTP Response: POST https://api.openai.com/v1/chat/completions "200 OK" Headers({'date': 'Fri, 15 Nov 2024 21:31:16 GMT', 'content-type': 'application/json', 'transfer-encoding': 'chunked', 'connection': 'keep-alive', 'access-control-expose-headers': 'X-Request-ID', 'openai-organization': 'user-e5hnzpyhl9nzqjuf47rjzmcg', 'openai-processing-ms': '1990', 'openai-version': '2020-10-01', 'x-ratelimit-limit-requests': '10000', 'x-ratelimit-limit-tokens': '200000', 'x-ratelimit-remaining-requests': '9997', 'x-ratelimit-remaining-tokens': '197297', 'x-ratelimit-reset-requests': '21.946s', 'x-ratelimit-reset-tokens': '810ms', 'x-request-id': 'req_a78358352214aaf4e1b033289427b5fb', 'strict-transport-security': 'max-age=31536000; includeSubDomains; preload', 'cf-cache-status': 'DYNAMIC', 'x-content-type-options': 'nosniff', 'server': 'cloudflare', 'cf-ray': '8e3258d5df1a7e74-LAX', 'content-encoding': 'gzip', 'alt-svc': 'h3=":443"; ma=86400'})
+2024-11-15 13:31:16,281 [DEBUG] openai._base_client: request_id: req_a78358352214aaf4e1b033289427b5fb
+2024-11-15 13:31:16,283 [DEBUG] qual_functions: LLM Code Assignment Output for ID 1:
+[CodeAssigned(code_name='Innovation', code_justification='This code was applied because the excerpt discusses a breakthrough that introduces new methods in solar power technology.'), CodeAssigned(code_name='Sustainability', code_justification='This code was applied as the excerpt emphasizes making solar power more accessible and affordable, which aligns with long-term environmental and economic viability.'), CodeAssigned(code_name='Market Impact', code_justification='This code was applied because the excerpt suggests that the breakthrough will have a significant effect on the renewable energy market by enhancing accessibility and affordability.')]
+2024-11-15 13:31:16,283 [DEBUG] __main__: Assigned codes using deductive mode with RAG.
+2024-11-15 13:31:16,287 [INFO] __main__: Coded meaning units saved to 'outputs/coded_meaning_units.json'.
+2024-11-15 13:31:55,362 [INFO] __main__: Starting the main pipeline.
+2024-11-15 13:31:56,354 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2024-11-15 13:31:56,550 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2024-11-15 13:31:56,566 [INFO] qual_functions: Initialized FAISS index with 4 codes from file 'qual_codebase/news_schema.jsonl'.
+2024-11-15 13:31:56,744 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2024-11-15 13:31:57,867 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2024-11-15 13:31:58,363 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2024-11-15 13:32:00,437 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2024-11-15 13:32:00,440 [ERROR] __main__: Unsupported output format: txt
