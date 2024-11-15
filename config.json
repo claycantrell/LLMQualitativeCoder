@@ -1,0 +1,16 @@
+{
+  "coding_mode": "deductive",
+  "use_parsing": true,
+  "use_rag": true,
+  "parse_model": "gpt-4o-mini",
+  "assign_model": "gpt-4o-mini",
+  "initialize_embedding_model": "text-embedding-3-small",
+  "retrieve_embedding_model": "text-embedding-3-small",
+  "data_format": "interview",
+  "paths": {
+    "prompts_folder": "prompts",
+    "codebase_folder": "qual_codebase",
+    "json_folder": "json_transcripts",
+    "config_folder": "configs"
+  }
+}

@@ -2,7 +2,6 @@ import os
 import json
 import logging
 from typing import List, Dict, Optional, Any, Tuple, Type
-import faiss
 from data_handlers import BaseDataHandler, FlexibleDataHandler
 from utils import (
     load_environment_variables,
@@ -10,7 +9,8 @@ from utils import (
     load_custom_coding_prompt,
     initialize_deductive_resources,
     create_dynamic_model_for_format,
-    load_schema_config
+    load_schema_config,
+    load_config  # New function to load configurations
 )
 from qual_functions import (
     MeaningUnit,
@@ -19,7 +19,7 @@ from qual_functions import (
 
 # Configure logging
 logging.basicConfig(
-    level=logging.DEBUG,  # Changed from INFO to DEBUG for detailed logs
+    level=logging.DEBUG,  # Ensure DEBUG logs are captured
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
     handlers=[
         logging.StreamHandler()
@@ -30,21 +30,28 @@ logger = logging.getLogger(__name__)
 # -------------------------------
 # Main Function (Pipeline Orchestration)
 # -------------------------------
-def main(
-    coding_mode: str = "deductive",
-    use_parsing: bool = True,
-    use_rag: bool = True,
-    parse_model: str = "gpt-4o-mini",
-    assign_model: str = "gpt-4o-mini",
-    initialize_embedding_model: str = "text-embedding-3-small",
-    retrieve_embedding_model: str = "text-embedding-3-small",
-    data_format: str = "interview"  # Default to "interview" as per user issue
-):
+def main(config: Dict[str, Any]):
     """
     Orchestrates the entire process of assigning qualitative codes to transcripts or articles based on the provided modes and configurations.
     """
     logger.info("Starting the main pipeline.")
-    
+
+    # Load configurations
+    coding_mode = config.get('coding_mode', 'deductive')
+    use_parsing = config.get('use_parsing', True)
+    use_rag = config.get('use_rag', True)
+    parse_model = config.get('parse_model', 'gpt-4o-mini')
+    assign_model = config.get('assign_model', 'gpt-4o-mini')
+    initialize_embedding_model = config.get('initialize_embedding_model', 'text-embedding-3-small')
+    retrieve_embedding_model = config.get('retrieve_embedding_model', 'text-embedding-3-small')
+    data_format = config.get('data_format', 'interview')
+
+    paths = config.get('paths', {})
+    prompts_folder = paths.get('prompts_folder', 'prompts')
+    codebase_folder = paths.get('codebase_folder', 'qual_codebase')
+    json_folder = paths.get('json_folder', 'json_transcripts')
+    config_folder = paths.get('config_folder', 'configs')
+
     # Stage 1: Environment Setup
     try:
         load_environment_variables()
@@ -52,12 +59,6 @@ def main(
     except Exception as e:
         logger.error(f"Failed to load environment variables: {e}")
         return
-
-    # Define paths
-    prompts_folder = 'prompts'
-    codebase_folder = 'qual_codebase'
-    json_folder = 'json_transcripts'
-    config_folder = 'configs'
 
     # Load parse instructions if parsing is enabled
     parse_instructions = ""
@@ -93,7 +94,8 @@ def main(
     # Determine the data file to load based on data format
     data_file_map = {
         "interview": "output_cues.json",
-        "news": "news_articles.json"
+        "news": "news_articles.json",
+        # Add other data formats and corresponding files here
     }
     data_file = data_file_map.get(data_format, None)
     if not data_file:
@@ -130,10 +132,12 @@ def main(
     # Stage 4: Code Assignment
     if coding_mode == "deductive":
         try:
+            # Initialize deductive resources with conditional FAISS initialization
             processed_codes, faiss_index, coding_instructions = initialize_deductive_resources(
                 codebase_folder=codebase_folder,
                 prompts_folder=prompts_folder,
-                initialize_embedding_model=initialize_embedding_model
+                initialize_embedding_model=initialize_embedding_model,
+                use_rag=use_rag  # Pass the use_rag flag
             )
             logger.debug(f"Initialized deductive resources with {len(processed_codes)} processed codes.")
         except Exception as e:
@@ -146,35 +150,19 @@ def main(
 
         # Assign codes to meaning units in deductive mode
         try:
-            if use_rag:
-                # Deductive coding with RAG
-                coded_meaning_unit_list = assign_codes_to_meaning_units(
-                    meaning_unit_list=meaning_unit_object_list,
-                    coding_instructions=coding_instructions,
-                    processed_codes=processed_codes,
-                    index=faiss_index,
-                    top_k=5,
-                    context_size=5,
-                    use_rag=True,
-                    completion_model=assign_model,
-                    embedding_model=retrieve_embedding_model
-                )
-                logger.debug("Assigned codes using deductive mode with RAG.")
-            else:
-                # Deductive coding without RAG (using full codebase)
-                coded_meaning_unit_list = assign_codes_to_meaning_units(
-                    meaning_unit_list=meaning_unit_object_list,
-                    coding_instructions=coding_instructions,
-                    processed_codes=processed_codes,
-                    index=faiss_index,
-                    top_k=5,
-                    context_size=5,
-                    use_rag=False,
-                    codebase=processed_codes,
-                    completion_model=assign_model,
-                    embedding_model=retrieve_embedding_model
-                )
-                logger.debug("Assigned codes using deductive mode without RAG.")
+            coded_meaning_unit_list = assign_codes_to_meaning_units(
+                meaning_unit_list=meaning_unit_object_list,
+                coding_instructions=coding_instructions,
+                processed_codes=processed_codes,
+                index=faiss_index if use_rag else None,  # Pass FAISS index only if RAG is used
+                top_k=5,
+                context_size=5,
+                use_rag=use_rag,
+                codebase=processed_codes if not use_rag else None,  # Provide full codebase if not using RAG
+                completion_model=assign_model,
+                embedding_model=retrieve_embedding_model if use_rag else None  # Embeddings not needed if not using RAG
+            )
+            logger.debug(f"Assigned codes using deductive mode with {'RAG' if use_rag else 'full codebase'}.")
         except Exception as e:
             logger.error(f"Failed to assign codes in deductive mode: {e}")
             return
@@ -217,16 +205,13 @@ def main(
             logger.info("  No codes assigned.")
 
 if __name__ == "__main__":
-    # Example usage:
+    # Load configurations from config.json
+    config_file_path = 'config.json'  # Adjust the path if needed
+    try:
+        config = load_config(config_file_path)
+    except Exception as e:
+        logger.error(f"Failed to load configuration: {e}")
+        exit(1)
 
-    # Deductive Coding with Parsing and RAG for Interview
-    main(
-        coding_mode="deductive",
-        use_parsing=True,
-        use_rag=True,
-        parse_model="gpt-4o-mini",
-        assign_model="gpt-4o-mini",
-        initialize_embedding_model="text-embedding-3-small",
-        retrieve_embedding_model="text-embedding-3-small",
-        data_format="interview"  # Changed to "interview" as per user issue
-    )
+    # Run the main function with loaded configurations
+    main(config)

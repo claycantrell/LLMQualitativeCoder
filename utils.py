@@ -1,13 +1,11 @@
 import os
 import json
 import logging
-from typing import Dict, Any, Tuple, List, Type
-import faiss
+from typing import Dict, Any, Tuple, List, Type, Optional
 from qual_functions import (
-    parse_transcript,
     initialize_faiss_index_from_formatted_file
 )
-from pydantic import create_model, BaseModel, Extra, ConfigDict
+from pydantic import create_model, BaseModel, ConfigDict
 
 # Configure logging for utils module
 logger = logging.getLogger(__name__)
@@ -90,11 +88,12 @@ def load_custom_coding_prompt(prompts_folder: str) -> str:
 def initialize_deductive_resources(
     codebase_folder: str,
     prompts_folder: str,
-    initialize_embedding_model: str
-) -> Tuple[List[Dict[str, Any]], faiss.IndexFlatL2, str]:
+    initialize_embedding_model: str,
+    use_rag: bool
+) -> Tuple[List[Dict[str, Any]], Optional[Any], str]:
     """
-    Initializes resources needed for deductive coding: loads code instructions, codebase, and builds a FAISS index.
-    Returns processed_codes, faiss_index, and coding_instructions.
+    Initializes resources needed for deductive coding: loads code instructions, codebase, and builds a FAISS index if use_rag is True.
+    Returns processed_codes, faiss_index (or None), and coding_instructions.
     """
     # Load coding instructions for deductive coding
     try:
@@ -104,37 +103,39 @@ def initialize_deductive_resources(
         logger.error(f"Failed to load coding instructions: {e}")
         raise
 
-    # Initialize FAISS index and get processed codes
-    list_of_codes_file = os.path.join(codebase_folder, 'new_schema.txt')
+    # Load processed codes from .jsonl file
+    list_of_codes_file = os.path.join(codebase_folder, 'new_schema.jsonl')  # Ensure the file exists
     if not os.path.exists(list_of_codes_file):
         logger.error(f"List of codes file '{list_of_codes_file}' not found.")
         raise FileNotFoundError(f"List of codes file '{list_of_codes_file}' not found.")
 
     try:
-        faiss_index, processed_codes = initialize_faiss_index_from_formatted_file(
-            list_of_codes_file,
-            embedding_model=initialize_embedding_model
-        )
-        logger.debug("FAISS index initialized with processed codes.")
+        with open(list_of_codes_file, 'r', encoding='utf-8') as file:
+            processed_codes = [json.loads(line) for line in file if line.strip()]
+        logger.debug(f"Loaded {len(processed_codes)} codes from '{list_of_codes_file}'.")
     except Exception as e:
-        logger.error(f"Failed to initialize FAISS index: {e}")
+        logger.error(f"An error occurred while loading codes from '{list_of_codes_file}': {e}")
         raise
 
-    if not processed_codes:
-        logger.warning(f"No codes found in '{list_of_codes_file}' or failed to process correctly.")
-        processed_codes = []
+    # Initialize FAISS index if use_rag is True
+    if use_rag:
+        try:
+            faiss_index, _ = initialize_faiss_index_from_formatted_file(
+                codes_list_file=list_of_codes_file,
+                embedding_model=initialize_embedding_model
+            )
+            logger.debug("FAISS index initialized with processed codes.")
+        except Exception as e:
+            logger.error(f"Failed to initialize FAISS index: {e}")
+            raise
+    else:
+        faiss_index = None  # FAISS index is not needed
 
     return processed_codes, faiss_index, coding_instructions
 
-def load_schema_config(config_path: str) -> Dict[str, Dict[str, str]]:
+def load_schema_config(config_path: str) -> Dict[str, Dict[str, Any]]:
     """
     Loads schema configuration from the given JSON file path.
-
-    Args:
-        config_path (str): The file path to the JSON configuration file defining data schemas.
-
-    Returns:
-        Dict[str, Dict[str, str]]: A dictionary where keys are data format names (e.g., 'interview') and values are dictionaries mapping field names to types.
     """
     if not os.path.exists(config_path):
         logger.error(f"Schema configuration file '{config_path}' not found.")
@@ -155,14 +156,6 @@ def load_schema_config(config_path: str) -> Dict[str, Dict[str, str]]:
 def create_dynamic_model_for_format(data_format: str, schema_config: Dict[str, Dict[str, Any]]) -> Tuple[Type[BaseModel], str]:
     """
     Creates a dynamic Pydantic model for the given data format based on the provided schema configuration.
-    Compatible with Pydantic v2.
-
-    Args:
-        data_format (str): The data format for which to create a dynamic model (e.g., 'interview', 'news').
-        schema_config (Dict[str, Dict[str, Any]]): The schema configuration dictionary loaded from a JSON file.
-
-    Returns:
-        Tuple[Type[BaseModel], str]: A tuple containing the dynamically created Pydantic model class and the content_field string.
     """
     if data_format not in schema_config:
         raise ValueError(f"No schema configuration found for data format '{data_format}'")
@@ -205,3 +198,29 @@ def create_dynamic_model_for_format(data_format: str, schema_config: Dict[str, D
         raise
 
     return dynamic_model, content_field
+
+def load_config(config_file_path: str) -> Dict[str, Any]:
+    """
+    Loads the configuration from a JSON file.
+
+    Args:
+        config_file_path (str): Path to the configuration file.
+
+    Returns:
+        Dict[str, Any]: Configuration dictionary.
+    """
+    if not os.path.exists(config_file_path):
+        logger.error(f"Configuration file '{config_file_path}' not found.")
+        raise FileNotFoundError(f"Configuration file '{config_file_path}' not found.")
+
+    try:
+        with open(config_file_path, 'r', encoding='utf-8') as file:
+            config = json.load(file)
+        logger.debug(f"Configuration loaded from '{config_file_path}'.")
+        return config
+    except json.JSONDecodeError as e:
+        logger.error(f"Error decoding JSON from '{config_file_path}': {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Error loading configuration: {e}")
+        raise

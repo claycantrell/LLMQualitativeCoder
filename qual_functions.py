@@ -36,12 +36,6 @@ class MeaningUnit:
     assigned_code_list: List[CodeAssigned] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
 
-@dataclass
-class TextData:
-    unique_id: int
-    text_content: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
-
 # -------------------------------
 # Pydantic Models for Parsing
 # -------------------------------
@@ -64,15 +58,6 @@ def parse_transcript(
 ) -> List[str]:
     """
     Breaks up a speaking turn into smaller meaning units based on criteria in the LLM prompt.
-    
-    Args:
-        speaking_turn_string (str): The dialogue text from a speaker.
-        prompt (str): The complete prompt with metadata included.
-        completion_model (str): The OpenAI model to use for parsing the transcript.
-        metadata (Dict[str, Any], optional): Additional metadata to be provided as context.
-
-    Returns:
-        List[str]: A list of meaning unit strings.
     """
     metadata_section = f"Metadata:\n{json.dumps(metadata, indent=2)}\n\n" if metadata else ""
     try:
@@ -135,16 +120,6 @@ def initialize_faiss_index_from_formatted_file(
     """
     Reads a JSONL-formatted file, processes code data, and initializes a FAISS index directly using batch embedding.
     Returns the FAISS index and the processed codes as dictionaries.
-    
-    Args:
-        codes_list_file (str): Path to the JSONL file containing code data.
-        embedding_model (str, optional): The OpenAI embedding model to use for generating embeddings. Defaults to "text-embedding-3-small".
-        batch_size (int, optional): Batch size for processing code embeddings to avoid large memory usage. Defaults to 32.
-
-    Returns:
-        Tuple[faiss.IndexFlatL2, List[Dict[str, Any]]]: A tuple containing:
-            - A FAISS index initialized with embeddings of the code data.
-            - A list of processed code data dictionaries.
     """
     embeddings = []
     processed_codes = []
@@ -221,19 +196,10 @@ def retrieve_relevant_codes(
     """
     Retrieves the top_k most relevant codes for a given meaning_unit_string using FAISS.
     Returns a list of code dictionaries with relevant information.
-    
-    Args:
-        meaning_unit (MeaningUnit): The MeaningUnit object containing the excerpt and metadata.
-        index (faiss.IndexFlatL2): The FAISS index containing embedded code data.
-        processed_codes (List[Dict[str, Any]]): The list of processed code data dictionaries.
-        top_k (int, optional): The number of top relevant codes to retrieve. Defaults to 5.
-        embedding_model (str, optional): The OpenAI embedding model to use for generating embeddings. Defaults to "text-embedding-3-small".
-
-    Returns:
-        List[Dict[str, Any]]: A list of the most relevant code dictionaries based on FAISS search.
     """
     try:
-        meaning_unit_string_with_metadata = f"{json.dumps(meaning_unit.metadata)}\nUnit: {meaning_unit.meaning_unit_string}"
+        # Combine metadata and meaning unit string for embedding
+        meaning_unit_string_with_metadata = f"Metadata:\n{json.dumps(meaning_unit.metadata)}\nUnit: {meaning_unit.meaning_unit_string}"
 
         response = client.embeddings.create(
             input=[meaning_unit_string_with_metadata],
@@ -270,29 +236,14 @@ def assign_codes_to_meaning_units(
     """
     Assigns codes to each MeaningUnit object, including contextual information from surrounding units.
     Returns an updated list of MeaningUnit objects with assigned codes.
-
-    Args:
-        meaning_unit_list (List[MeaningUnit]): A list of MeaningUnit objects to be coded.
-        coding_instructions (str): Instructions or a custom prompt for the coding task.
-        processed_codes (List[Dict[str, Any]], optional): The list of processed code data dictionaries.
-        index (faiss.IndexFlatL2, optional): The FAISS index for retrieving relevant codes (deductive coding).
-        top_k (Optional[int], optional): The number of top relevant codes to retrieve (deductive/RAG). Defaults to 5.
-        context_size (int, optional): The number of preceding and following meaning units to include as context. Defaults to 5.
-        use_rag (bool, optional): Whether to use Retrieval-Augmented Generation (RAG) for code assignment (deductive coding). Defaults to True.
-        codebase (List[Dict[str, Any]], optional): The entire codebase to include in the prompt for deductive coding without RAG.
-        completion_model (Optional[str], optional): The OpenAI model to use for generating code assignments. Defaults to "gpt-4o-mini".
-        embedding_model (Optional[str], optional): The OpenAI embedding model used for retrieval in RAG. Defaults to "text-embedding-3-small".
-
-    Returns:
-        List[MeaningUnit]: A list of MeaningUnit objects with assigned codes.
     """
     try:
         total_units = len(meaning_unit_list)
         for idx, meaning_unit_object in enumerate(meaning_unit_list):
             # Determine coding approach
-            is_deductive = processed_codes is not None and index is not None
+            is_deductive = processed_codes is not None
 
-            if is_deductive and use_rag:
+            if is_deductive and use_rag and index is not None:
                 # Retrieve relevant codes using FAISS and the specified embedding model
                 relevant_codes = retrieve_relevant_codes(
                     meaning_unit_object, 
