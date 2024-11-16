@@ -1,22 +1,22 @@
 = Qualitative Coding Application
 
-== Introduction
-
 The *Qualitative Coding Application* is a tool designed to assist researchers in analyzing qualitative data. Leveraging LLMs, this application automates the process of breaking down textual data into smaller units for analysis and assigning relevant codes.
 
 == Features
 
 * *Dynamic Configuration*: Driven by a `config.json` file, allowing easy customization without modifying the codebase.
-* *Deductive and Inductive Coding*: Supports both deductive (using predefined codes) and inductive (generating codes based on guidelines) coding approaches.
+* *Deductive and Inductive Coding*: You can select between *Deductive* and *Inductive* coding modes by modifying the `"coding_mode"` parameter in the `config.json` file.
+
+- *Deductive*: Predefined codes are used from the codebase.
+- *Inductive*: Codes are generated during the analysis based on instructions outlined in your inductive coding prompt
+
 * *Parsing Transcripts*: Breaks down speaking turns into smaller meaning units based on customizable prompts.
-* *Code Retrieval with FAISS*: Utilizes FAISS for efficient retrieval of relevant codes, enhancing the relevance and accuracy of code assignments.
+* *Code Retrieval with FAISS*: Utilizes FAISS for efficient retrieval of relevant codes, reducing token usage and possibly increasing performance with larger codebases.
 * *Integration with OpenAI*: Leverages OpenAI's language models for advanced natural language processing tasks.
 * *Flexible Output Formats*: Exports coded data in JSON or CSV formats.
 * *Comprehensive Logging*: Detailed logging with options to log to console and/or files, aiding in monitoring and debugging.
 
 == Architecture
-
-The application is structured into several key components, each responsible for specific functionalities:
 
 * *`main.py`*: Orchestrates the entire workflow, from loading configurations to exporting results.
 * *`utils.py`*: Contains utility functions for loading configurations, prompts, and initializing resources.
@@ -33,19 +33,7 @@ The application is structured into several key components, each responsible for 
 
 === Steps
 
-. *Clone the Repository*
-
-git clone  cd 
-
-. *Create and Activate a Virtual Environment*
-
-python3 -m venv .venv source .venv/bin/activate // On Windows use ".venv\Scripts\activate"
-
-. *Install Dependencies*
-
-pip install -r requirements.txt
-
-. *Set Up Environment Variables*
+*Set Up Environment Variables*
 
 Ensure you have your OpenAI API key available as an environment variable:
 
@@ -59,14 +47,15 @@ The application relies on a `config.json` file for all configurable settings.
 
 * *coding_mode*: `"deductive"` or `"inductive"` depending on the approach you want to use (open or closed coding).
 * *use_parsing*: Boolean to enable or disable parsing of texual data into smaller units.
-* *use_rag*: Boolean to use Retrieval-Augmented Generation (RAG) for storage and retrieval of codebase (limits the size of context window in prompts, reducing costs with larger codebases. It could also improve performance with larger codebases but I have not tested this).
-* Below are the default models used for this tool, better performance can be achived with larger and more costly models.
+* *use_rag*: Boolean to use Retrieval-Augmented Generation (RAG) for storage and retrieval of codebase (limits the size of context window in prompts, reducing token usage with larger codebases. It could also improve performance with larger codebases but I have not tested this).
+* Below are the default models used for this tool, better performance can be achived with larger and more advanced models.
 * *parse_model*: The model to use for parsing transcripts (e.g., `gpt-4o-mini`).
 * *assign_model*: The model used for assigning codes (e.g., `gpt-4o-mini`).
 * *initialize_embedding_model*: Model used for embedding (e.g., `text-embedding-3-small`).
 * *retrieve_embedding_model*: Model used for code retrieval embeddings.
 * *data_format*: Defines the format of the input data (e.g., `interview`).
-* new data formats must be defined in (`data_format_config.json`) Here you will assign your `content_field` to the JSON value associated with your textual data for analysis. You will also list all other fields in your JSON file. 
+* new data formats must be defined in (`data_format_config.json`) Here you will assign your `content_field` to the JSON value associated with your textual data for analysis. You will also list all other fields in your JSON file. Use the existing data formats and .json data files to get a better understanding of how to format this config file for new data types.
+* This program does not currently support JSON data files which have nesting or use dictonaries.
 * *paths*: Specifies folder and file paths to be used during the process.
 ** *prompts_folder*: Path to the folder containing prompt files.
 ** *codebase_folder*: Path to the folder containing the qualitative codebase files.
@@ -88,13 +77,6 @@ python main.py --config_path=configs/config.json
 
 This will initiate the entire process, from loading the data, parsing, code assignment, and finally exporting the results.
 
-=== Configurable Modes
-
-You can select between *Deductive* and *Inductive* coding modes by modifying the `"coding_mode"` parameter in the `config.json` file.
-
-- *Deductive*: Predefined codes are used from the codebase.
-- *Inductive*: Codes are generated during the analysis based on the content of the transcripts.
-
 == Folder Structure
 
 Here is a typical folder structure for the project:
@@ -109,13 +91,5 @@ Logs are printed to the console by default. You can configure log files or use d
 
 == Troubleshooting
 
-=== Common Errors
-
 * *Missing OpenAI API Key*: Make sure the environment variable `OPENAI_API_KEY` is set correctly.
 * *File Not Found Errors*: Ensure all paths defined in the `config.json` file are correct.
-
-=== Debugging Tips
-
-* Enable DEBUG level logging to view detailed trace messages:
-  
-export LOG_LEVEL=DEBUG

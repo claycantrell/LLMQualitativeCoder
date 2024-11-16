@@ -6,15 +6,15 @@
   "assign_model": "gpt-4o-mini",
   "initialize_embedding_model": "text-embedding-3-small",
   "retrieve_embedding_model": "text-embedding-3-small",
-  "data_format": "news",
+  "data_format": "transcript",
   "paths": {
     "prompts_folder": "prompts",
     "codebase_folder": "qual_codebase",
     "json_folder": "json_transcripts",
     "config_folder": "configs"
   },
-  "selected_codebase": "news_schema.jsonl",               
-  "selected_json_file": "news_articles.json",              
+  "selected_codebase": "teacher_schema.jsonl",               
+  "selected_json_file": "teacher_transcript.json",              
   "parse_prompt_file": "parse.txt",               
   "inductive_coding_prompt_file": "inductive.txt",
   "deductive_coding_prompt_file": "deductive.txt", 

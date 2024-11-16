@@ -141,7 +141,7 @@ def main(config: Dict[str, Any]):
         logger.warning("No meaning units to process. Exiting.")
         return
 
-    # Stage 4: Code Assignment
+    # Stage 3: Code Assignment
     if coding_mode == "deductive":
         try:
             # Initialize deductive resources with conditional FAISS initialization
@@ -205,7 +205,7 @@ def main(config: Dict[str, Any]):
             logger.error(f"Failed to assign codes in inductive mode: {e}")
             return
 
-    # Stage 5: Output Results
+    # Stage 4: Output Results
     os.makedirs(output_folder, exist_ok=True)
     output_file_path = os.path.join(output_folder, f"{output_file_name}.{output_format}")
 
