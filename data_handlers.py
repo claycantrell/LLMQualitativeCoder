@@ -1,4 +1,4 @@
-#data_handlers.py
+# data_handlers.py
 import os
 import json
 import logging
@@ -63,7 +63,9 @@ class FlexibleDataHandler:
             List[MeaningUnit]: List of MeaningUnit objects.
         """
         meaning_units = []
-        for idx, record in enumerate(validated_data, start=1):
+        unique_id_counter = 1  # Initialize a unique ID counter
+
+        for record in validated_data:
             content = record.get(self.content_field, "")
             metadata = {k: v for k, v in record.items() if k != self.content_field}
             if self.use_parsing:
@@ -75,18 +77,20 @@ class FlexibleDataHandler:
                 )
                 for pu in parsed_units:
                     meaning_unit = MeaningUnit(
-                        unique_id=idx,
+                        unique_id=unique_id_counter,  # Assign unique ID
                         meaning_unit_string=pu,
                         metadata=metadata
                     )
                     meaning_units.append(meaning_unit)
+                    unique_id_counter += 1  # Increment the counter for the next unit
             else:
                 meaning_unit = MeaningUnit(
-                    unique_id=idx,
+                    unique_id=unique_id_counter,  # Assign unique ID
                     meaning_unit_string=content,
                     metadata=metadata
                 )
                 meaning_units.append(meaning_unit)
+                unique_id_counter += 1  # Increment the counter for the next unit
 
         logger.debug(f"Transformed data into {len(meaning_units)} meaning units.")
         return meaning_units
