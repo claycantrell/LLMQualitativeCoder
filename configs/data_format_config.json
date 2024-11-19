@@ -15,22 +15,5 @@
             "title": "str",
             "content": "str"
         }
-    },
-    "meeting": {
-        "content_field": "content",
-        "fields": {
-            "id": "int",
-            "date": "str",
-            "participants": "list",
-            "location": "str",
-            "content": {
-                "type": "list",
-                "item_structure": {
-                    "speaker": "str",
-                    "timestamp": "str",
-                    "text": "str"
-                }
-            }
-        }
     }
 }

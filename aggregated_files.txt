@@ -1,0 +1,1175 @@
+
+
+===== requirements.txt =====
+
+faiss_cpu==1.9.0
+numpy==2.1.3
+openai==1.54.4
+pydantic==2.9.2
+
+
+===== README.md =====
+
+= Qualitative Coding Application
+
+The *Qualitative Coding Application* is a tool designed to assist researchers in analyzing qualitative data. Leveraging LLMs, this application automates the process of breaking down textual data into smaller units for analysis and assigning relevant codes.
+
+== Features
+
+* *Dynamic Configuration*: Driven by a `config.json` file, allowing easy customization without modifying the codebase.
+* *Deductive and Inductive Coding*: You can select between *Deductive* and *Inductive* coding modes by modifying the `"coding_mode"` parameter in the `config.json` file.
+
+- *Deductive*: Predefined codes are used from the codebase.
+- *Inductive*: Codes are generated during the analysis based on instructions outlined in your inductive coding prompt
+
+* *Parsing Transcripts*: Breaks down speaking turns into smaller meaning units based on customizable prompts.
+* *Code Retrieval with FAISS*: Utilizes FAISS for efficient retrieval of relevant codes, reducing token usage and possibly increasing performance with larger codebases.
+* *Integration with OpenAI*: Leverages OpenAI's language models for advanced natural language processing tasks.
+* *Flexible Output Formats*: Exports coded data in JSON or CSV formats.
+* *Comprehensive Logging*: Detailed logging with options to log to console and/or files, aiding in monitoring and debugging.
+
+== Architecture
+
+* *`main.py`*: Orchestrates the entire workflow, from loading configurations to exporting results.
+* *`utils.py`*: Contains utility functions for loading configurations, prompts, and initializing resources.
+* *`data_handlers.py`*: Handles data loading, validation, and transformation of data into units for analysis.
+* *`qual_functions.py`*: Implements core functionalities such as parsing transcripts and assigning codes to meaning units.
+
+== Installation
+
+=== Prerequisites
+
+- Python 3.8 or above
+- `pip` (Python package manager)
+- An API key for OpenAI (set as an environment variable)
+
+=== Steps
+
+*Set Up Environment Variables*
+
+Ensure you have your OpenAI API key available as an environment variable:
+
+export OPENAI_API_KEY='your_openai_api_key_here'
+
+== Configuration
+
+The application relies on a `config.json` file for all configurable settings. 
+
+=== Configuration Parameters
+
+* *coding_mode*: `"deductive"` or `"inductive"` depending on the approach you want to use (open or closed coding).
+* *use_parsing*: Boolean to enable or disable parsing of texual data into smaller units.
+* *use_rag*: Boolean to use Retrieval-Augmented Generation (RAG) for storage and retrieval of codebase (limits the size of context window in prompts, reducing token usage with larger codebases. It could also improve performance with larger codebases but I have not tested this).
+* Below are the default models used for this tool, better performance can be achived with larger and more advanced models.
+* *parse_model*: The model to use for parsing transcripts (e.g., `gpt-4o-mini`).
+* *assign_model*: The model used for assigning codes (e.g., `gpt-4o-mini`).
+* *initialize_embedding_model*: Model used for embedding (e.g., `text-embedding-3-small`).
+* *retrieve_embedding_model*: Model used for code retrieval embeddings.
+* *data_format*: Defines the format of the input data (e.g., `interview`).
+* new data formats must be defined in (`data_format_config.json`) Here you will assign your `content_field` to the JSON value associated with your textual data for analysis. You will also list all other fields in your JSON file. Use the existing data formats and .json data files to get a better understanding of how to format this config file for new data types.
+* This program does not currently support JSON data files which have nesting or use dictonaries.
+* *paths*: Specifies folder and file paths to be used during the process.
+** *prompts_folder*: Path to the folder containing prompt files.
+** *codebase_folder*: Path to the folder containing the qualitative codebase files.
+** *json_folder*: Path to the folder with JSON transcripts.
+** *config_folder*: Path where configuration files are located.
+** *parse_prompt_file*: File containing the prompt for parsing.
+** *deductive_coding_prompt_file*: File for deductive coding prompts.
+** *inductive_coding_prompt_file*: File for inductive coding prompts.
+** *codebase_file*: JSONL file with the codebase definitions.
+** *data_file*: JSON file to be processed.
+
+== Usage
+
+=== Running the Main Pipeline
+
+To run the main pipeline, execute the `main.py` script:
+
+python main.py --config_path=configs/config.json
+
+This will initiate the entire process, from loading the data, parsing, code assignment, and finally exporting the results.
+
+== Folder Structure
+
+Here is a typical folder structure for the project:
+
+qualitative-coding-app/ ├── configs/ │ ├── config.json │ └── data_format_config.json ├── prompts/ │ ├── parse_prompt.txt │ ├── deductive_coding_prompt.txt │ └── inductive_coding_prompt.txt ├── qual_codebase/ │ └── new_schema.jsonl ├── json_transcripts/ │ └── output_cues.json ├── main.py ├── utils.py ├── data_handlers.py ├── qual_functions.py ├── requirements.txt └── README.adoc
+
+== Logging
+
+The application generates logs to aid in debugging and understanding the workflow. Logging is configured with different levels (INFO, DEBUG, ERROR) to capture varying degrees of detail. 
+
+Logs are printed to the console by default. You can configure log files or use different logging handlers as needed.
+
+== Troubleshooting
+
+* *Missing OpenAI API Key*: Make sure the environment variable `OPENAI_API_KEY` is set correctly.
+* *File Not Found Errors*: Ensure all paths defined in the `config.json` file are correct.
+
+===== utils.py =====
+
+#utils.py
+import os
+import json
+import logging
+from typing import Dict, Any, Tuple, List, Type, Optional
+from qual_functions import (
+    initialize_faiss_index_from_formatted_file
+)
+from pydantic import create_model, BaseModel, ConfigDict
+
+# Configure logging for utils module
+logger = logging.getLogger(__name__)
+
+def load_environment_variables() -> None:
+    """
+    Loads and validates required environment variables.
+    """
+    openai_api_key = os.getenv('OPENAI_API_KEY')
+    if not openai_api_key:
+        logger.error("OPENAI_API_KEY environment variable is not set.")
+        raise ValueError("Set the OPENAI_API_KEY environment variable.")
+
+def load_config(config_file_path: str) -> Dict[str, Any]:
+    """
+    Loads the configuration from a JSON file.
+
+    Args:
+        config_file_path (str): Path to the configuration file.
+
+    Returns:
+        Dict[str, Any]: Configuration dictionary.
+    """
+    if not os.path.exists(config_file_path):
+        logger.error(f"Configuration file '{config_file_path}' not found.")
+        raise FileNotFoundError(f"Configuration file '{config_file_path}' not found.")
+
+    try:
+        with open(config_file_path, 'r', encoding='utf-8') as file:
+            config = json.load(file)
+        logger.debug(f"Configuration loaded from '{config_file_path}'.")
+        return config
+    except json.JSONDecodeError as e:
+        logger.error(f"Error decoding JSON from '{config_file_path}': {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Error loading configuration: {e}")
+        raise
+
+def load_coding_instructions(prompts_folder: str, prompt_file: str) -> str:
+    """
+    Loads coding instructions from a specified prompt file.
+
+    Args:
+        prompts_folder (str): Directory where prompt files are stored.
+        prompt_file (str): Name of the prompt file.
+
+    Returns:
+        str: Coding instructions as a string.
+    """
+    coding_instructions_file = os.path.join(prompts_folder, prompt_file)
+    if not os.path.exists(coding_instructions_file):
+        logger.error(f"Coding instructions file '{coding_instructions_file}' not found.")
+        raise FileNotFoundError(f"Coding instructions file '{coding_instructions_file}' not found.")
+
+    try:
+        with open(coding_instructions_file, 'r', encoding='utf-8') as file:
+            coding_instructions = file.read().strip()
+        if not coding_instructions:
+            logger.error("Coding instructions file is empty.")
+            raise ValueError("Coding instructions file is empty.")
+    except Exception as e:
+        logger.error(f"Error reading coding instructions file '{coding_instructions_file}': {e}")
+        raise
+
+    return coding_instructions
+
+def load_parse_instructions(prompts_folder: str, parse_prompt_file: str) -> str:
+    """
+    Loads parse instructions from a specified prompt file for breaking down speaking turns into meaning units.
+
+    Args:
+        prompts_folder (str): Directory where prompt files are stored.
+        parse_prompt_file (str): Name of the parse prompt file.
+
+    Returns:
+        str: Parse instructions as a string.
+    """
+    parse_prompt_path = os.path.join(prompts_folder, parse_prompt_file)
+    if not os.path.exists(parse_prompt_path):
+        logger.error(f"Parse instructions file '{parse_prompt_path}' not found.")
+        raise FileNotFoundError(f"Parse instructions file '{parse_prompt_path}' not found.")
+
+    try:
+        with open(parse_prompt_path, 'r', encoding='utf-8') as file:
+            parse_instructions = file.read().strip()
+    except Exception as e:
+        logger.error(f"Error reading parse instructions file '{parse_prompt_path}': {e}")
+        raise
+
+    if not parse_instructions:
+        logger.error("Parse instructions file is empty.")
+        raise ValueError("Parse instructions file is empty.")
+
+    return parse_instructions
+
+def load_inductive_coding_prompt(prompts_folder: str, inductive_prompt_file: str) -> str:
+    """
+    Loads the inductive coding prompt from a specified file.
+
+    Args:
+        prompts_folder (str): Directory where prompt files are stored.
+        inductive_prompt_file (str): Name of the inductive coding prompt file.
+
+    Returns:
+        str: Inductive coding prompt as a string.
+    """
+    inductive_coding_prompt_path = os.path.join(prompts_folder, inductive_prompt_file)
+    if not os.path.exists(inductive_coding_prompt_path):
+        logger.error(f"Inductive coding prompt file '{inductive_coding_prompt_path}' not found.")
+        raise FileNotFoundError(f"Inductive coding prompt file '{inductive_coding_prompt_path}' not found.")
+
+    try:
+        with open(inductive_coding_prompt_path, 'r', encoding='utf-8') as file:
+            inductive_coding_prompt = file.read().strip()
+    except Exception as e:
+        logger.error(f"Error reading inductive coding prompt file '{inductive_coding_prompt_path}': {e}")
+        raise
+
+    if not inductive_coding_prompt:
+        logger.error("Inductive coding prompt file is empty.")
+        raise ValueError("Inductive coding prompt file is empty.")
+
+    return inductive_coding_prompt
+
+def load_deductive_coding_prompt(prompts_folder: str, deductive_prompt_file: str) -> str:
+    """
+    Loads the deductive coding prompt from a specified file.
+
+    Args:
+        prompts_folder (str): Directory where prompt files are stored.
+        deductive_prompt_file (str): Name of the deductive coding prompt file.
+
+    Returns:
+        str: Deductive coding prompt as a string.
+    """
+    deductive_coding_prompt_path = os.path.join(prompts_folder, deductive_prompt_file)
+    if not os.path.exists(deductive_coding_prompt_path):
+        logger.error(f"Deductive coding prompt file '{deductive_coding_prompt_path}' not found.")
+        raise FileNotFoundError(f"Deductive coding prompt file '{deductive_coding_prompt_path}' not found.")
+
+    try:
+        with open(deductive_coding_prompt_path, 'r', encoding='utf-8') as file:
+            deductive_coding_prompt = file.read().strip()
+    except Exception as e:
+        logger.error(f"Error reading deductive coding prompt file '{deductive_coding_prompt_path}': {e}")
+        raise
+
+    if not deductive_coding_prompt:
+        logger.error("Deductive coding prompt file is empty.")
+        raise ValueError("Deductive coding prompt file is empty.")
+
+    return deductive_coding_prompt
+
+def initialize_deductive_resources(
+    codebase_folder: str,
+    prompts_folder: str,
+    initialize_embedding_model: str,
+    use_rag: bool,
+    selected_codebase: str,
+    deductive_prompt_file: str
+) -> Tuple[List[Dict[str, Any]], Optional[Any], str]:
+    """
+    Initializes resources needed for deductive coding: loads code instructions, codebase, and builds a FAISS index if use_rag is True.
+    Returns processed_codes, faiss_index (or None), and coding_instructions.
+
+    Args:
+        codebase_folder (str): Directory where the codebase files are stored.
+        prompts_folder (str): Directory where prompt files are stored.
+        initialize_embedding_model (str): Embedding model to use for FAISS.
+        use_rag (bool): Whether to use Retrieval-Augmented Generation.
+        selected_codebase (str): Specific codebase file to use.
+        deductive_prompt_file (str): Name of the deductive coding prompt file.
+
+    Returns:
+        Tuple[List[Dict[str, Any]], Optional[Any], str]: Processed codes, FAISS index, and coding instructions.
+    """
+    # Load coding instructions for deductive coding
+    try:
+        coding_instructions = load_coding_instructions(prompts_folder, deductive_prompt_file)
+        logger.debug("Coding instructions loaded for deductive coding.")
+    except Exception as e:
+        logger.error(f"Failed to load coding instructions: {e}")
+        raise
+
+    # Load processed codes from specified codebase file
+    list_of_codes_file = os.path.join(codebase_folder, selected_codebase)
+    if not os.path.exists(list_of_codes_file):
+        logger.error(f"List of codes file '{list_of_codes_file}' not found.")
+        raise FileNotFoundError(f"List of codes file '{list_of_codes_file}' not found.")
+
+    try:
+        with open(list_of_codes_file, 'r', encoding='utf-8') as file:
+            processed_codes = [json.loads(line) for line in file if line.strip()]
+        logger.debug(f"Loaded {len(processed_codes)} codes from '{list_of_codes_file}'.")
+    except Exception as e:
+        logger.error(f"An error occurred while loading codes from '{list_of_codes_file}': {e}")
+        raise
+
+    # Initialize FAISS index if use_rag is True
+    if use_rag:
+        try:
+            faiss_index, _ = initialize_faiss_index_from_formatted_file(
+                codes_list_file=list_of_codes_file,
+                embedding_model=initialize_embedding_model
+            )
+            logger.debug("FAISS index initialized with processed codes.")
+        except Exception as e:
+            logger.error(f"Failed to initialize FAISS index: {e}")
+            raise
+    else:
+        faiss_index = None  # FAISS index is not needed
+
+    return processed_codes, faiss_index, coding_instructions
+
+def load_schema_config(config_path: str) -> Dict[str, Dict[str, Any]]:
+    """
+    Loads schema configuration from the given JSON file path.
+
+    Args:
+        config_path (str): Path to the schema configuration file.
+
+    Returns:
+        Dict[str, Dict[str, Any]]: Schema configuration dictionary.
+    """
+    if not os.path.exists(config_path):
+        logger.error(f"Schema configuration file '{config_path}' not found.")
+        raise FileNotFoundError(f"Schema configuration file '{config_path}' not found.")
+
+    try:
+        with open(config_path, 'r', encoding='utf-8') as file:
+            config_data = json.load(file)
+        logger.debug(f"Schema configuration loaded from '{config_path}'.")
+        return config_data
+    except json.JSONDecodeError as e:
+        logger.error(f"Error decoding JSON from '{config_path}': {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Error loading schema configuration: {e}")
+        raise
+
+def create_dynamic_model_for_format(data_format: str, schema_config: Dict[str, Dict[str, Any]]) -> Tuple[Type[BaseModel], str]:
+    """
+    Creates a dynamic Pydantic model for the given data format based on the provided schema configuration.
+
+    Args:
+        data_format (str): The format of the data (e.g., "interview").
+        schema_config (Dict[str, Dict[str, Any]]): Schema configuration for different data formats.
+
+    Returns:
+        Tuple[Type[BaseModel], str]: The dynamic Pydantic model and the content field name.
+    """
+    if data_format not in schema_config:
+        raise ValueError(f"No schema configuration found for data format '{data_format}'")
+
+    format_config = schema_config[data_format]
+    if 'fields' not in format_config or 'content_field' not in format_config:
+        raise ValueError(f"Configuration for data format '{data_format}' must include 'fields' and 'content_field'.")
+
+    fields = format_config["fields"]
+    content_field = format_config["content_field"]
+
+    type_map = {
+        "str": str,
+        "int": int,
+        "float": float,
+        "list": list,
+        "dict": dict,
+        "bool": bool,
+        # Additional mappings as needed
+    }
+
+    dynamic_fields = {}
+    for field_name, field_type_str in fields.items():
+        py_type = type_map.get(field_type_str, Any)  # Default to Any if not found
+        dynamic_fields[field_name] = (py_type, ...)  # Required field by default
+
+    # Use Pydantic v2's configuration for handling extra fields
+    model_config = ConfigDict(extra='allow')
+
+    try:
+        dynamic_model = create_model(
+            f"{data_format.capitalize()}DataModel",
+            __base__=BaseModel,
+            **dynamic_fields,
+            model_config=model_config  # For Pydantic v2, to allow extra fields
+        )
+        logger.debug(f"Dynamic Pydantic model '{data_format.capitalize()}DataModel' created with content_field '{content_field}'.")
+    except Exception as e:
+        logger.error(f"Failed to create dynamic Pydantic model for '{data_format}': {type(e).__name__}: {e}")
+        raise
+
+    return dynamic_model, content_field
+
+
+===== main.py =====
+
+# main.py
+import os
+import json
+import logging
+from typing import List, Dict, Optional, Any, Tuple, Type
+from data_handlers import FlexibleDataHandler
+from utils import (
+    load_environment_variables,
+    load_parse_instructions,
+    load_deductive_coding_prompt,
+    load_inductive_coding_prompt,
+    initialize_deductive_resources,
+    create_dynamic_model_for_format,
+    load_schema_config,
+    load_config
+)
+from qual_functions import (
+    MeaningUnit,
+    assign_codes_to_meaning_units
+)
+
+def main(config: Dict[str, Any]):
+    # Load configurations
+    coding_mode = config.get('coding_mode', 'deductive')
+    use_parsing = config.get('use_parsing', True)
+    use_rag = config.get('use_rag', True)
+    parse_model = config.get('parse_model', 'gpt-4o-mini')
+    assign_model = config.get('assign_model', 'gpt-4o-mini')
+    initialize_embedding_model = config.get('initialize_embedding_model', 'text-embedding-3-small')
+    retrieve_embedding_model = config.get('retrieve_embedding_model', 'text-embedding-3-small')
+    data_format = config.get('data_format', 'interview')
+
+    # Paths configuration
+    paths = config.get('paths', {})
+    prompts_folder = paths.get('prompts_folder', 'prompts')
+    codebase_folder = paths.get('codebase_folder', 'qual_codebase')
+    json_folder = paths.get('json_folder', 'json_transcripts')
+    config_folder = paths.get('config_folder', 'configs')
+
+    # Selected files
+    selected_codebase = config.get('selected_codebase', 'new_schema.jsonl')
+    selected_json_file = config.get('selected_json_file', 'output_cues.json')
+    parse_prompt_file = config.get('parse_prompt_file', 'parse_prompt.txt')
+    inductive_coding_prompt_file = config.get('inductive_coding_prompt_file', 'inductive_prompt.txt')
+    deductive_coding_prompt_file = config.get('deductive_coding_prompt_file', 'deductive_prompt.txt')
+
+    # Output configuration
+    output_folder = config.get('output_folder', 'outputs')
+    output_format = config.get('output_format', 'json')
+    output_file_name = config.get('output_file_name', 'coded_meaning_units')
+
+    # Logging configuration
+    enable_logging = config.get('enable_logging', True)
+    logging_level_str = config.get('logging_level', 'DEBUG')
+    logging_level = getattr(logging, logging_level_str.upper(), logging.DEBUG)
+    log_to_file = config.get('log_to_file', True)
+    log_file_path = config.get('log_file_path', 'logs/application.log')
+
+    # Configure logging
+    if enable_logging:
+        handlers = [logging.StreamHandler()]
+        if log_to_file:
+            os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
+            handlers.append(logging.FileHandler(log_file_path))
+        logging.basicConfig(
+            level=logging_level,
+            format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+            handlers=handlers
+        )
+    else:
+        logging.basicConfig(level=logging.CRITICAL)
+    logger = logging.getLogger(__name__)
+
+    logger.info("Starting the main pipeline.")
+
+    # Stage 1: Environment Setup
+    try:
+        load_environment_variables()
+        logger.debug("Environment variables loaded and validated.")
+    except Exception as e:
+        logger.error(f"Failed to load environment variables: {e}")
+        return
+
+    # Load parse instructions if parsing is enabled
+    parse_instructions = ""
+    if use_parsing:
+        try:
+            parse_instructions = load_parse_instructions(prompts_folder, parse_prompt_file)
+            logger.debug("Parse instructions loaded.")
+        except Exception as e:
+            logger.error(f"Failed to load parse instructions: {e}")
+            return
+
+    # Load schema mapping configuration for dynamic model creation
+    schema_config_path = os.path.join(config_folder, 'data_format_config.json')
+    try:
+        schema_config = load_schema_config(schema_config_path)
+        logger.debug("Schema configuration loaded.")
+    except Exception as e:
+        logger.error(f"Failed to load schema configuration: {e}")
+        return
+
+    if data_format not in schema_config:
+        logger.error(f"No schema configuration found for data format: {data_format}")
+        raise ValueError(f"No schema configuration found for data format: {data_format}")
+
+    # Create a dynamic Pydantic model for the specified data format
+    try:
+        dynamic_data_model, content_field = create_dynamic_model_for_format(data_format, schema_config)
+        logger.debug(f"Dynamic data model for '{data_format}' created.")
+    except Exception as e:
+        logger.error(f"Failed to create dynamic data model: {e}")
+        return
+
+    # Determine the data file to load based on selected_json_file
+    data_file = selected_json_file
+    file_path = os.path.join(json_folder, data_file)
+    if not os.path.exists(file_path):
+        logger.error(f"Data file '{file_path}' not found.")
+        raise FileNotFoundError(f"Data file '{file_path}' not found.")
+
+    # Stage 2: Data Loading and Validation Using FlexibleDataHandler
+    try:
+        data_handler = FlexibleDataHandler(
+            file_path=file_path,
+            parse_instructions=parse_instructions,
+            completion_model=parse_model,
+            model_class=dynamic_data_model,
+            content_field=content_field,
+            use_parsing=use_parsing
+        )
+        validated_data = data_handler.load_data()
+        logger.debug(f"Loaded {len(validated_data)} validated data items.")
+        meaning_unit_object_list = data_handler.transform_data(validated_data)
+        logger.debug(f"Transformed data into {len(meaning_unit_object_list)} meaning units.")
+    except Exception as e:
+        logger.error(f"Data loading and transformation failed: {e}")
+        return
+
+    if not meaning_unit_object_list:
+        logger.warning("No meaning units to process. Exiting.")
+        return
+
+    # Stage 3: Code Assignment
+    if coding_mode == "deductive":
+        try:
+            # Initialize deductive resources with conditional FAISS initialization
+            processed_codes, faiss_index, coding_instructions = initialize_deductive_resources(
+                codebase_folder=codebase_folder,
+                prompts_folder=prompts_folder,
+                initialize_embedding_model=initialize_embedding_model,
+                use_rag=use_rag,
+                selected_codebase=selected_codebase,
+                deductive_prompt_file=deductive_coding_prompt_file  # Pass the prompt file from config
+            )
+            logger.debug(f"Initialized deductive resources with {len(processed_codes)} processed codes.")
+        except Exception as e:
+            logger.error(f"Failed to initialize deductive resources: {e}")
+            return
+
+        if not processed_codes:
+            logger.warning("No processed codes available for deductive coding. Exiting.")
+            return
+
+        # Assign codes to meaning units in deductive mode
+        try:
+            coded_meaning_unit_list = assign_codes_to_meaning_units(
+                meaning_unit_list=meaning_unit_object_list,
+                coding_instructions=coding_instructions,
+                processed_codes=processed_codes,
+                index=faiss_index if use_rag else None,
+                top_k=config.get('top_k', 5),
+                context_size=config.get('context_size', 5),
+                use_rag=use_rag,
+                codebase=processed_codes if not use_rag else None,
+                completion_model=assign_model,
+                embedding_model=retrieve_embedding_model if use_rag else None
+            )
+            logger.debug(f"Assigned codes using deductive mode with {'RAG' if use_rag else 'full codebase'}.")
+        except Exception as e:
+            logger.error(f"Failed to assign codes in deductive mode: {e}")
+            return
+
+    else:  # Inductive coding
+        try:
+            # Load inductive coding prompt
+            inductive_coding_prompt = load_inductive_coding_prompt(prompts_folder, inductive_coding_prompt_file)
+            logger.debug("Inductive coding prompt loaded.")
+
+            # Assign codes to meaning units in inductive mode
+            coded_meaning_unit_list = assign_codes_to_meaning_units(
+                meaning_unit_list=meaning_unit_object_list,
+                coding_instructions=inductive_coding_prompt,
+                processed_codes=None,
+                index=None,
+                top_k=None,
+                context_size=config.get('context_size', 5),
+                use_rag=False,
+                codebase=None,
+                completion_model=assign_model,
+                embedding_model=None
+            )
+            logger.debug("Assigned codes using inductive mode.")
+        except Exception as e:
+            logger.error(f"Failed to assign codes in inductive mode: {e}")
+            return
+
+    # Stage 4: Output Results
+    os.makedirs(output_folder, exist_ok=True)
+    output_file_path = os.path.join(output_folder, f"{output_file_name}.{output_format}")
+
+    try:
+        if output_format == 'json':
+            with open(output_file_path, 'w', encoding='utf-8') as outfile:
+                json.dump([unit.to_dict() for unit in coded_meaning_unit_list], outfile, indent=2)
+            logger.info(f"Coded meaning units saved to '{output_file_path}'.")
+        elif output_format == 'csv':
+            import csv
+
+            with open(output_file_path, 'w', encoding='utf-8', newline='') as csvfile:
+                fieldnames = ['unique_id', 'meaning_unit_string', 'metadata', 'assigned_codes']
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+                for unit in coded_meaning_unit_list:
+                    writer.writerow({
+                        'unique_id': unit.unique_id,
+                        'meaning_unit_string': unit.meaning_unit_string,
+                        'metadata': json.dumps(unit.metadata),
+                        'assigned_codes': json.dumps([code.__dict__ for code in unit.assigned_code_list])
+                    })
+            logger.info(f"Coded meaning units saved to '{output_file_path}'.")
+        else:
+            logger.error(f"Unsupported output format: {output_format}")
+    except Exception as e:
+        logger.error(f"Failed to save output: {e}")
+
+if __name__ == "__main__":
+    # Load configurations from config.json
+    config_file_path = 'configs/config.json'  # Adjust the path if needed
+    try:
+        config = load_config(config_file_path)
+    except Exception as e:
+        print(f"Failed to load configuration: {e}")
+        exit(1)
+
+    # Run the main function with loaded configurations
+    main(config)
+
+
+===== qual_functions.py =====
+
+#qual_functions.py
+import logging
+from openai import OpenAI
+from dataclasses import dataclass, field
+from typing import List, Dict, Any, Optional, Tuple
+import faiss
+import json
+import numpy as np
+import os
+from pydantic import BaseModel
+
+# Initialize OpenAI client
+try:
+    openai_api_key = os.getenv('OPENAI_API_KEY')
+    if not openai_api_key:
+        raise ValueError("OPENAI_API_KEY environment variable is not set.")
+    client = OpenAI(api_key=openai_api_key)
+    logger = logging.getLogger(__name__)
+except Exception as e:
+    logging.getLogger(__name__).error(f"Failed to initialize OpenAI client: {e}")
+    raise
+
+# -------------------------------
+# Data Classes
+# -------------------------------
+
+@dataclass
+class CodeAssigned:
+    code_name: str
+    code_justification: str
+
+@dataclass
+class MeaningUnit:
+    unique_id: int
+    meaning_unit_string: str
+    assigned_code_list: List[CodeAssigned] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "unique_id": self.unique_id,
+            "meaning_unit_string": self.meaning_unit_string,
+            "assigned_code_list": [code.__dict__ for code in self.assigned_code_list],
+            "metadata": self.metadata
+        }
+
+# -------------------------------
+# Pydantic Models for Parsing
+# -------------------------------
+
+class ParseFormat(BaseModel):
+    meaning_unit_string_list: List[str]
+
+class CodeFormat(BaseModel):
+    codeList: List[CodeAssigned]
+
+# -------------------------------
+# Core Functions
+# -------------------------------
+
+def parse_transcript(
+    speaking_turn_string: str, 
+    prompt: str, 
+    completion_model: str, 
+    metadata: Dict[str, Any] = None
+) -> List[str]:
+    """
+    Breaks up a speaking turn into smaller meaning units based on criteria in the LLM prompt.
+
+    Args:
+        speaking_turn_string (str): The speaking turn text.
+        prompt (str): The prompt instructions for parsing.
+        completion_model (str): The language model to use.
+        metadata (Dict[str, Any], optional): Additional metadata.
+
+    Returns:
+        List[str]: A list of meaning units extracted from the speaking turn.
+    """
+    metadata_section = f"Metadata:\n{json.dumps(metadata, indent=2)}\n\n" if metadata else ""
+    try:
+        response = client.beta.chat.completions.parse(
+            model=completion_model,
+            messages=[
+                {
+                    "role": "system", 
+                    "content": "You are a qualitative research assistant that breaks down speaking turns into smaller meaning units based on given instructions."
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"{prompt}\n\n"
+                        f"{metadata_section}"
+                        f"Speaking Turn:\n{speaking_turn_string}\n\n"
+                    )
+                }
+            ],
+            response_format=ParseFormat,
+            temperature=0.2,
+            max_tokens=1500,
+        )
+        
+        if not response.choices:
+            logger.error("No choices returned in the response from OpenAI API.")
+            return []
+        
+        parsed_output = response.choices[0].message.parsed
+
+        if not parsed_output:
+            logger.error("Parsed output is empty.")
+            return []
+
+        # Validate the structure of parsed_output
+        if not hasattr(parsed_output, 'meaning_unit_string_list'):
+            logger.error("Parsed output does not contain required field 'meaning_unit_string_list'.")
+            return []
+
+        meaningunit_stringlist_parsed = parsed_output.meaning_unit_string_list
+
+        if not isinstance(meaningunit_stringlist_parsed, list):
+            logger.error("'meaning_unit_string_list' is not a list.")
+            return []
+
+        # Log the parsed meaning units
+        logger.debug(f"Parsed Meaning Units: {meaningunit_stringlist_parsed}")
+
+        return meaningunit_stringlist_parsed
+
+    except Exception as e:
+        logger.error(f"An error occurred while parsing transcript into meaning units: {e}")
+        return []
+
+def initialize_faiss_index_from_formatted_file(
+    codes_list_file: str, 
+    embedding_model: str = "text-embedding-3-small", 
+    batch_size: int = 32
+) -> Tuple[faiss.IndexFlatL2, List[Dict[str, Any]]]:
+    """
+    Reads a JSONL-formatted file, processes code data, and initializes a FAISS index directly using batch embedding.
+    Returns the FAISS index and the processed codes as dictionaries.
+
+    Args:
+        codes_list_file (str): Path to the JSONL codebase file.
+        embedding_model (str, optional): Embedding model to use.
+        batch_size (int, optional): Number of items to process in each batch.
+
+    Returns:
+        Tuple[faiss.IndexFlatL2, List[Dict[str, Any]]]: FAISS index and processed codes.
+    """
+    embeddings = []
+    processed_codes = []
+    combined_texts = []  # For batch processing
+
+    try:
+        with open(codes_list_file, 'r', encoding='utf-8') as file:
+            for line in file:
+                line = line.strip()
+                if not line:
+                    continue  # Skip empty lines
+
+                # Parse each JSONL line
+                data = json.loads(line)
+                text = data.get("text", "")
+                metadata = data.get("metadata", {})
+                
+                processed_code = {
+                    'text': text,
+                    'metadata': metadata
+                }
+                processed_codes.append(processed_code)
+
+                # Combine `text` and metadata elements for embedding
+                combined_text = f"{text} Metadata: {metadata}"
+                combined_texts.append(combined_text)
+
+                # If batch size is reached, process the batch
+                if len(combined_texts) == batch_size:
+                    response = client.embeddings.create(
+                        input=combined_texts,
+                        model=embedding_model
+                    )
+                    batch_embeddings = [res.embedding for res in response.data]
+                    embeddings.extend(batch_embeddings)
+
+                    # Reset for the next batch
+                    combined_texts = []
+
+            # Process any remaining texts in the last batch
+            if combined_texts:
+                response = client.embeddings.create(
+                    input=combined_texts,
+                    model=embedding_model
+                )
+                batch_embeddings = [res.embedding for res in response.data]
+                embeddings.extend(batch_embeddings)
+
+        # Convert embeddings to numpy array
+        embeddings = np.array(embeddings).astype('float32')
+
+        # Initialize FAISS index
+        if embeddings.size > 0:
+            dimension = len(embeddings[0])
+            index = faiss.IndexFlatL2(dimension)
+            index.add(embeddings)
+        else:
+            raise ValueError("No valid embeddings found. Check the content of your JSONL file.")
+
+        logger.info(f"Initialized FAISS index with {len(processed_codes)} codes from file '{codes_list_file}'.")
+        return index, processed_codes
+
+    except Exception as e:
+        logger.error(f"An error occurred while processing the file '{codes_list_file}' and initializing FAISS index: {e}")
+        raise e
+
+def retrieve_relevant_codes(
+    meaning_unit: MeaningUnit, 
+    index: faiss.IndexFlatL2, 
+    processed_codes: List[Dict[str, Any]], 
+    top_k: int = 5, 
+    embedding_model: str = "text-embedding-3-small"
+) -> List[Dict[str, Any]]:
+    """
+    Retrieves the top_k most relevant codes for a given meaning_unit_string using FAISS.
+    Returns a list of code dictionaries with relevant information.
+
+    Args:
+        meaning_unit (MeaningUnit): The meaning unit object.
+        index (faiss.IndexFlatL2): The FAISS index.
+        processed_codes (List[Dict[str, Any]]): List of processed codes.
+        top_k (int, optional): Number of top similar codes to retrieve.
+        embedding_model (str, optional): Embedding model to use.
+
+    Returns:
+        List[Dict[str, Any]]: List of relevant code dictionaries.
+    """
+    try:
+        # Combine metadata and meaning unit string for embedding
+        meaning_unit_string_with_metadata = f"Metadata:\n{json.dumps(meaning_unit.metadata)}\nUnit: {meaning_unit.meaning_unit_string}"
+
+        response = client.embeddings.create(
+            input=[meaning_unit_string_with_metadata],
+            model=embedding_model
+        )
+        if not response.data:
+            logger.error("No embedding data returned from OpenAI API.")
+            return []
+        meaning_unit_embedding = np.array([response.data[0].embedding]).astype('float32')
+
+        distances, indices = index.search(meaning_unit_embedding, top_k)
+        relevant_codes = [processed_codes[idx] for idx in indices[0] if idx < len(processed_codes)]
+
+        code_names = [code.get('text', 'Unnamed Code') for code in relevant_codes]
+        logger.debug(f"Retrieved top {top_k} relevant codes for meaning unit ID {meaning_unit.unique_id}: {code_names}")
+        return relevant_codes
+
+    except Exception as e:
+        logger.error(f"An error occurred while retrieving relevant codes: {e}")
+        return []
+
+def assign_codes_to_meaning_units(
+    meaning_unit_list: List[MeaningUnit], 
+    coding_instructions: str, 
+    processed_codes: Optional[List[Dict[str, Any]]] = None, 
+    index: Optional[faiss.IndexFlatL2] = None, 
+    top_k: Optional[int] = 5,
+    context_size: int = 5,
+    use_rag: bool = True,
+    codebase: Optional[List[Dict[str, Any]]] = None,
+    completion_model: Optional[str] = "gpt-4o-mini",
+    embedding_model: Optional[str] = "text-embedding-3-small"
+) -> List[MeaningUnit]:
+    """
+    Assigns codes to each MeaningUnit object, including contextual information from surrounding units.
+    Returns an updated list of MeaningUnit objects with assigned codes.
+
+    Args:
+        meaning_unit_list (List[MeaningUnit]): List of meaning units to process.
+        coding_instructions (str): Coding instructions prompt.
+        processed_codes (Optional[List[Dict[str, Any]]], optional): List of processed codes for deductive coding.
+        index (Optional[faiss.IndexFlatL2], optional): FAISS index for RAG.
+        top_k (Optional[int], optional): Number of top similar codes to retrieve.
+        context_size (int, optional): Number of surrounding meaning units to include as context.
+        use_rag (bool, optional): Whether to use RAG for code retrieval.
+        codebase (Optional[List[Dict[str, Any]]], optional): Entire codebase for deductive coding without RAG.
+        completion_model (Optional[str], optional): Language model to use for code assignment.
+        embedding_model (Optional[str], optional): Embedding model to use for code retrieval.
+
+    Returns:
+        List[MeaningUnit]: Updated list with assigned codes.
+    """
+    try:
+        total_units = len(meaning_unit_list)
+        for idx, meaning_unit_object in enumerate(meaning_unit_list):
+            # Determine coding approach
+            is_deductive = processed_codes is not None
+
+            if is_deductive and use_rag and index is not None:
+                # Retrieve relevant codes using FAISS and the specified embedding model
+                relevant_codes = retrieve_relevant_codes(
+                    meaning_unit_object, 
+                    index, 
+                    processed_codes, 
+                    top_k=top_k,
+                    embedding_model=embedding_model
+                )
+                codes_to_include = relevant_codes
+            elif is_deductive and not use_rag and codebase:
+                # Deductive coding without RAG, using entire codebase
+                codes_to_include = codebase
+            else:
+                # Inductive coding: No predefined codes
+                codes_to_include = None
+
+            # Format codes or guidelines as a string
+            if codes_to_include is not None:
+                # Deductive coding: format codes as a string
+                codes_str = "\n\n".join([json.dumps(code, indent=2) for code in codes_to_include])
+            else:
+                # Inductive coding: Provide only the guidelines
+                codes_str = "No predefined codes. Please generate codes based on the following guidelines."
+
+            # Retrieve context for the current meaning unit
+            context_excerpt = ""
+
+            # Collect previous units for context
+            if context_size > 0 and idx > 0:
+                prev_units = meaning_unit_list[max(0, idx - context_size):idx]
+                for unit in prev_units:
+                    context_excerpt += (
+                        f"Quote: {unit.meaning_unit_string}\n\n"
+                    )
+
+            # Add current excerpt to context
+            current_unit_excerpt = (
+                f"Quote: {meaning_unit_object.meaning_unit_string}\n\n"
+            )
+
+            context_excerpt += current_unit_excerpt
+
+            # Collect following units for context
+            if context_size > 0 and idx < total_units - 1:
+                next_units = meaning_unit_list[idx + 1: idx + 1 + context_size]
+                for unit in next_units:
+                    context_excerpt += (
+                        f"Quote: {unit.meaning_unit_string}\n\n"
+                    )
+
+            # Construct the full prompt
+            if codes_to_include is not None:
+                code_heading = "Relevant Codes (full details):" if use_rag else "Full Codebase (all codes with details):"
+            else:
+                code_heading = "Guidelines for Inductive Coding:"
+
+            full_prompt = (
+                f"{coding_instructions}\n\n"
+                f"{code_heading}\n{codes_str}\n\n"
+                f"Contextual Excerpts:\n{context_excerpt}"
+                f"**Important:** Please use the provided contextual excerpts **only** as background information to understand the current excerpt better. "
+                f"Current Excerpt For Coding:\n{current_unit_excerpt}"
+                f"{'**Apply codes exclusively to the current excerpt provided above. Do not assign codes to the contextual excerpts.**' if codes_to_include is not None else '**Generate codes based on the current excerpt provided above using the guidelines.**'}\n\n"
+                f"Please provide the assigned codes in the following JSON format:\n"
+                f"{{\n  \"codeList\": [\n    {{\"code_name\": \"<Name of the code>\", \"code_justification\": \"<Justification for the code>\"}},\n    ...\n  ]\n}}"
+            )
+
+            logger.debug(f"Full Prompt for Unique ID {meaning_unit_object.unique_id}:\n{full_prompt}")
+
+            try:
+                response = client.beta.chat.completions.parse(
+                    model=completion_model,
+                    messages=[
+                        {
+                            "role": "system", 
+                            "content": (
+                                "You are tasked with applying qualitative codes to excerpts from a transcript or articles. "
+                                "The purpose of this task is to identify all codes that best describe each excerpt based on the provided instructions."
+                            )
+                        },
+                        {
+                            "role": "user",
+                            "content": full_prompt
+                        }
+                    ],
+                    response_format=CodeFormat,
+                    temperature=0.2,
+                    max_tokens=1500,
+                )
+
+                if not response.choices:
+                    logger.error(f"No choices returned for Unique ID {meaning_unit_object.unique_id}.")
+                    continue
+
+                code_output = response.choices[0].message.parsed
+                logger.debug(f"LLM Code Assignment Output for ID {meaning_unit_object.unique_id}:\n{code_output.codeList}")
+
+                # Append each code_name and code_justification to the meaning_unit_object
+                for code_item in code_output.codeList:
+                    code_name = getattr(code_item, 'code_name', 'Unknown Code')
+                    code_justification = getattr(code_item, 'code_justification', 'No justification provided')
+                    meaning_unit_object.assigned_code_list.append(
+                        CodeAssigned(code_name=code_name, code_justification=code_justification)
+                    )
+
+            except Exception as e:
+                logger.error(f"An error occurred while retrieving code assignments for Unique ID {meaning_unit_object.unique_id}: {e}")
+
+    except Exception as e:
+        logger.error(f"An error occurred while assigning codes: {e}")
+
+    return meaning_unit_list
+
+
+===== data_handlers.py =====
+
+# data_handlers.py
+import os
+import json
+import logging
+from typing import Any, Dict, List
+from pydantic import BaseModel
+from qual_functions import parse_transcript, MeaningUnit
+
+logger = logging.getLogger(__name__)
+
+class FlexibleDataHandler:
+    def __init__(
+        self,
+        file_path: str,
+        parse_instructions: str,
+        completion_model: str,
+        model_class: Any,
+        content_field: str,
+        use_parsing: bool = True
+    ):
+        self.file_path = file_path
+        self.parse_instructions = parse_instructions
+        self.completion_model = completion_model
+        self.model_class = model_class
+        self.content_field = content_field
+        self.use_parsing = use_parsing
+
+    def load_data(self) -> List[Dict[str, Any]]:
+        """
+        Loads data from the JSON file and validates it against the dynamic Pydantic model.
+
+        Returns:
+            List[Dict[str, Any]]: List of validated data records.
+        """
+        try:
+            with open(self.file_path, 'r', encoding='utf-8') as file:
+                data = json.load(file)
+            logger.debug(f"Loaded {len(data)} records from '{self.file_path}'.")
+        except Exception as e:
+            logger.error(f"Failed to load data from '{self.file_path}': {e}")
+            raise
+
+        validated_data = []
+        for record in data:
+            try:
+                validated_record = self.model_class(**record)
+                validated_data.append(validated_record.dict())
+            except Exception as e:
+                logger.warning(f"Validation failed for record {record.get('id', 'unknown')}: {e}")
+                continue
+
+        logger.debug(f"Validated {len(validated_data)} records.")
+        return validated_data
+
+    def transform_data(self, validated_data: List[Dict[str, Any]]) -> List[MeaningUnit]:
+        """
+        Transforms validated data into MeaningUnit objects.
+
+        Args:
+            validated_data (List[Dict[str, Any]]): List of validated data records.
+
+        Returns:
+            List[MeaningUnit]: List of MeaningUnit objects.
+        """
+        meaning_units = []
+        unique_id_counter = 1  # Initialize a unique ID counter
+
+        for record in validated_data:
+            content = record.get(self.content_field, "")
+            metadata = {k: v for k, v in record.items() if k != self.content_field}
+            if self.use_parsing:
+                parsed_units = parse_transcript(
+                    speaking_turn_string=content,
+                    prompt=self.parse_instructions,
+                    completion_model=self.completion_model,
+                    metadata=metadata
+                )
+                for pu in parsed_units:
+                    meaning_unit = MeaningUnit(
+                        unique_id=unique_id_counter,  # Assign unique ID
+                        meaning_unit_string=pu,
+                        metadata=metadata
+                    )
+                    meaning_units.append(meaning_unit)
+                    unique_id_counter += 1  # Increment the counter for the next unit
+            else:
+                meaning_unit = MeaningUnit(
+                    unique_id=unique_id_counter,  # Assign unique ID
+                    meaning_unit_string=content,
+                    metadata=metadata
+                )
+                meaning_units.append(meaning_unit)
+                unique_id_counter += 1  # Increment the counter for the next unit
+
+        logger.debug(f"Transformed data into {len(meaning_units)} meaning units.")
+        return meaning_units

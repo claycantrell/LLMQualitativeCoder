@@ -5,7 +5,7 @@
     "assigned_code_list": [
       {
         "code_name": "VOID",
-        "code_justification": "The excerpt is a simple greeting and does not contain any content related to the coaching behaviors or instructional practices outlined in the provided codes."
+        "code_justification": "No code was applicable as the excerpt does not align with any provided categories related to coaching behaviors or instructional practices."
       }
     ],
     "metadata": {
@@ -15,12 +15,12 @@
     }
   },
   {
-    "unique_id": 1,
+    "unique_id": 2,
     "meaning_unit_string": "I wanted to discuss the lesson I observed in your classroom yesterday.",
     "assigned_code_list": [
       {
         "code_name": "VOID",
-        "code_justification": "The excerpt does not provide specific information about coaching behaviors, instructional strengths, or reflective practices. It merely states the intention to discuss an observed lesson without any details that align with the provided codes."
+        "code_justification": "The excerpt does not provide specific details about the lesson or any reflective practices; it merely states an intention to discuss the lesson observed, which does not align with any of the provided codes."
       }
     ],
     "metadata": {
@@ -30,12 +30,12 @@
     }
   },
   {
-    "unique_id": 2,
+    "unique_id": 3,
     "meaning_unit_string": "Hi Mike, no problem at all.",
     "assigned_code_list": [
       {
         "code_name": "VOID",
-        "code_justification": "The excerpt is a simple acknowledgment and does not contain any elements related to coaching behaviors, instructional strengths, or any other relevant categories from the provided codes."
+        "code_justification": "The excerpt is a simple acknowledgment and does not contain any content related to the coaching behaviors or instructional practices outlined in the provided codes."
       }
     ],
     "metadata": {
@@ -45,12 +45,12 @@
     }
   },
   {
-    "unique_id": 2,
+    "unique_id": 4,
     "meaning_unit_string": "I'm eager to hear your thoughts and get your feedback on how it went.",
     "assigned_code_list": [
       {
         "code_name": "VOID",
-        "code_justification": "The excerpt does not contain specific content related to instructional practices, feedback, or coaching behaviors. It is a general expression of eagerness to receive feedback, which does not align with any of the provided codes."
+        "code_justification": "The excerpt does not contain specific instructional content or feedback that aligns with any of the provided codes. It is a general expression of eagerness for feedback rather than a reflection on teaching practices."
       }
     ],
     "metadata": {
@@ -60,12 +60,12 @@
     }
   },
   {
-    "unique_id": 3,
+    "unique_id": 5,
     "meaning_unit_string": "Great.",
     "assigned_code_list": [
       {
         "code_name": "VOID",
-        "code_justification": "The excerpt 'Great.' is too brief and lacks substantive content to align with any of the provided codes, which focus on detailed coaching behaviors and instructional feedback."
+        "code_justification": "The excerpt 'Great.' does not provide enough context or content to align with any of the provided codes, which focus on specific coaching behaviors and instructional strategies."
       }
     ],
     "metadata": {
@@ -75,35 +75,16 @@
     }
   },
   {
-    "unique_id": 3,
+    "unique_id": 6,
     "meaning_unit_string": "First, I wanted to commend you on how you started the lesson.",
     "assigned_code_list": [
       {
-        "code_name": "Code 2.3: Identifying Instructional Strengths",
-        "code_justification": "This code is applicable because the excerpt involves the coach commending the teacher on their instructional practice, specifically how they started the lesson. It highlights a specific instructional strength, which aligns with the criteria of providing evidence-based positive reinforcement."
-      },
-      {
-        "code_name": "Code 3.1: Using Non-Judgmental Language",
-        "code_justification": "The use of the phrase 'I wanted to commend you' reflects non-judgmental language, as it focuses on positive feedback without criticism. This approach fosters a supportive atmosphere, encouraging the teacher to feel valued and open to further discussion."
-      }
-    ],
-    "metadata": {
-      "id": 3,
-      "length_of_time_spoken_seconds": 7.5,
-      "speaker_name": "Coach"
-    }
-  },
-  {
-    "unique_id": 3,
-    "meaning_unit_string": "Your warm-up activity really engaged the students and set a positive tone for the class.",
-    "assigned_code_list": [
-      {
         "code_name": "Identifying Instructional Strengths",
-        "code_justification": "This code was applied because the excerpt highlights a specific instructional strength of the teacher, acknowledging the effectiveness of the warm-up activity in engaging students."
+        "code_justification": "This code is applicable because the excerpt involves the coach commending the teacher on a specific aspect of their lesson, which aligns with recognizing and communicating instructional strengths."
       },
       {
         "code_name": "Using Non-Judgmental Language",
-        "code_justification": "This code was applied as the feedback is communicated in a supportive and neutral manner, focusing on positive aspects of the teacher's practice without any judgment."
+        "code_justification": "The use of the phrase 'I wanted to commend you' indicates a supportive and neutral tone, which is characteristic of non-judgmental language that fosters a positive coaching environment."
       }
     ],
     "metadata": {
@@ -113,12 +94,27 @@
     }
   },
   {
-    "unique_id": 4,
+    "unique_id": 7,
+    "meaning_unit_string": "Your warm-up activity really engaged the students and set a positive tone for the class.",
+    "assigned_code_list": [
+      {
+        "code_name": "Code 2.3: Identifying Instructional Strengths",
+        "code_justification": "This code was applied because the excerpt highlights a specific instructional strength by acknowledging the effectiveness of the warm-up activity in engaging students. The feedback is positive and focuses on a significant aspect of the teacher's practice."
+      }
+    ],
+    "metadata": {
+      "id": 3,
+      "length_of_time_spoken_seconds": 7.5,
+      "speaker_name": "Coach"
+    }
+  },
+  {
+    "unique_id": 8,
     "meaning_unit_string": "Thank you.",
     "assigned_code_list": [
       {
         "code_name": "VOID",
-        "code_justification": "The excerpt 'Thank you.' does not provide sufficient context or content to align with any of the provided codes, which focus on specific coaching behaviors and instructional feedback."
+        "code_justification": "The excerpt 'Thank you.' does not provide enough context or content to align with any of the provided codes, which focus on specific coaching behaviors or instructional feedback."
       }
     ],
     "metadata": {
@@ -128,12 +124,12 @@
     }
   },
   {
-    "unique_id": 4,
+    "unique_id": 9,
     "meaning_unit_string": "I've been trying to incorporate more interactive elements at the beginning to capture their attention early on.",
     "assigned_code_list": [
       {
         "code_name": "VOID",
-        "code_justification": "No code was applicable as the excerpt does not align with any provided categories. The statement reflects a personal teaching strategy but does not directly involve self-reflection, questioning techniques, or coaching behaviors as defined in the relevant codes."
+        "code_justification": "No code was applicable as the excerpt does not align with any provided categories. The statement reflects a teacher's intention to improve engagement but does not explicitly involve self-reflection or the coaching behaviors outlined in the codes."
       }
     ],
     "metadata": {
@@ -143,242 +139,246 @@
     }
   },
   {
-    "unique_id": 5,
+    "unique_id": 10,
     "meaning_unit_string": "That's excellent.",
     "assigned_code_list": [
       {
         "code_name": "VOID",
-        "code_justification": "The excerpt 'That's excellent.' does not provide sufficient context or content to align with any of the defined codes. It is a brief affirmation without elaboration or specific feedback related to teaching practices or coaching behaviors."
+        "code_justification": "The excerpt 'That's excellent.' does not provide enough context or content to align with any of the specified codes. It is a brief affirmation without elaboration or specific feedback related to teaching practices or coaching behaviors."
       }
     ],
     "metadata": {
       "id": 5,
       "length_of_time_spoken_seconds": 7.5,
       "speaker_name": "Coach"
-    }
-  },
-  {
-    "unique_id": 5,
-    "meaning_unit_string": "When you used the real-world examples during the math problems, I noticed the students were particularly attentive.",
-    "assigned_code_list": [
-      {
-        "code_name": "Code 2.3: Identifying Instructional Strengths",
-        "code_justification": "This code is applicable because the excerpt highlights a specific instructional strength by acknowledging the effective use of real-world examples during math problems, which engaged the students' attention."
-      },
-      {
-        "code_name": "Code 1.1: Leveraging Evidence to Guide Practice",
-        "code_justification": "This code is relevant as the statement references observable behavior from the lesson, specifically noting that the students were particularly attentive, which grounds the feedback in evidence from the observed teaching practice."
-      }
-    ],
-    "metadata": {
-      "id": 5,
-      "length_of_time_spoken_seconds": 7.5,
-      "speaker_name": "Coach"
-    }
-  },
-  {
-    "unique_id": 5,
-    "meaning_unit_string": "How did you decide to include those?",
-    "assigned_code_list": [
-      {
-        "code_name": "Code 1.2: Utilizing Reflective Questioning Techniques",
-        "code_justification": "This code is applicable because the excerpt features an open-ended question that prompts the teacher to reflect on their instructional choices. The question encourages deeper analysis of the decision-making process behind including real-world examples."
-      },
-      {
-        "code_name": "Code 3.3: Utilizing Clarifying Questions and Paraphrasing",
-        "code_justification": "This code is relevant as the excerpt demonstrates the use of a clarifying question aimed at ensuring understanding and inviting the teacher to elaborate on their thought process. It validates the teacher's contributions and promotes further discussion."
-      }
-    ],
-    "metadata": {
-      "id": 5,
-      "length_of_time_spoken_seconds": 7.5,
-      "speaker_name": "Coach"
-    }
-  },
-  {
-    "unique_id": 6,
-    "meaning_unit_string": "I've found that when students can relate concepts to their daily lives, they're more interested.",
-    "assigned_code_list": [
-      {
-        "code_name": "VOID",
-        "code_justification": "No code was applicable as the excerpt does not align with any provided categories. The statement reflects a personal observation about student engagement but does not specifically relate to the coaching behaviors or instructional strengths outlined in the relevant codes."
-      }
-    ],
-    "metadata": {
-      "id": 6,
-      "length_of_time_spoken_seconds": 8.0,
-      "speaker_name": "Teacher"
-    }
-  },
-  {
-    "unique_id": 6,
-    "meaning_unit_string": "I thought incorporating scenarios they might encounter outside school would help.",
-    "assigned_code_list": [
-      {
-        "code_name": "VOID",
-        "code_justification": "No code was applicable as the excerpt does not align with any provided categories. The statement reflects a personal belief about teaching strategies but does not demonstrate specific coaching behaviors or reflective questioning techniques outlined in the codes."
-      }
-    ],
-    "metadata": {
-      "id": 6,
-      "length_of_time_spoken_seconds": 8.0,
-      "speaker_name": "Teacher"
-    }
-  },
-  {
-    "unique_id": 7,
-    "meaning_unit_string": "Absolutely, and it seems to be working well.",
-    "assigned_code_list": [
-      {
-        "code_name": "VOID",
-        "code_justification": "No code was applicable as the excerpt does not provide enough context or detail related to the defined coaching behaviors or strategies outlined in the relevant codes."
-      }
-    ],
-    "metadata": {
-      "id": 7,
-      "length_of_time_spoken_seconds": 8.5,
-      "speaker_name": "Coach"
-    }
-  },
-  {
-    "unique_id": 7,
-    "meaning_unit_string": "I did observe, however, that during the group activity, some students appeared a bit confused about the instructions.",
-    "assigned_code_list": [
-      {
-        "code_name": "Code 2.4: Identifying Instructional Areas for Growth",
-        "code_justification": "This code is relevant because the excerpt highlights a specific area of concern regarding student confusion during a group activity, indicating a need for instructional improvement."
-      }
-    ],
-    "metadata": {
-      "id": 7,
-      "length_of_time_spoken_seconds": 8.5,
-      "speaker_name": "Coach"
-    }
-  },
-  {
-    "unique_id": 7,
-    "meaning_unit_string": "Can you tell me more about how you explained the task?",
-    "assigned_code_list": [
-      {
-        "code_name": "Code 3.3: Utilizing Clarifying Questions and Paraphrasing",
-        "code_justification": "This code is applicable because the excerpt features a clarifying question aimed at understanding how the teacher explained the task. It demonstrates the coach's effort to ensure clear communication and understanding."
-      },
-      {
-        "code_name": "Code 1.2: Utilizing Reflective Questioning Techniques",
-        "code_justification": "This code applies as the question encourages the teacher to reflect on their instructional methods and the effectiveness of their explanations. It promotes deeper thinking about their teaching practices."
-      }
-    ],
-    "metadata": {
-      "id": 7,
-      "length_of_time_spoken_seconds": 8.5,
-      "speaker_name": "Coach"
-    }
-  },
-  {
-    "unique_id": 8,
-    "meaning_unit_string": "I gave them a brief overview and expected them to dive in,",
-    "assigned_code_list": [
-      {
-        "code_name": "VOID",
-        "code_justification": "No code was applicable as the excerpt does not align with any provided categories. The statement reflects a personal observation about the teaching approach but lacks specific elements related to coaching behaviors or strategies outlined in the codes."
-      }
-    ],
-    "metadata": {
-      "id": 8,
-      "length_of_time_spoken_seconds": 7.5,
-      "speaker_name": "Teacher"
-    }
-  },
-  {
-    "unique_id": 8,
-    "meaning_unit_string": "but I think I might have assumed they had more prior knowledge than they actually did.",
-    "assigned_code_list": [
-      {
-        "code_name": "VOID",
-        "code_justification": "No code was applicable as the excerpt does not align with any provided categories. The statement reflects a personal realization about assumptions regarding student knowledge but does not explicitly connect to the coaching behaviors or instructional strategies outlined in the relevant codes."
-      }
-    ],
-    "metadata": {
-      "id": 8,
-      "length_of_time_spoken_seconds": 7.5,
-      "speaker_name": "Teacher"
-    }
-  },
-  {
-    "unique_id": 9,
-    "meaning_unit_string": "That makes sense.",
-    "assigned_code_list": [
-      {
-        "code_name": "VOID",
-        "code_justification": "The excerpt 'That makes sense.' does not provide enough context or content to align with any of the provided codes, as it is a brief acknowledgment without elaboration or specific coaching behavior."
-      }
-    ],
-    "metadata": {
-      "id": 9,
-      "length_of_time_spoken_seconds": 8.5,
-      "speaker_name": "Coach"
-    }
-  },
-  {
-    "unique_id": 9,
-    "meaning_unit_string": "What strategies might you use next time to ensure that all students understand the expectations before starting the activity?",
-    "assigned_code_list": [
-      {
-        "code_name": "Code 1.3: Facilitating Teacher Self-Reflection on Implementation",
-        "code_justification": "This code is relevant because the excerpt prompts the teacher to consider specific strategies for ensuring student understanding, which aligns with the focus on planning actionable next steps for future lessons."
-      },
-      {
-        "code_name": "Code 3.3: Utilizing Clarifying Questions and Paraphrasing",
-        "code_justification": "The excerpt involves a question that encourages the teacher to elaborate on their instructional methods, which is a key aspect of utilizing clarifying questions to promote deeper self-reflection."
-      }
-    ],
-    "metadata": {
-      "id": 9,
-      "length_of_time_spoken_seconds": 8.5,
-      "speaker_name": "Coach"
-    }
-  },
-  {
-    "unique_id": 10,
-    "meaning_unit_string": "Maybe I could provide a step-by-step example",
-    "assigned_code_list": [
-      {
-        "code_name": "VOID",
-        "code_justification": "The excerpt does not provide enough context or detail to align with any of the provided codes. It is a suggestion without a clear connection to teacher self-reflection or instructional strategies."
-      }
-    ],
-    "metadata": {
-      "id": 10,
-      "length_of_time_spoken_seconds": 8.5,
-      "speaker_name": "Teacher"
-    }
-  },
-  {
-    "unique_id": 10,
-    "meaning_unit_string": "or check for understanding by asking a few students to repeat the instructions in their own words.",
-    "assigned_code_list": [
-      {
-        "code_name": "Code 3.3: Utilizing Clarifying Questions and Paraphrasing",
-        "code_justification": "This code is applicable because the excerpt involves the teacher considering a strategy to check for understanding by asking students to repeat instructions, which aligns with the practice of validating and clarifying communication."
-      },
-      {
-        "code_name": "Code 1.2: Utilizing Reflective Questioning Techniques",
-        "code_justification": "This code fits as the excerpt reflects the teacher's thought process in developing a method to encourage deeper reflection on instructional clarity, which is a key aspect of reflective questioning."
-      }
-    ],
-    "metadata": {
-      "id": 10,
-      "length_of_time_spoken_seconds": 8.5,
-      "speaker_name": "Teacher"
     }
   },
   {
     "unique_id": 11,
+    "meaning_unit_string": "When you used the real-world examples during the math problems, I noticed the students were particularly attentive.",
+    "assigned_code_list": [
+      {
+        "code_name": "Identifying Instructional Strengths",
+        "code_justification": "This code is relevant because the excerpt highlights a specific instructional strength of the teacher, noting that the use of real-world examples during math problems led to increased student attentiveness. It acknowledges effective teaching practices with evidence from the observed lesson."
+      },
+      {
+        "code_name": "Leveraging Evidence to Guide Practice",
+        "code_justification": "This code applies as the excerpt references a concrete observation from the lesson, specifically the teacher's use of real-world examples. This evidence-based feedback helps guide the teacher's understanding of what practices are effective in engaging students."
+      }
+    ],
+    "metadata": {
+      "id": 5,
+      "length_of_time_spoken_seconds": 7.5,
+      "speaker_name": "Coach"
+    }
+  },
+  {
+    "unique_id": 12,
+    "meaning_unit_string": "How did you decide to include those?",
+    "assigned_code_list": [
+      {
+        "code_name": "Code 1.2: Utilizing Reflective Questioning Techniques",
+        "code_justification": "This code is applicable because the excerpt features an open-ended question that encourages the teacher to reflect on their instructional decisions. By asking how the teacher decided to include certain elements, it prompts deeper analysis of their teaching methods."
+      },
+      {
+        "code_name": "Code 3.3: Utilizing Clarifying Questions and Paraphrasing",
+        "code_justification": "This code is relevant as the excerpt demonstrates the use of a clarifying question aimed at understanding the teacher's thought process. It validates the teacher's perspective and encourages further elaboration on their instructional choices."
+      }
+    ],
+    "metadata": {
+      "id": 5,
+      "length_of_time_spoken_seconds": 7.5,
+      "speaker_name": "Coach"
+    }
+  },
+  {
+    "unique_id": 13,
+    "meaning_unit_string": "I've found that when students can relate concepts to their daily lives, they're more interested.",
+    "assigned_code_list": [
+      {
+        "code_name": "VOID",
+        "code_justification": "No code was applicable as the excerpt does not align with any provided categories. The statement reflects a personal observation about student engagement but does not fit the specific coaching behaviors or instructional strengths outlined in the codes."
+      }
+    ],
+    "metadata": {
+      "id": 6,
+      "length_of_time_spoken_seconds": 8.0,
+      "speaker_name": "Teacher"
+    }
+  },
+  {
+    "unique_id": 14,
+    "meaning_unit_string": "I thought incorporating scenarios they might encounter outside school would help.",
+    "assigned_code_list": [
+      {
+        "code_name": "VOID",
+        "code_justification": "No code was applicable as the excerpt does not align with any provided categories. The statement reflects a personal belief about teaching strategies but does not directly involve coaching behaviors or reflective practices outlined in the codes."
+      }
+    ],
+    "metadata": {
+      "id": 6,
+      "length_of_time_spoken_seconds": 8.0,
+      "speaker_name": "Teacher"
+    }
+  },
+  {
+    "unique_id": 15,
+    "meaning_unit_string": "Absolutely, and it seems to be working well.",
+    "assigned_code_list": [
+      {
+        "code_name": "VOID",
+        "code_justification": "The excerpt is a brief affirmation and does not provide enough context or content to align with any of the defined codes related to coaching behaviors or methodologies."
+      }
+    ],
+    "metadata": {
+      "id": 7,
+      "length_of_time_spoken_seconds": 8.5,
+      "speaker_name": "Coach"
+    }
+  },
+  {
+    "unique_id": 16,
+    "meaning_unit_string": "I did observe, however, that during the group activity, some students appeared a bit confused about the instructions.",
+    "assigned_code_list": [
+      {
+        "code_name": "Identifying Instructional Areas for Growth",
+        "code_justification": "This code is relevant because the excerpt highlights an observation made by the coach regarding student confusion during a group activity, indicating a specific area for instructional improvement."
+      },
+      {
+        "code_name": "Utilizing Reflective Questioning Techniques",
+        "code_justification": "This code applies as the excerpt reflects a critical observation that encourages the teacher to think about their instructional methods and the clarity of their instructions, prompting deeper reflection on their practice."
+      }
+    ],
+    "metadata": {
+      "id": 7,
+      "length_of_time_spoken_seconds": 8.5,
+      "speaker_name": "Coach"
+    }
+  },
+  {
+    "unique_id": 17,
+    "meaning_unit_string": "Can you tell me more about how you explained the task?",
+    "assigned_code_list": [
+      {
+        "code_name": "Code 3.3: Utilizing Clarifying Questions and Paraphrasing",
+        "code_justification": "This code is applicable because the excerpt features a clarifying question aimed at prompting the teacher to elaborate on their explanation of the task. It demonstrates the coach's intent to ensure understanding and promote deeper reflection."
+      },
+      {
+        "code_name": "Code 1.2: Utilizing Reflective Questioning Techniques",
+        "code_justification": "This code fits as the question is open-ended and encourages the teacher to reflect on their instructional methods. It aims to stimulate critical thinking about how the task was explained, which aligns with the goal of fostering self-reflection."
+      }
+    ],
+    "metadata": {
+      "id": 7,
+      "length_of_time_spoken_seconds": 8.5,
+      "speaker_name": "Coach"
+    }
+  },
+  {
+    "unique_id": 18,
+    "meaning_unit_string": "I gave them a brief overview and expected them to dive in,",
+    "assigned_code_list": [
+      {
+        "code_name": "VOID",
+        "code_justification": "No code was applicable as the excerpt does not align with any provided categories. The statement reflects a personal observation about the teaching approach but does not demonstrate specific coaching behaviors or strategies that fit the defined codes."
+      }
+    ],
+    "metadata": {
+      "id": 8,
+      "length_of_time_spoken_seconds": 7.5,
+      "speaker_name": "Teacher"
+    }
+  },
+  {
+    "unique_id": 19,
+    "meaning_unit_string": "but I think I might have assumed they had more prior knowledge than they actually did.",
+    "assigned_code_list": [
+      {
+        "code_name": "VOID",
+        "code_justification": "No code was applicable as the excerpt does not align with any provided categories. The statement reflects a personal realization about assumptions regarding students' prior knowledge but does not explicitly connect to any coaching behaviors or instructional strategies outlined in the codes."
+      }
+    ],
+    "metadata": {
+      "id": 8,
+      "length_of_time_spoken_seconds": 7.5,
+      "speaker_name": "Teacher"
+    }
+  },
+  {
+    "unique_id": 20,
+    "meaning_unit_string": "That makes sense.",
+    "assigned_code_list": [
+      {
+        "code_name": "VOID",
+        "code_justification": "The excerpt 'That makes sense.' does not provide enough context or content to align with any of the provided codes, which focus on specific coaching behaviors and strategies."
+      }
+    ],
+    "metadata": {
+      "id": 9,
+      "length_of_time_spoken_seconds": 8.5,
+      "speaker_name": "Coach"
+    }
+  },
+  {
+    "unique_id": 21,
+    "meaning_unit_string": "What strategies might you use next time to ensure that all students understand the expectations before starting the activity?",
+    "assigned_code_list": [
+      {
+        "code_name": "Code 1.3: Facilitating Teacher Self-Reflection on Implementation",
+        "code_justification": "This code is relevant because the excerpt prompts the teacher to consider specific strategies for ensuring student understanding, which aligns with the goal of developing actionable next steps for future lessons."
+      },
+      {
+        "code_name": "Code 1.2: Utilizing Reflective Questioning Techniques",
+        "code_justification": "The excerpt employs reflective questioning by asking the teacher to think about their instructional strategies and how to improve them, encouraging deeper reflection on their teaching practices."
+      }
+    ],
+    "metadata": {
+      "id": 9,
+      "length_of_time_spoken_seconds": 8.5,
+      "speaker_name": "Coach"
+    }
+  },
+  {
+    "unique_id": 22,
+    "meaning_unit_string": "Maybe I could provide a step-by-step example",
+    "assigned_code_list": [
+      {
+        "code_name": "VOID",
+        "code_justification": "No code was applicable as the excerpt does not align with any provided categories. The statement is a suggestion for improvement but lacks the context of reflection or specific instructional strategies that the relevant codes address."
+      }
+    ],
+    "metadata": {
+      "id": 10,
+      "length_of_time_spoken_seconds": 8.5,
+      "speaker_name": "Teacher"
+    }
+  },
+  {
+    "unique_id": 23,
+    "meaning_unit_string": "or check for understanding by asking a few students to repeat the instructions in their own words.",
+    "assigned_code_list": [
+      {
+        "code_name": "Code 3.3: Utilizing Clarifying Questions and Paraphrasing",
+        "code_justification": "This code is applicable because the excerpt involves the teacher considering a strategy to check for understanding by asking students to repeat instructions, which reflects the use of clarifying questions to ensure comprehension."
+      },
+      {
+        "code_name": "Code 1.2: Utilizing Reflective Questioning Techniques",
+        "code_justification": "The excerpt demonstrates reflective questioning as the teacher is prompted to think about how to engage students in understanding the instructions better, which aligns with the goal of eliciting deeper reflection on instructional methods."
+      }
+    ],
+    "metadata": {
+      "id": 10,
+      "length_of_time_spoken_seconds": 8.5,
+      "speaker_name": "Teacher"
+    }
+  },
+  {
+    "unique_id": 24,
     "meaning_unit_string": "Those are great ideas.",
     "assigned_code_list": [
       {
         "code_name": "VOID",
-        "code_justification": "The excerpt 'Those are great ideas.' does not provide enough context or content to align with any of the defined codes. It is a general affirmation without specific reference to coaching behaviors, instructional strategies, or reflective practices."
+        "code_justification": "The excerpt 'Those are great ideas.' does not provide sufficient content or context to align with any of the provided codes, which focus on specific coaching behaviors or instructional strategies."
       }
     ],
     "metadata": {
@@ -388,7 +388,7 @@
     }
   },
   {
-    "unique_id": 11,
+    "unique_id": 25,
     "meaning_unit_string": "Incorporating a quick demonstration could clarify the task.",
     "assigned_code_list": [
       {
@@ -403,16 +403,16 @@
     }
   },
   {
-    "unique_id": 11,
+    "unique_id": 26,
     "meaning_unit_string": "Also, encouraging students to paraphrase instructions can confirm their understanding.",
     "assigned_code_list": [
       {
         "code_name": "Code 3.3: Utilizing Clarifying Questions and Paraphrasing",
-        "code_justification": "This code is applicable because the excerpt discusses the practice of encouraging students to paraphrase instructions, which aligns with the coach's role in promoting understanding through paraphrasing and validating comprehension."
+        "code_justification": "This code is applicable because the excerpt discusses the strategy of encouraging students to paraphrase instructions, which aligns with the practice of using paraphrasing to confirm understanding and promote active listening."
       },
       {
-        "code_name": "Code 1.3: Facilitating Teacher Self-Reflection on Implementation",
-        "code_justification": "The excerpt reflects a strategy for implementation where the teacher considers how to confirm student understanding through paraphrasing, indicating a focus on actionable steps for future lessons."
+        "code_name": "Code 2.2: Explaining the \"Why\" and \"How\" Behind Coaching Components",
+        "code_justification": "The excerpt implies the importance of explaining the rationale behind asking students to paraphrase, which relates to ensuring that they understand the instructions clearly, thus connecting to the explanation of coaching components."
       }
     ],
     "metadata": {
@@ -422,12 +422,12 @@
     }
   },
   {
-    "unique_id": 12,
+    "unique_id": 27,
     "meaning_unit_string": "I agree.",
     "assigned_code_list": [
       {
         "code_name": "VOID",
-        "code_justification": "The excerpt 'I agree.' does not provide sufficient context or content to align with any of the provided codes, which focus on specific coaching behaviors or instructional strategies."
+        "code_justification": "The excerpt 'I agree.' does not provide enough context or content to align with any of the provided codes, which focus on specific coaching behaviors or instructional strategies."
       }
     ],
     "metadata": {
@@ -437,12 +437,12 @@
     }
   },
   {
-    "unique_id": 12,
+    "unique_id": 28,
     "meaning_unit_string": "I'll definitely try that in the next group activity.",
     "assigned_code_list": [
       {
         "code_name": "VOID",
-        "code_justification": "The excerpt does not provide sufficient context or content related to any of the defined codes. It is a simple affirmation without elaboration on teaching strategies or reflective practices."
+        "code_justification": "No code was applicable as the excerpt does not align with any provided categories. The statement expresses intent to try something new but lacks specific reflection or discussion of instructional strategies."
       }
     ],
     "metadata": {
@@ -452,12 +452,12 @@
     }
   },
   {
-    "unique_id": 12,
+    "unique_id": 29,
     "meaning_unit_string": "Do you think visual aids could also help?",
     "assigned_code_list": [
       {
         "code_name": "VOID",
-        "code_justification": "The excerpt is a question about the potential use of visual aids, but it does not provide enough context or detail to align with any of the provided codes, which focus on specific coaching behaviors or techniques."
+        "code_justification": "The excerpt does not provide enough context or content to align with any of the provided codes, as it is a simple question without elaboration on teaching practices or reflective dialogue."
       }
     ],
     "metadata": {
@@ -467,12 +467,12 @@
     }
   },
   {
-    "unique_id": 13,
+    "unique_id": 30,
     "meaning_unit_string": "Absolutely.",
     "assigned_code_list": [
       {
         "code_name": "VOID",
-        "code_justification": "The excerpt 'Absolutely.' does not provide sufficient context or content to align with any of the provided codes, which focus on specific coaching behaviors and instructional strategies."
+        "code_justification": "The excerpt 'Absolutely.' does not provide enough context or content to align with any of the provided codes, which focus on specific coaching behaviors and instructional strategies."
       }
     ],
     "metadata": {
@@ -482,7 +482,7 @@
     }
   },
   {
-    "unique_id": 13,
+    "unique_id": 31,
     "meaning_unit_string": "Visual aids can support diverse learning styles and make abstract concepts more concrete.",
     "assigned_code_list": [
       {
@@ -497,16 +497,16 @@
     }
   },
   {
-    "unique_id": 13,
+    "unique_id": 32,
     "meaning_unit_string": "How might you integrate them into your instructions?",
     "assigned_code_list": [
       {
         "code_name": "Code 1.2 Utilizing Reflective Questioning Techniques",
-        "code_justification": "This code is relevant because the excerpt features an open-ended question that prompts the teacher to reflect on how to incorporate visual aids into their instructional methods. It encourages deeper thinking about the application of strategies discussed."
+        "code_justification": "This code is applicable because the excerpt features an open-ended question that prompts the teacher to reflect on how to incorporate visual aids into their instructional methods. It encourages deeper thinking about the integration of strategies discussed."
       },
       {
         "code_name": "Code 1.3 Facilitating Teacher Self-Reflection on Implementation",
-        "code_justification": "This code applies as the question encourages the teacher to consider actionable steps for implementing visual aids in their lessons, fostering a reflective mindset towards future instruction."
+        "code_justification": "The excerpt aligns with this code as it encourages the teacher to consider practical steps for implementing visual aids in their lessons, thereby promoting actionable planning and self-directed growth."
       }
     ],
     "metadata": {
@@ -516,12 +516,12 @@
     }
   },
   {
-    "unique_id": 14,
+    "unique_id": 33,
     "meaning_unit_string": "I could create a simple infographic or flowchart that outlines the steps they need to follow during the activity.",
     "assigned_code_list": [
       {
         "code_name": "VOID",
-        "code_justification": "No code was applicable as the excerpt does not align with any provided categories. The statement focuses on creating a visual aid but does not reflect on teaching strategies, self-reflection, or coaching components as defined in the relevant codes."
+        "code_justification": "The excerpt does not align with any of the provided codes as it focuses on a specific instructional tool (infographic or flowchart) without reflecting on the implementation strategies or self-reflection processes that the codes address."
       }
     ],
     "metadata": {

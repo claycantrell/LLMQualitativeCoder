@@ -44,7 +44,7 @@ class FlexibleDataHandler:
         for record in data:
             try:
                 validated_record = self.model_class(**record)
-                validated_data.append(validated_record.dict())
+                validated_data.append(validated_record.model_dump())
             except Exception as e:
                 logger.warning(f"Validation failed for record {record.get('id', 'unknown')}: {e}")
                 continue
