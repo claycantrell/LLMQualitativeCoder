@@ -1,24 +1,23 @@
 = Qualitative Coding Application
 
-The *Qualitative Coding Application* is a tool designed to assist researchers in analyzing qualitative data. Leveraging LLMs, this application automates the process of breaking down textual data into smaller units for analysis and assigning relevant codes.
+The *Qualitative Coding Application* is a tool designed to assist in analyzing qualitative data. Leveraging LLMs, this application automates the process of breaking down textual data into smaller units for analysis and assigning qualitative codes.
 
 == Features
 
-* *Dynamic Configuration*: Driven by a `config.json` file, allowing easy customization without modifying the codebase.
+* *Dynamic Configuration*: Driven by a `config.json` file, allowing customization without modifying the codebase.
 * *Deductive and Inductive Coding*: You can select between *Deductive* and *Inductive* coding modes by modifying the `"coding_mode"` parameter in the `config.json` file.
 
-- *Deductive*: Predefined codes are used from the codebase.
+- *Deductive*: Predefined codes are assigned from the codebase.
 - *Inductive*: Codes are generated during the analysis based on instructions outlined in your inductive coding prompt
 
 * *Parsing Transcripts*: Breaks down speaking turns into smaller meaning units based on customizable prompts.
 * *Code Retrieval with FAISS*: Utilizes FAISS for efficient retrieval of relevant codes, reducing token usage and possibly increasing performance with larger codebases.
-* *Integration with OpenAI*: Leverages OpenAI's language models for advanced natural language processing tasks.
 * *Flexible Output Formats*: Exports coded data in JSON or CSV formats.
-* *Comprehensive Logging*: Detailed logging with options to log to console and/or files, aiding in monitoring and debugging.
+* *Comprehensive Logging*: Detailed logging with options to log to console and/or files.
 
 == Architecture
 
-* *`main.py`*: Orchestrates the entire workflow, from loading configurations to exporting results.
+* *`main.py`*: Orchestrates the entire workflow.
 * *`utils.py`*: Contains utility functions for loading configurations, prompts, and initializing resources.
 * *`data_handlers.py`*: Handles data loading, validation, and transformation of data into units for analysis.
 * *`qual_functions.py`*: Implements core functionalities such as parsing transcripts and assigning codes to meaning units.
@@ -73,23 +72,8 @@ The application relies on a `config.json` file for all configurable settings.
 
 To run the main pipeline, execute the `main.py` script:
 
-python main.py --config_path=configs/config.json
-
-This will initiate the entire process, from loading the data, parsing, code assignment, and finally exporting the results.
-
-== Folder Structure
-
-Here is a typical folder structure for the project:
-
-qualitative-coding-app/ ├── configs/ │ ├── config.json │ └── data_format_config.json ├── prompts/ │ ├── parse_prompt.txt │ ├── deductive_coding_prompt.txt │ └── inductive_coding_prompt.txt ├── qual_codebase/ │ └── new_schema.jsonl ├── json_transcripts/ │ └── output_cues.json ├── main.py ├── utils.py ├── data_handlers.py ├── qual_functions.py ├── requirements.txt └── README.adoc
-
 == Logging
 
 The application generates logs to aid in debugging and understanding the workflow. Logging is configured with different levels (INFO, DEBUG, ERROR) to capture varying degrees of detail. 
 
 Logs are printed to the console by default. You can configure log files or use different logging handlers as needed.
-
-== Troubleshooting
-
-* *Missing OpenAI API Key*: Make sure the environment variable `OPENAI_API_KEY` is set correctly.
-* *File Not Found Errors*: Ensure all paths defined in the `config.json` file are correct.
