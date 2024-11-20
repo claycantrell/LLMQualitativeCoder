@@ -14,7 +14,7 @@
     "config_folder": "configs"
   },
   "selected_codebase": "teacher_schema.jsonl",               
-  "selected_json_file": "teacher_transcript.json",              
+  "selected_json_file": "output_cues.json",              
   "parse_prompt_file": "parse.txt",               
   "inductive_coding_prompt_file": "inductive.txt",
   "deductive_coding_prompt_file": "deductive.txt", 
