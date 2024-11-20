@@ -4,68 +4,77 @@
 
 1. **Identify Relevant Codes**: For each excerpt, determine all applicable codes from the provided list that accurately describe the content of the excerpt.
 
-2. **Utilize Metadata for Context**: Leverage the provided metadata to gain a comprehensive understanding of the excerpt, ensuring accurate code assignments.
+2. **Utilize Metadata for Context**: Leverage the provided metadata to gain a comprehensive understanding of each excerpt, ensuring accurate code assignments.
 
-3. **Handle Non-Applicable Excerpts**: If none of the provided codes are relevant to a current excerpt, assign the code "VOID" in the "code_name" field and supply an appropriate justification.
+3. **Handle Non-Applicable Excerpts**: If none of the provided codes are relevant to a current excerpt, assign the code "VOID" in the `"code_name"` field and supply an appropriate justification.
 
 **Provide Justifications**
 
-4. **Explain Code Assignments**: For every assigned code, include a 2-3 sentence justification detailing why the code is pertinent to the CURRENT excerpt (not the context).
+4. **Explain Code Assignments**: For every assigned code, include a 2-3 sentence justification detailing why the code is pertinent to the **current excerpt** (not the context).
 
-5. **Justify "VOID" Assignments**: If "VOID" is assigned, provide a 2-3 sentence explanation clarifying why none of the provided codes are suitable for the current excerpt.
+5. **Justify "VOID" Assignments**: If "VOID" is assigned, provide a 2-3 sentence explanation clarifying why none of the provided codes are suitable for the **current excerpt**.
 
 **Formatting Requirements**
 
-6. **JSON Structure**: Format the output as a JSON array where each object corresponds to a single excerpt. Each object should contain the following key:
+6. **JSON Structure**: Format the output as a JSON object containing an `"assignments"` array. Each object within this array corresponds to a single excerpt and should include the following keys:
 
+   - `"unique_id"`: The unique identifier of the excerpt.
+   
    - `"codeList"`: An array of code assignments, each comprising:
      - `"code_name"`: The assigned code.
      - `"code_justification"`: The rationale for the code assignment.
 
 7. **Maintain Order**: Ensure that each JSON object aligns with the order of the provided excerpts.
 
-**Ensure JSON Validity**
-
-8. **Accurate Formatting**: Construct the JSON meticulously to avoid syntax errors such as missing commas, brackets, or braces.
-
-9. **No Extraneous Text**: Do not include any additional text, explanations, or comments outside the JSON code block.
-
 **Assigning Multiple Codes**
 
-10. **Comprehensive Coding**: Assign all applicable codes to each excerpt; some excerpts may warrant multiple codes.
+8. **Comprehensive Coding**: Assign all applicable codes to each excerpt; some excerpts may warrant multiple codes.
 
-11. **Use Defined Codes Only**: Restrict assignments to codes explicitly defined in the provided list.
+9. **Use Defined Codes Only**: Restrict assignments to codes explicitly defined in the provided list.
+
+**Ensure JSON Validity**
+
+10. **Accurate Formatting**: Construct the JSON meticulously to avoid syntax errors such as missing commas, brackets, or braces.
+
+11. **No Extraneous Text**: Do not include any additional text, explanations, or comments outside the JSON code block.
 
 **Example Output Format:**
 
 ```json
-[
-  {
-    "codeList": [
-      {
-        "code_name": "Sample_Code1",
-        "code_justification": "This code was applied because the excerpt discusses..."
-      },
-      {
-        "code_name": "Sample_Code2",
-        "code_justification": "This code was applied because the excerpt also relates to..."
-      }
-    ]
-  },
-  {
-    "codeList": [
-      {
-        "code_name": "VOID",
-        "code_justification": "No code was applicable as the excerpt does not align with any provided categories."
-      }
-    ]
-  }
-]
+{
+  "assignments": [
+    {
+      "unique_id": 1,
+      "codeList": [
+        {
+          "code_name": "Sample_Code1",
+          "code_justification": "This code was applied because the excerpt discusses..."
+        },
+        {
+          "code_name": "Sample_Code2",
+          "code_justification": "This code was applied because the excerpt also relates to..."
+        }
+      ]
+    },
+    {
+      "unique_id": 2,
+      "codeList": [
+        {
+          "code_name": "VOID",
+          "code_justification": "No code was applicable as the excerpt does not align with any provided categories."
+        }
+      ]
+    }
+  ]
+}
+
 Contextual Metadata:
 
 You will receive a JSON object containing all relevant metadata for each current excerpt. Use this metadata exclusively as context to inform your code assignments. Do not include any metadata in your output.
-You will also recieve context from the conversation in which the current excerpt took place within. Do NOT code for this surrounding context,ONLY  code for the current excerpt.
+
+You will also receive context from the conversation in which the current excerpt took place. Do NOT code for this surrounding context; ONLY code for the current excerpt.
 
 Output:
 
-Submit your response as a JSON array containing only the codeList for each excerpt – do not add commentary or any non-JSON text.
+Submit your response as a JSON object containing only the assignments with the assigned codes for each excerpt – do not add commentary or any non-JSON text.
+

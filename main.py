@@ -29,7 +29,8 @@ def main(config: Dict[str, Any]):
     initialize_embedding_model = config.get('initialize_embedding_model', 'text-embedding-3-small')
     retrieve_embedding_model = config.get('retrieve_embedding_model', 'text-embedding-3-small')
     data_format = config.get('data_format', 'interview')
-    speaking_turns_per_prompt = config.get('speaking_turns_per_prompt', 1)  # New parameter
+    speaking_turns_per_prompt = config.get('speaking_turns_per_prompt', 1)  # Existing parameter
+    meaning_units_per_assignment_prompt = config.get('meaning_units_per_assignment_prompt', 1)  # New parameter
 
     # Paths configuration
     paths = config.get('paths', {})
@@ -129,7 +130,7 @@ def main(config: Dict[str, Any]):
             model_class=dynamic_data_model,
             content_field=content_field,
             use_parsing=use_parsing,
-            speaking_turns_per_prompt=speaking_turns_per_prompt  # Pass the new parameter
+            speaking_turns_per_prompt=speaking_turns_per_prompt  # Pass the existing parameter
         )
         validated_data = data_handler.load_data()
         logger.debug(f"Loaded {len(validated_data)} validated data items.")
@@ -176,7 +177,8 @@ def main(config: Dict[str, Any]):
                 use_rag=use_rag,
                 codebase=processed_codes if not use_rag else None,
                 completion_model=assign_model,
-                embedding_model=retrieve_embedding_model if use_rag else None
+                embedding_model=retrieve_embedding_model if use_rag else None,
+                meaning_units_per_assignment_prompt=meaning_units_per_assignment_prompt  # Pass the new parameter
             )
             logger.debug(f"Assigned codes using deductive mode with {'RAG' if use_rag else 'full codebase'}.")
         except Exception as e:
@@ -200,7 +202,8 @@ def main(config: Dict[str, Any]):
                 use_rag=False,
                 codebase=None,
                 completion_model=assign_model,
-                embedding_model=None
+                embedding_model=None,
+                meaning_units_per_assignment_prompt=meaning_units_per_assignment_prompt  # Pass the new parameter
             )
             logger.debug("Assigned codes using inductive mode.")
         except Exception as e:

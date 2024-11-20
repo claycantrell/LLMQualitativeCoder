@@ -8,17 +8,20 @@ You are tasked with performing inductive qualitative coding on a series of conve
 
 2. **Use Metadata for Clarity**: Utilize the provided metadata to understand the context better. Ensure that each code reflects the topic as clearly and accurately as possible.
 
-3. **Handle Non-Applicable Excerpts**: If an excerpt does not clearly represent any identifiable conversational topic, assign the code "UNCLEAR" in the "code_name" field and supply a justification.
+3. **Handle Non-Applicable Excerpts**: If an excerpt does not clearly represent any identifiable conversational topic, assign the code "UNCLEAR" in the `"code_name"` field and supply a justification.
 
 **Justifications for Each Code**
 
-4. **Explain Code Assignments**: For every code you create, provide a 2-3 sentence justification explaining why the code is pertinent to the excerpt.
+4. **Explain Code Assignments**: For every code you create, provide a 2-3 sentence justification explaining why the code is pertinent to the **current excerpt**.
 
 5. **Justify "UNCLEAR" Assignments**: If "UNCLEAR" is assigned, provide a 2-3 sentence explanation clarifying why the excerpt does not contain an identifiable topic.
 
 **Formatting Requirements**
 
-6. **JSON Output Structure**: Format the output as a JSON array where each object corresponds to a single excerpt. Each object should contain the following keys:
+6. **JSON Output Structure**: Format the output as a JSON object containing an `"assignments"` array. Each object within this array corresponds to a single excerpt and should include the following keys:
+
+   - `"unique_id"`: The unique identifier of the excerpt.
+   
    - `"codeList"`: An array of code assignments, where each code assignment includes:
      - `"code_name"`: The unique code you created for the excerpt.
      - `"code_justification"`: The rationale for why the code applies to the excerpt.
@@ -40,35 +43,36 @@ You are tasked with performing inductive qualitative coding on a series of conve
 **Example Output Format:**
 
 ```json
-[
-  {
-    "codeList": [
-      {
-        "code_name": "Discussion of Classroom Behavior",
-        "code_justification": "The excerpt focuses on challenges related to managing student behavior."
-      },
-      {
-        "code_name": "Seeking Support from Peers",
-        "code_justification": "The speaker expresses a desire for advice from colleagues on handling behavior issues."
-      }
-    ]
-  },
-  {
-    "codeList": [
-      {
-        "code_name": "UNCLEAR",
-        "code_justification": "The excerpt contains fragmented thoughts and does not convey a clear topic."
-      }
-    ]
-  }
-]
+{
+  "assignments": [
+    {
+      "unique_id": 1,
+      "codeList": [
+        {
+          "code_name": "Discussion of Classroom Behavior",
+          "code_justification": "The excerpt focuses on challenges related to managing student behavior."
+        },
+        {
+          "code_name": "Seeking Support from Peers",
+          "code_justification": "The speaker expresses a desire for advice from colleagues on handling behavior issues."
+        }
+      ]
+    },
+    {
+      "unique_id": 2,
+      "codeList": [
+        {
+          "code_name": "UNCLEAR",
+          "code_justification": "The excerpt contains fragmented thoughts and does not convey a clear topic."
+        }
+      ]
+    }
+  ]
+}
 Contextual Metadata:
 
 You will receive a JSON object containing all relevant metadata for each excerpt. Use this metadata exclusively as context to inform your code creation and assignments. Do not include any metadata in your output.
 
 Output:
 
-Submit your response as a JSON array containing only the codeList for each excerpt – do not add commentary or any non-JSON text.
-
-vbnet
-Copy code
+Submit your response as a JSON object containing only the assignments with the generated codes for each excerpt – do not add commentary or any non-JSON text.

@@ -65,8 +65,12 @@ class ParseFormat(BaseModel):
 class ParseResponse(BaseModel):
     parse_list: List[ParseFormat]
 
-class CodeFormat(BaseModel):
+class CodeAssignment(BaseModel):
+    unique_id: int
     codeList: List[CodeAssigned]
+
+class CodeResponse(BaseModel):
+    assignments: List[CodeAssignment]
 
 # -------------------------------
 # Core Functions
@@ -281,11 +285,12 @@ def assign_codes_to_meaning_units(
     use_rag: bool = True,
     codebase: Optional[List[Dict[str, Any]]] = None,
     completion_model: Optional[str] = "gpt-4o-mini",
-    embedding_model: Optional[str] = "text-embedding-3-small"
+    embedding_model: Optional[str] = "text-embedding-3-small",
+    meaning_units_per_assignment_prompt: int = 1  # New parameter
 ) -> List[MeaningUnit]:
     """
     Assigns codes to each MeaningUnit object, including contextual information from surrounding units.
-    Returns an updated list of MeaningUnit objects with assigned codes.
+    Processes multiple meaning units per prompt based on configuration.
 
     Args:
         meaning_unit_list (List[MeaningUnit]): List of meaning units to process.
@@ -298,85 +303,87 @@ def assign_codes_to_meaning_units(
         codebase (Optional[List[Dict[str, Any]]], optional): Entire codebase for deductive coding without RAG.
         completion_model (Optional[str], optional): Language model to use for code assignment.
         embedding_model (Optional[str], optional): Embedding model to use for code retrieval.
+        meaning_units_per_assignment_prompt (int, optional): Number of meaning units to process per assignment prompt.
 
     Returns:
         List[MeaningUnit]: Updated list with assigned codes.
     """
     try:
         total_units = len(meaning_unit_list)
-        for idx, meaning_unit_object in enumerate(meaning_unit_list):
-            # Determine coding approach
+        for i in range(0, total_units, meaning_units_per_assignment_prompt):
+            batch = meaning_unit_list[i:i + meaning_units_per_assignment_prompt]
+            assignments = []
+
+            # Prepare context for the batch
+            batch_context = ""
+            for unit in batch:
+                # Collect surrounding context
+                idx = meaning_unit_list.index(unit)
+                context_excerpt = ""
+
+                # Previous context
+                if context_size > 0 and idx > 0:
+                    prev_units = meaning_unit_list[max(0, idx - context_size):idx]
+                    for pu in prev_units:
+                        context_excerpt += f"Quote: {pu.meaning_unit_string}\n\n"
+
+                # Current meaning unit
+                current_unit_excerpt = f"Quote: {unit.meaning_unit_string}\n\n"
+                context_excerpt += current_unit_excerpt
+
+                # Following context
+                if context_size > 0 and idx < total_units - 1:
+                    next_units = meaning_unit_list[idx + 1: idx + 1 + context_size]
+                    for pu in next_units:
+                        context_excerpt += f"Quote: {pu.meaning_unit_string}\n\n"
+
+                batch_context += f"Meaning Unit ID: {unit.unique_id}\n{context_excerpt}"
+
+            # Determine coding approach for the batch
             is_deductive = processed_codes is not None
 
             if is_deductive and use_rag and index is not None:
-                # Retrieve relevant codes using FAISS and the specified embedding model
-                relevant_codes = retrieve_relevant_codes(
-                    meaning_unit_object, 
-                    index, 
-                    processed_codes, 
-                    top_k=top_k,
-                    embedding_model=embedding_model
-                )
-                codes_to_include = relevant_codes
+                # Retrieve relevant codes for the batch
+                relevant_codes_batch = []
+                for unit in batch:
+                    relevant_codes = retrieve_relevant_codes(
+                        meaning_unit=unit, 
+                        index=index, 
+                        processed_codes=processed_codes, 
+                        top_k=top_k,
+                        embedding_model=embedding_model
+                    )
+                    relevant_codes_batch.append(relevant_codes)
+                codes_to_include_batch = relevant_codes_batch
             elif is_deductive and not use_rag and codebase:
                 # Deductive coding without RAG, using entire codebase
-                codes_to_include = codebase
+                codes_to_include_batch = [codebase] * len(batch)
             else:
                 # Inductive coding: No predefined codes
-                codes_to_include = None
+                codes_to_include_batch = [None] * len(batch)
 
-            # Format codes or guidelines as a string
-            if codes_to_include is not None:
-                # Deductive coding: format codes as a string
-                codes_str = "\n\n".join([json.dumps(code, indent=2) for code in codes_to_include])
-            else:
-                # Inductive coding: Provide only the guidelines
-                codes_str = "No predefined codes. Please generate codes based on the following guidelines."
+            # Construct the prompt for the batch
+            full_prompt = f"{coding_instructions}\n\n"
 
-            # Retrieve context for the current meaning unit
-            context_excerpt = ""
+            for idx, unit in enumerate(batch):
+                if codes_to_include_batch[idx] is not None:
+                    codes_str = "\n\n".join([json.dumps(code, indent=2) for code in codes_to_include_batch[idx]])
+                    code_heading = "Relevant Codes (full details):" if use_rag else "Full Codebase (all codes with details):"
+                else:
+                    codes_str = "No predefined codes. Please generate codes based on the following guidelines."
+                    code_heading = "Guidelines for Inductive Coding:"
 
-            # Collect previous units for context
-            if context_size > 0 and idx > 0:
-                prev_units = meaning_unit_list[max(0, idx - context_size):idx]
-                for unit in prev_units:
-                    context_excerpt += (
-                        f"Quote: {unit.meaning_unit_string}\n\n"
-                    )
+                full_prompt += (
+                    f"{code_heading}\n{codes_str}\n\n"
+                    f"Contextual Excerpts for Meaning Unit ID {unit.unique_id}:\n{batch_context}\n\n"
+                    f"**Important:** Please use the provided contextual excerpts **only** as background information to understand the current excerpt better. "
+                    f"Current Excerpt For Coding:\n{current_unit_excerpt}"
+                    f"{'**Apply codes exclusively to the current excerpt provided above. Do not assign codes to the contextual excerpts.**' if codes_to_include_batch[idx] is not None else '**Generate codes based on the current excerpt provided above using the guidelines.**'}\n\n"
+                    f"Please provide the assigned codes for Meaning Unit ID {unit.unique_id} in the following JSON format:\n"
+                    f"{{\n  \"unique_id\": {unit.unique_id},\n  \"codeList\": [\n    {{\"code_name\": \"<Name of the code>\", \"code_justification\": \"<Justification for the code>\"}},\n    ...\n  ]\n}}\n\n"
+                )
 
-            # Add current excerpt to context
-            current_unit_excerpt = (
-                f"Quote: {meaning_unit_object.meaning_unit_string}\n\n"
-            )
-
-            context_excerpt += current_unit_excerpt
-
-            # Collect following units for context
-            if context_size > 0 and idx < total_units - 1:
-                next_units = meaning_unit_list[idx + 1: idx + 1 + context_size]
-                for unit in next_units:
-                    context_excerpt += (
-                        f"Quote: {unit.meaning_unit_string}\n\n"
-                    )
-
-            # Construct the full prompt
-            if codes_to_include is not None:
-                code_heading = "Relevant Codes (full details):" if use_rag else "Full Codebase (all codes with details):"
-            else:
-                code_heading = "Guidelines for Inductive Coding:"
-
-            full_prompt = (
-                f"{coding_instructions}\n\n"
-                f"{code_heading}\n{codes_str}\n\n"
-                f"Contextual Excerpts:\n{context_excerpt}"
-                f"**Important:** Please use the provided contextual excerpts **only** as background information to understand the current excerpt better. "
-                f"Current Excerpt For Coding:\n{current_unit_excerpt}"
-                f"{'**Apply codes exclusively to the current excerpt provided above. Do not assign codes to the contextual excerpts.**' if codes_to_include is not None else '**Generate codes based on the current excerpt provided above using the guidelines.**'}\n\n"
-                f"Please provide the assigned codes in the following JSON format:\n"
-                f"{{\n  \"codeList\": [\n    {{\"code_name\": \"<Name of the code>\", \"code_justification\": \"<Justification for the code>\"}},\n    ...\n  ]\n}}"
-            )
-
-            logger.debug(f"Full Prompt for Unique ID {meaning_unit_object.unique_id}:\n{full_prompt}")
+            logger.debug(f"Full Prompt for Batch starting at index {i}:\n{full_prompt}")
 
             try:
                 response = completion_with_backoff(
@@ -385,7 +392,7 @@ def assign_codes_to_meaning_units(
                         {
                             "role": "system", 
                             "content": (
-                                "You are tasked with applying qualitative codes to excerpts from a transcript or articles. "
+                                "You are tasked with applying qualitative codes to excerpts from transcripts or articles. "
                                 "The purpose of this task is to identify all codes that best describe each excerpt based on the provided instructions."
                             )
                         },
@@ -394,37 +401,41 @@ def assign_codes_to_meaning_units(
                             "content": full_prompt
                         }
                     ],
-                    response_format=CodeFormat,
+                    response_format=CodeResponse,
                     temperature=0.2,
-                    max_tokens=1500,
+                    max_tokens=3000,  # Increased tokens to accommodate multiple responses
                 )
 
                 if not response.choices:
-                    logger.error(f"No choices returned for Unique ID {meaning_unit_object.unique_id}.")
+                    logger.error(f"No choices returned for batch starting at index {i}.")
                     continue
 
                 code_output = response.choices[0].message.parsed
 
-                if not isinstance(code_output, CodeFormat):
-                    logger.error(f"Response for Unique ID {meaning_unit_object.unique_id} is not of type CodeFormat.")
+                if not isinstance(code_output, CodeResponse):
+                    logger.error(f"Response for batch starting at index {i} is not of type CodeResponse.")
                     continue
 
-                code_list = code_output.codeList
-                logger.debug(f"LLM Code Assignment Output for ID {meaning_unit_object.unique_id}:\n{code_list}")
+                for assignment in code_output.assignments:
+                    # Find the corresponding meaning unit
+                    matching_units = [mu for mu in batch if mu.unique_id == assignment.unique_id]
+                    if not matching_units:
+                        logger.warning(f"No matching meaning unit found for unique_id {assignment.unique_id}.")
+                        continue
+                    meaning_unit = matching_units[0]
 
-                # Append each code_name and code_justification to the meaning_unit_object
-                for code_item in code_list:
-                    code_name = getattr(code_item, 'code_name', 'Unknown Code')
-                    code_justification = getattr(code_item, 'code_justification', 'No justification provided')
-                    meaning_unit_object.assigned_code_list.append(
-                        CodeAssigned(code_name=code_name, code_justification=code_justification)
-                    )
+                    for code_item in assignment.codeList:
+                        code_name = getattr(code_item, 'code_name', 'Unknown Code')
+                        code_justification = getattr(code_item, 'code_justification', 'No justification provided')
+                        meaning_unit.assigned_code_list.append(
+                            CodeAssigned(code_name=code_name, code_justification=code_justification)
+                        )
 
             except ValidationError as ve:
-                logger.error(f"Validation error while assigning codes for Unique ID {meaning_unit_object.unique_id}: {ve}")
+                logger.error(f"Validation error while assigning codes for batch starting at index {i}: {ve}")
                 continue
             except Exception as e:
-                logger.error(f"An error occurred while retrieving code assignments for Unique ID {meaning_unit_object.unique_id}: {e}")
+                logger.error(f"An error occurred while assigning codes for batch starting at index {i}: {e}")
                 continue
 
     except Exception as e:
