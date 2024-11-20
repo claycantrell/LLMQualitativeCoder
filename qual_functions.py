@@ -8,6 +8,11 @@ import json
 import numpy as np
 import os
 from pydantic import BaseModel
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_random_exponential,
+)  # for exponential backoff
 
 # Initialize OpenAI client
 try:
@@ -19,6 +24,11 @@ try:
 except Exception as e:
     logging.getLogger(__name__).error(f"Failed to initialize OpenAI client: {e}")
     raise
+
+#Retry functionality with Tenacity
+@retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(6))
+def completion_with_backoff(**kwargs):
+    return client.beta.chat.completions.parse(**kwargs)
 
 # -------------------------------
 # Data Classes
@@ -45,7 +55,7 @@ class MeaningUnit:
         }
 
 # -------------------------------
-# Pydantic Models for Parsing
+# Pydantic Models for GPT output format
 # -------------------------------
 
 class ParseFormat(BaseModel):
@@ -78,7 +88,7 @@ def parse_transcript(
     """
     metadata_section = f"Metadata:\n{json.dumps(metadata, indent=2)}\n\n" if metadata else ""
     try:
-        response = client.beta.chat.completions.parse(
+        response = completion_with_backoff(
             model=completion_model,
             messages=[
                 {
@@ -364,7 +374,7 @@ def assign_codes_to_meaning_units(
             logger.debug(f"Full Prompt for Unique ID {meaning_unit_object.unique_id}:\n{full_prompt}")
 
             try:
-                response = client.beta.chat.completions.parse(
+                response = completion_with_backoff(
                     model=completion_model,
                     messages=[
                         {
