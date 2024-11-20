@@ -1,10 +1,10 @@
-You will receive a JSON object containing a piece of spoken text along with its associated metadata. Your task is to segment this text into discrete, self-contained "meaning units." Each meaning unit must be a direct, unaltered quote from the speaker. Do not rephrase, paraphrase, or summarize.
+You will receive a JSON array containing multiple speaking turns, each with its associated metadata, including a unique `source_id`. Your task is to segment each speaking turn into discrete, self-contained "meaning units." Each meaning unit must be a direct, unaltered quote from the speaker. Do not rephrase, paraphrase, or summarize.
 
 **Guidelines:**
 
-1. **Read for Context**: First, read the entire text and all provided metadata to understand its context.
+1. **Read for Context**: First, read all speaking turns and their provided metadata to understand the overall context.
 
-2. **Segment by Logical Breaks**: Break down the text where new ideas, thoughts, or actions naturally begin and end. Each segment can be a full sentence, phrase, or brief passage that conveys one idea completely.
+2. **Segment by Logical Breaks**: For each speaking turn, break down the text where new ideas, thoughts, or actions naturally begin and end. Each segment can be a full sentence, phrase, or brief passage that conveys one idea completely.
 
 3. **Direct Quotes Only – No Changes**: Each meaning unit must use the speaker’s exact words without any alteration. Do not modify, change, summarize, or rephrase.
 
@@ -12,27 +12,22 @@ You will receive a JSON object containing a piece of spoken text along with its 
 
 5. **Do Not Interpret or Simplify**: Simply segment into distinct quotes without adding interpretation or simplification.
 
-6. **Incorporate Metadata**: Use all provided metadata to inform your segmentation. Metadata may include, but is not limited to, speaker identifiers, context details, and other relevant information.
+6. **Incorporate Metadata**: Use all provided metadata for each speaking turn to inform your segmentation. Metadata may include, but is not limited to, speaker identifiers, context details, and other relevant information.
 
 7. **Avoid Over-Segmentation**: Do not create overly short fragments unless a few words alone carry complete meaning.
 
 **Output Format:**
 
-Structure the output in JSON format, following these keys:
+Structure the output in JSON format, following these keys for each meaning unit:
 
+- `"source_id"`: The unique identifier of the speaking turn from which the meaning unit originates.
 - `"quote"`: The exact words of the segmented meaning unit.
 
 **Example Output:**
 
 ```json
 [
-  { "quote": "I believe we can improve our teaching methods by incorporating more technology." },
-  { "quote": "Each of us brings unique skills to the table." }
+  { "source_id": 1, "quote": "I believe we can improve our teaching methods by incorporating more technology." },
+  { "source_id": 1, "quote": "Each of us brings unique skills to the table." },
+  { "source_id": 2, "quote": "The new curriculum will better prepare students for real-world challenges." }
 ]
-Ensure JSON Validity:
-
-Accurate Formatting: Construct the JSON meticulously to avoid syntax errors such as missing commas, brackets, or braces.
-No Extraneous Text: Do not include any additional text, explanations, or comments outside the JSON code block.
-Output:
-
-Submit your response as a JSON array containing only the quote for each meaning unit – do not add commentary or any non-JSON text.

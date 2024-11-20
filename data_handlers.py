@@ -2,7 +2,7 @@
 import os
 import json
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 from pydantic import BaseModel
 from qual_functions import parse_transcript, MeaningUnit
 
@@ -72,26 +72,31 @@ class FlexibleDataHandler:
             for i in range(0, len(validated_data), self.speaking_turns_per_prompt):
                 batch = validated_data[i:i + self.speaking_turns_per_prompt]
                 speaking_turns = []
-                for record in batch:
+                source_id_map = {}  # Map source_id to metadata
+                for j, record in enumerate(batch):
                     content = record.get(self.content_field, "")
                     metadata = {k: v for k, v in record.items() if k != self.content_field}
+                    source_id = record.get('id', i + j + 1)  # Use 'id' or generate one
                     speaking_turn = {
+                        "source_id": source_id,
                         "content": content,
                         "metadata": metadata
                     }
                     speaking_turns.append(speaking_turn)
-                
+                    source_id_map[source_id] = metadata
+
                 # Parse the batch of speaking turns
                 parsed_units = parse_transcript(
                     speaking_turns=speaking_turns,
                     prompt=self.parse_instructions,
                     completion_model=self.completion_model
                 )
-                for pu in parsed_units:
+                for source_id, pu in parsed_units:
+                    metadata = source_id_map.get(source_id, {})
                     meaning_unit = MeaningUnit(
                         unique_id=unique_id_counter,  # Assign unique ID
                         meaning_unit_string=pu,
-                        metadata={},  # Metadata is not tracked per meaning unit in batch parsing
+                        metadata=metadata
                     )
                     meaning_units.append(meaning_unit)
                     unique_id_counter += 1  # Increment the counter for the next unit

@@ -1,4 +1,4 @@
-#qual_functions.py
+# qual_functions.py
 import logging
 from openai import OpenAI
 from dataclasses import dataclass, field
@@ -7,12 +7,12 @@ import faiss
 import json
 import numpy as np
 import os
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError, ConfigDict
 from tenacity import (
     retry,
     stop_after_attempt,
     wait_random_exponential,
-)  # for exponential backoff
+)
 
 # Initialize OpenAI client
 try:
@@ -55,11 +55,15 @@ class MeaningUnit:
         }
 
 # -------------------------------
-# Pydantic Models for GPT output format
+# Pydantic Models for GPT Output Format
 # -------------------------------
 
 class ParseFormat(BaseModel):
-    meaning_unit_string_list: List[str]
+    source_id: int
+    quote: str
+
+class ParseResponse(BaseModel):
+    parse_list: List[ParseFormat]
 
 class CodeFormat(BaseModel):
     codeList: List[CodeAssigned]
@@ -72,17 +76,18 @@ def parse_transcript(
     speaking_turns: List[Dict[str, Any]], 
     prompt: str, 
     completion_model: str
-) -> List[str]:
+) -> List[Tuple[int, str]]:
     """
     Breaks up multiple speaking turns into smaller meaning units based on criteria in the LLM prompt.
+    Returns a list of tuples containing source_id and the meaning unit string.
 
     Args:
-        speaking_turns (List[Dict[str, Any]]): A list of speaking turns with metadata.
+        speaking_turns (List[Dict[str, Any]]): A list of speaking turns with metadata, including source_id.
         prompt (str): The prompt instructions for parsing.
         completion_model (str): The language model to use.
 
     Returns:
-        List[str]: A list of meaning units extracted from all speaking turns.
+        List[Tuple[int, str]]: A list of tuples where each tuple contains the source_id and a meaning unit string.
     """
     try:
         response = completion_with_backoff(
@@ -100,7 +105,7 @@ def parse_transcript(
                     )
                 }
             ],
-            response_format=ParseFormat,
+            response_format=ParseResponse,
             temperature=0.2,
             max_tokens=1500,
         )
@@ -115,22 +120,26 @@ def parse_transcript(
             logger.error("Parsed output is empty.")
             return []
 
-        # Validate the structure of parsed_output
-        if not hasattr(parsed_output, 'meaning_unit_string_list'):
-            logger.error("Parsed output does not contain required field 'meaning_unit_string_list'.")
+        # Access the root list from ParseResponse
+        if not isinstance(parsed_output, ParseResponse):
+            logger.error("Parsed output is not an instance of ParseResponse.")
             return []
 
-        meaningunit_stringlist_parsed = parsed_output.meaning_unit_string_list
-
-        if not isinstance(meaningunit_stringlist_parsed, list):
-            logger.error("'meaning_unit_string_list' is not a list.")
-            return []
-
+        meaning_units = []
+        for unit in parsed_output.parse_list:
+            if not isinstance(unit, ParseFormat):
+                logger.warning(f"Unit is not of type ParseFormat: {unit}")
+                continue
+            meaning_units.append((unit.source_id, unit.quote))
+        
         # Log the parsed meaning units
-        logger.debug(f"Parsed Meaning Units: {meaningunit_stringlist_parsed}")
+        logger.debug(f"Parsed Meaning Units: {meaning_units}")
 
-        return meaningunit_stringlist_parsed
+        return meaning_units
 
+    except ValidationError as ve:
+        logger.error(f"Validation error while parsing transcript: {ve}")
+        return []
     except Exception as e:
         logger.error(f"An error occurred while parsing transcript into meaning units: {e}")
         return []
@@ -395,18 +404,28 @@ def assign_codes_to_meaning_units(
                     continue
 
                 code_output = response.choices[0].message.parsed
-                logger.debug(f"LLM Code Assignment Output for ID {meaning_unit_object.unique_id}:\n{code_output.codeList}")
+
+                if not isinstance(code_output, CodeFormat):
+                    logger.error(f"Response for Unique ID {meaning_unit_object.unique_id} is not of type CodeFormat.")
+                    continue
+
+                code_list = code_output.codeList
+                logger.debug(f"LLM Code Assignment Output for ID {meaning_unit_object.unique_id}:\n{code_list}")
 
                 # Append each code_name and code_justification to the meaning_unit_object
-                for code_item in code_output.codeList:
+                for code_item in code_list:
                     code_name = getattr(code_item, 'code_name', 'Unknown Code')
                     code_justification = getattr(code_item, 'code_justification', 'No justification provided')
                     meaning_unit_object.assigned_code_list.append(
                         CodeAssigned(code_name=code_name, code_justification=code_justification)
                     )
 
+            except ValidationError as ve:
+                logger.error(f"Validation error while assigning codes for Unique ID {meaning_unit_object.unique_id}: {ve}")
+                continue
             except Exception as e:
                 logger.error(f"An error occurred while retrieving code assignments for Unique ID {meaning_unit_object.unique_id}: {e}")
+                continue
 
     except Exception as e:
         logger.error(f"An error occurred while assigning codes: {e}")
