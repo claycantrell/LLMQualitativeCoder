@@ -25,7 +25,7 @@ except Exception as e:
     logging.getLogger(__name__).error(f"Failed to initialize OpenAI client: {e}")
     raise
 
-#Retry functionality with Tenacity
+# Retry functionality with Tenacity
 @retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(6))
 def completion_with_backoff(**kwargs):
     return client.beta.chat.completions.parse(**kwargs)
@@ -69,38 +69,34 @@ class CodeFormat(BaseModel):
 # -------------------------------
 
 def parse_transcript(
-    speaking_turn_string: str, 
+    speaking_turns: List[Dict[str, Any]], 
     prompt: str, 
-    completion_model: str, 
-    metadata: Dict[str, Any] = None
+    completion_model: str
 ) -> List[str]:
     """
-    Breaks up a speaking turn into smaller meaning units based on criteria in the LLM prompt.
+    Breaks up multiple speaking turns into smaller meaning units based on criteria in the LLM prompt.
 
     Args:
-        speaking_turn_string (str): The speaking turn text.
+        speaking_turns (List[Dict[str, Any]]): A list of speaking turns with metadata.
         prompt (str): The prompt instructions for parsing.
         completion_model (str): The language model to use.
-        metadata (Dict[str, Any], optional): Additional metadata.
 
     Returns:
-        List[str]: A list of meaning units extracted from the speaking turn.
+        List[str]: A list of meaning units extracted from all speaking turns.
     """
-    metadata_section = f"Metadata:\n{json.dumps(metadata, indent=2)}\n\n" if metadata else ""
     try:
         response = completion_with_backoff(
             model=completion_model,
             messages=[
                 {
                     "role": "system", 
-                    "content": "You are a qualitative research assistant that breaks down speaking turns into smaller meaning units based on given instructions."
+                    "content": "You are a qualitative research assistant that breaks down multiple speaking turns into smaller meaning units based on given instructions."
                 },
                 {
                     "role": "user",
                     "content": (
                         f"{prompt}\n\n"
-                        f"{metadata_section}"
-                        f"Speaking Turn:\n{speaking_turn_string}\n\n"
+                        f"Speaking Turns:\n{json.dumps(speaking_turns, indent=2)}\n\n"
                     )
                 }
             ],

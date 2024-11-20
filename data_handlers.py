@@ -16,7 +16,8 @@ class FlexibleDataHandler:
         completion_model: str,
         model_class: Any,
         content_field: str,
-        use_parsing: bool = True
+        use_parsing: bool = True,
+        speaking_turns_per_prompt: int = 1  # New parameter
     ):
         self.file_path = file_path
         self.parse_instructions = parse_instructions
@@ -24,6 +25,7 @@ class FlexibleDataHandler:
         self.model_class = model_class
         self.content_field = content_field
         self.use_parsing = use_parsing
+        self.speaking_turns_per_prompt = speaking_turns_per_prompt  # Store the new parameter
 
     def load_data(self) -> List[Dict[str, Any]]:
         """
@@ -54,7 +56,7 @@ class FlexibleDataHandler:
 
     def transform_data(self, validated_data: List[Dict[str, Any]]) -> List[MeaningUnit]:
         """
-        Transforms validated data into MeaningUnit objects.
+        Transforms validated data into MeaningUnit objects, processing multiple speaking turns per prompt.
 
         Args:
             validated_data (List[Dict[str, Any]]): List of validated data records.
@@ -65,25 +67,38 @@ class FlexibleDataHandler:
         meaning_units = []
         unique_id_counter = 1  # Initialize a unique ID counter
 
-        for record in validated_data:
-            content = record.get(self.content_field, "")
-            metadata = {k: v for k, v in record.items() if k != self.content_field}
-            if self.use_parsing:
+        if self.use_parsing:
+            # Group speaking turns into batches
+            for i in range(0, len(validated_data), self.speaking_turns_per_prompt):
+                batch = validated_data[i:i + self.speaking_turns_per_prompt]
+                speaking_turns = []
+                for record in batch:
+                    content = record.get(self.content_field, "")
+                    metadata = {k: v for k, v in record.items() if k != self.content_field}
+                    speaking_turn = {
+                        "content": content,
+                        "metadata": metadata
+                    }
+                    speaking_turns.append(speaking_turn)
+                
+                # Parse the batch of speaking turns
                 parsed_units = parse_transcript(
-                    speaking_turn_string=content,
+                    speaking_turns=speaking_turns,
                     prompt=self.parse_instructions,
-                    completion_model=self.completion_model,
-                    metadata=metadata
+                    completion_model=self.completion_model
                 )
                 for pu in parsed_units:
                     meaning_unit = MeaningUnit(
                         unique_id=unique_id_counter,  # Assign unique ID
                         meaning_unit_string=pu,
-                        metadata=metadata
+                        metadata={},  # Metadata is not tracked per meaning unit in batch parsing
                     )
                     meaning_units.append(meaning_unit)
                     unique_id_counter += 1  # Increment the counter for the next unit
-            else:
+        else:
+            for record in validated_data:
+                content = record.get(self.content_field, "")
+                metadata = {k: v for k, v in record.items() if k != self.content_field}
                 meaning_unit = MeaningUnit(
                     unique_id=unique_id_counter,  # Assign unique ID
                     meaning_unit_string=content,

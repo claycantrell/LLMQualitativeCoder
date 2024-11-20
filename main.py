@@ -29,6 +29,7 @@ def main(config: Dict[str, Any]):
     initialize_embedding_model = config.get('initialize_embedding_model', 'text-embedding-3-small')
     retrieve_embedding_model = config.get('retrieve_embedding_model', 'text-embedding-3-small')
     data_format = config.get('data_format', 'interview')
+    speaking_turns_per_prompt = config.get('speaking_turns_per_prompt', 1)  # New parameter
 
     # Paths configuration
     paths = config.get('paths', {})
@@ -127,7 +128,8 @@ def main(config: Dict[str, Any]):
             completion_model=parse_model,
             model_class=dynamic_data_model,
             content_field=content_field,
-            use_parsing=use_parsing
+            use_parsing=use_parsing,
+            speaking_turns_per_prompt=speaking_turns_per_prompt  # Pass the new parameter
         )
         validated_data = data_handler.load_data()
         logger.debug(f"Loaded {len(validated_data)} validated data items.")
