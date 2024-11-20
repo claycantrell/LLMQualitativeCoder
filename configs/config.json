@@ -1,7 +1,8 @@
 {
   "coding_mode": "deductive",
   "use_parsing": true,
-  "use_rag": true,
+  "use_rag": false,
+  "speaking_turns_per_prompt": 4,
   "parse_model": "gpt-4o-mini",
   "assign_model": "gpt-4o-mini",
   "initialize_embedding_model": "text-embedding-3-small",
@@ -14,7 +15,7 @@
     "config_folder": "configs"
   },
   "selected_codebase": "teacher_schema.jsonl",               
-  "selected_json_file": "output_cues.json",              
+  "selected_json_file": "teacher_transcript.json",              
   "parse_prompt_file": "parse.txt",               
   "inductive_coding_prompt_file": "inductive.txt",
   "deductive_coding_prompt_file": "deductive.txt", 
