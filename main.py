@@ -214,7 +214,7 @@ def main(config: Dict[str, Any]):
     # Stage 4: Output Results
 
     os.makedirs(output_folder, exist_ok=True)
-    #timestamp and pathlib for output filename
+    # Timestamp and pathlib for output filename
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     input_file_pathlib = Path(selected_json_file)
     output_file_path = os.path.join(output_folder, f"{input_file_pathlib.stem}_output_{timestamp}.{output_format}")
@@ -243,6 +243,22 @@ def main(config: Dict[str, Any]):
             logger.error(f"Unsupported output format: {output_format}")
     except Exception as e:
         logger.error(f"Failed to save output: {e}")
+        return
+
+    # Update master log file with output file name and config
+    try:
+        master_log_file = 'logs/master_log.jsonl'
+        os.makedirs(os.path.dirname(master_log_file), exist_ok=True)
+        with open(master_log_file, 'a', encoding='utf-8') as log_file:
+            log_entry = {
+                'timestamp': timestamp,
+                'output_file': output_file_path,
+                'config': config
+            }
+            log_file.write(json.dumps(log_entry) + '\n')
+        logger.info(f"Master log updated at '{master_log_file}'.")
+    except Exception as e:
+        logger.error(f"Failed to update master log: {e}")
 
 if __name__ == "__main__":
     # Load configurations from config.json
