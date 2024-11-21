@@ -313,7 +313,7 @@ def assign_codes_to_meaning_units(
         use_rag (bool, optional): Whether to use RAG for code retrieval.
         codebase (Optional[List[Dict[str, Any]]], optional): Entire codebase for deductive coding without RAG.
         completion_model (Optional[str], optional): Language model to use for code assignment.
-        embedding_model (Optional[str], optional): Embedding model to use for code retrieval.
+        embedding_model (Optional[str]): Embedding model to use for code retrieval.
         meaning_units_per_assignment_prompt (int, optional): Number of meaning units to process per assignment prompt.
 
     Returns:
@@ -346,29 +346,17 @@ def assign_codes_to_meaning_units(
                 codes_to_include = None
 
             # Prepare context for the batch
+            batch_start_idx = meaning_unit_list.index(batch[0])
+            batch_end_idx = meaning_unit_list.index(batch[-1])
+
+            start_context_idx = max(0, batch_start_idx - context_size)
+            context_units = meaning_unit_list[start_context_idx:batch_end_idx + 1]
+
+            # Prepare context excerpts without repeating information
             batch_context = ""
-            for unit in batch:
-                # Collect surrounding context
-                idx = meaning_unit_list.index(unit)
-                context_excerpt = ""
-
-                # Previous context
-                if context_size > 0 and idx > 0:
-                    prev_units = meaning_unit_list[max(0, idx - context_size):idx]
-                    for pu in prev_units:
-                        context_excerpt += f"Quote: {pu.meaning_unit_string}\n\n"
-
-                # Current meaning unit
-                current_unit_excerpt = f"Quote: {unit.meaning_unit_string}\n\n"
-                context_excerpt += current_unit_excerpt
-
-                # Following context
-                if context_size > 0 and idx < total_units - 1:
-                    next_units = meaning_unit_list[idx + 1: idx + 1 + context_size]
-                    for pu in next_units:
-                        context_excerpt += f"Quote: {pu.meaning_unit_string}\n\n"
-
-                batch_context += f"Meaning Unit ID: {unit.unique_id}\n{context_excerpt}"
+            for unit in context_units:
+                #unit.metadata.get("speaker_name") this is a hardcode that I need to change at some point
+                batch_context += f"Speaker: {unit.metadata.get("speaker_name")}\n{unit.meaning_unit_string}\n"
 
             # Construct the prompt for the batch
             full_prompt = f"{coding_instructions}\n\n"
@@ -384,16 +372,24 @@ def assign_codes_to_meaning_units(
                 code_heading = "Guidelines for Inductive Coding:"
                 full_prompt += f"{code_heading}\n{codes_str}\n\n"
 
+            # Include context once per batch
+            full_prompt += (
+                f"Contextual Excerpts:\n{batch_context}\n\n"
+                f"**Important:** Please use the provided contextual excerpts **only** as background information to u nderstand the current excerpt better. "
+            )
+
             for unit in batch:
                 current_unit_excerpt = f"Quote: {unit.meaning_unit_string}\n\n"
                 full_prompt += (
-                    f"Contextual Excerpts for Meaning Unit ID {unit.unique_id}:\n{batch_context}\n\n"
-                    f"**Important:** Please use the provided contextual excerpts **only** as background information to understand the current excerpt better. "
-                    f"Current Excerpt For Coding:\n{current_unit_excerpt}"
-                    f"{'**Apply codes exclusively to the current excerpt provided above. Do not assign codes to the contextual excerpts.**' if codes_to_include is not None else '**Generate codes based on the current excerpt provided above using the guidelines.**'}\n\n"
-                    f"Please provide the assigned codes for Meaning Unit ID {unit.unique_id} in the following JSON format:\n"
-                    f"{{\n  \"unique_id\": {unit.unique_id},\n  \"codeList\": [\n    {{\"code_name\": \"<Name of the code>\", \"code_justification\": \"<Justification for the code>\"}},\n    ...\n  ]\n}}\n\n"
+                    #another hardcode for speaker name I need to change
+                    f"Current Excerpt For Coding (Meaning Unit ID {unit.unique_id}) Speaker:{unit.metadata.get("speaker_name")}:\n{current_unit_excerpt}"
                 )
+
+            full_prompt += (
+                f"{'**Apply codes exclusively to the current excerpt provided above. Do not assign codes to the contextual excerpts.**' if codes_to_include is not None else '**Generate codes based on the current excerpt provided above using the guidelines.**'}\n\n"
+                f"Please provide the assigned codes for the meaning unit\s above in the following JSON format:\n"
+                f"{{\n  \"unique_id\": [\n  \"codeList\": [\n    {{\"code_name\": \"<Name of the code>\", \"code_justification\": \"<Justification for the code>\"}},\n    ...\n  ]\n}}\n\n"
+            )
 
             logger.debug(f"Full Prompt for Batch starting at index {i}:\n{full_prompt}")
 
