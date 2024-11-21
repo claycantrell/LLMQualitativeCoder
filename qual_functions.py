@@ -297,7 +297,8 @@ def assign_codes_to_meaning_units(
     codebase: Optional[List[Dict[str, Any]]] = None,
     completion_model: Optional[str] = "gpt-4o-mini",
     embedding_model: Optional[str] = "text-embedding-3-small",
-    meaning_units_per_assignment_prompt: int = 1
+    meaning_units_per_assignment_prompt: int = 1,
+    speaker_field: Optional[str] = None  # New parameter
 ) -> List[MeaningUnit]:
     """
     Assigns codes to each MeaningUnit object, including contextual information from surrounding units.
@@ -315,6 +316,7 @@ def assign_codes_to_meaning_units(
         completion_model (Optional[str], optional): Language model to use for code assignment.
         embedding_model (Optional[str]): Embedding model to use for code retrieval.
         meaning_units_per_assignment_prompt (int, optional): Number of meaning units to process per assignment prompt.
+        speaker_field (Optional[str], optional): The field name for speaker information.
 
     Returns:
         List[MeaningUnit]: Updated list with assigned codes.
@@ -355,8 +357,8 @@ def assign_codes_to_meaning_units(
             # Prepare context excerpts without repeating information
             batch_context = ""
             for unit in context_units:
-                #unit.metadata.get("speaker_name") this is a hardcode that I need to change at some point
-                batch_context += f"Speaker: {unit.metadata.get("speaker_name")}\n{unit.meaning_unit_string}\n"
+                speaker = unit.metadata.get(speaker_field, "Unknown Speaker") if speaker_field else "Unknown Speaker"
+                batch_context += f"Speaker: {speaker}\n{unit.meaning_unit_string}\n"
 
             # Construct the prompt for the batch
             full_prompt = f"{coding_instructions}\n\n"
@@ -375,20 +377,20 @@ def assign_codes_to_meaning_units(
             # Include context once per batch
             full_prompt += (
                 f"Contextual Excerpts:\n{batch_context}\n\n"
-                f"**Important:** Please use the provided contextual excerpts **only** as background information to u nderstand the current excerpt better. "
+                f"**Important:** Please use the provided contextual excerpts **only** as background information to understand the current excerpt better. "
             )
 
             for unit in batch:
+                speaker = unit.metadata.get(speaker_field, "Unknown Speaker") if speaker_field else "Unknown Speaker"
                 current_unit_excerpt = f"Quote: {unit.meaning_unit_string}\n\n"
                 full_prompt += (
-                    #another hardcode for speaker name I need to change
-                    f"Current Excerpt For Coding (Meaning Unit ID {unit.unique_id}) Speaker:{unit.metadata.get("speaker_name")}:\n{current_unit_excerpt}"
+                    f"Current Excerpt For Coding (Meaning Unit ID {unit.unique_id}) Speaker: {speaker}:\n{current_unit_excerpt}"
                 )
 
             full_prompt += (
                 f"{'**Apply codes exclusively to the current excerpt provided above. Do not assign codes to the contextual excerpts.**' if codes_to_include is not None else '**Generate codes based on the current excerpt provided above using the guidelines.**'}\n\n"
-                f"Please provide the assigned codes for the meaning unit\s above in the following JSON format:\n"
-                f"{{\n  \"unique_id\": [\n  \"codeList\": [\n    {{\"code_name\": \"<Name of the code>\", \"code_justification\": \"<Justification for the code>\"}},\n    ...\n  ]\n}}\n\n"
+                f"Please provide the assigned codes for the meaning unit(s) above in the following JSON format:\n"
+                f"{{\n  \"assignments\": [\n    {{\n      \"unique_id\": <Meaning Unit ID>,\n      \"codeList\": [\n        {{\"code_name\": \"<Name of the code>\", \"code_justification\": \"<Justification for the code>\"}},\n        ...\n      ]\n    }},\n    ...\n  ]\n}}\n\n"
             )
 
             logger.debug(f"Full Prompt for Batch starting at index {i}:\n{full_prompt}")

@@ -2,7 +2,7 @@
 import os
 import json
 import logging
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional
 from pydantic import BaseModel
 from qual_functions import parse_transcript, MeaningUnit
 
@@ -16,6 +16,7 @@ class FlexibleDataHandler:
         completion_model: str,
         model_class: Any,
         content_field: str,
+        speaker_field: Optional[str],
         use_parsing: bool = True,
         speaking_turns_per_prompt: int = 1  # New parameter
     ):
@@ -24,6 +25,7 @@ class FlexibleDataHandler:
         self.completion_model = completion_model
         self.model_class = model_class
         self.content_field = content_field
+        self.speaker_field = speaker_field
         self.use_parsing = use_parsing
         self.speaking_turns_per_prompt = speaking_turns_per_prompt  # Store the new parameter
 

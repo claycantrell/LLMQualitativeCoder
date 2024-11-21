@@ -248,7 +248,7 @@ def load_schema_config(config_path: str) -> Dict[str, Dict[str, Any]]:
         logger.error(f"Error loading schema configuration: {e}")
         raise
 
-def create_dynamic_model_for_format(data_format: str, schema_config: Dict[str, Dict[str, Any]]) -> Tuple[Type[BaseModel], str]:
+def create_dynamic_model_for_format(data_format: str, schema_config: Dict[str, Dict[str, Any]]) -> Tuple[Type[BaseModel], str, Optional[str]]:
     """
     Creates a dynamic Pydantic model for the given data format based on the provided schema configuration.
 
@@ -257,7 +257,7 @@ def create_dynamic_model_for_format(data_format: str, schema_config: Dict[str, D
         schema_config (Dict[str, Dict[str, Any]]): Schema configuration for different data formats.
 
     Returns:
-        Tuple[Type[BaseModel], str]: The dynamic Pydantic model and the content field name.
+        Tuple[Type[BaseModel], str, Optional[str]]: The dynamic Pydantic model, the content field name, and the speaker field name.
     """
     if data_format not in schema_config:
         raise ValueError(f"No schema configuration found for data format '{data_format}'")
@@ -268,6 +268,7 @@ def create_dynamic_model_for_format(data_format: str, schema_config: Dict[str, D
 
     fields = format_config["fields"]
     content_field = format_config["content_field"]
+    speaker_field = format_config.get("speaker_field")
 
     type_map = {
         "str": str,
@@ -294,9 +295,9 @@ def create_dynamic_model_for_format(data_format: str, schema_config: Dict[str, D
             **dynamic_fields,
             model_config=model_config  # For Pydantic v2, to allow extra fields
         )
-        logger.debug(f"Dynamic Pydantic model '{data_format.capitalize()}DataModel' created with content_field '{content_field}'.")
+        logger.debug(f"Dynamic Pydantic model '{data_format.capitalize()}DataModel' created with content_field '{content_field}' and speaker_field '{speaker_field}'.")
     except Exception as e:
         logger.error(f"Failed to create dynamic Pydantic model for '{data_format}': {type(e).__name__}: {e}")
         raise
 
-    return dynamic_model, content_field
+    return dynamic_model, content_field, speaker_field

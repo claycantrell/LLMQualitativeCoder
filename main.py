@@ -109,7 +109,7 @@ def main(config: Dict[str, Any]):
 
     # Create a dynamic Pydantic model for the specified data format
     try:
-        dynamic_data_model, content_field = create_dynamic_model_for_format(data_format, schema_config)
+        dynamic_data_model, content_field, speaker_field = create_dynamic_model_for_format(data_format, schema_config)
         logger.debug(f"Dynamic data model for '{data_format}' created.")
     except Exception as e:
         logger.error(f"Failed to create dynamic data model: {e}")
@@ -130,6 +130,7 @@ def main(config: Dict[str, Any]):
             completion_model=parse_model,
             model_class=dynamic_data_model,
             content_field=content_field,
+            speaker_field=speaker_field,
             use_parsing=use_parsing,
             speaking_turns_per_prompt=speaking_turns_per_prompt  # Pass the existing parameter
         )
@@ -179,7 +180,8 @@ def main(config: Dict[str, Any]):
                 codebase=processed_codes if not use_rag else None,
                 completion_model=assign_model,
                 embedding_model=retrieve_embedding_model if use_rag else None,
-                meaning_units_per_assignment_prompt=meaning_units_per_assignment_prompt  # Pass the new parameter
+                meaning_units_per_assignment_prompt=meaning_units_per_assignment_prompt,  # Pass the new parameter
+                speaker_field=speaker_field  # Pass the speaker_field
             )
             logger.debug(f"Assigned codes using deductive mode with {'RAG' if use_rag else 'full codebase'}.")
         except Exception as e:
@@ -204,7 +206,8 @@ def main(config: Dict[str, Any]):
                 codebase=None,
                 completion_model=assign_model,
                 embedding_model=None,
-                meaning_units_per_assignment_prompt=meaning_units_per_assignment_prompt  # Pass the new parameter
+                meaning_units_per_assignment_prompt=meaning_units_per_assignment_prompt,  # Pass the new parameter
+                speaker_field=speaker_field  # Pass the speaker_field
             )
             logger.debug("Assigned codes using inductive mode.")
         except Exception as e:

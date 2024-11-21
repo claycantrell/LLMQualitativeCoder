@@ -1,6 +1,7 @@
 {
     "transcript": {
         "content_field": "text_context",
+        "speaker_field": "speaker_name",
         "fields": {
             "id": "int",
             "length_of_time_spoken_seconds": "float",
