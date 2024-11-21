@@ -1,9 +1,9 @@
 {
-  "coding_mode": "deductive",
+  "coding_mode": "inductive",
   "use_parsing": true,
-  "use_rag": true,
-  "speaking_turns_per_prompt": 14,
-  "meaning_units_per_assignment_prompt": 5,
+  "use_rag": false,
+  "speaking_turns_per_prompt": 50,
+  "meaning_units_per_assignment_prompt": 50,
   "parse_model": "gpt-4o-mini",
   "assign_model": "gpt-4o-mini",
   "initialize_embedding_model": "text-embedding-3-small",
@@ -22,9 +22,8 @@
   "deductive_coding_prompt_file": "deductive.txt", 
   "output_folder": "outputs",                            
   "output_format": "json",                               
-  "output_file_name": "coded_meaning_units",             
   "enable_logging": true,                                
-  "logging_level": "DEBUG",                              
+  "logging_level": "INFO",                              
   "log_to_file": true,                                   
   "log_file_path": "logs/application.log"                
 }

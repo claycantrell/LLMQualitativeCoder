@@ -2,6 +2,8 @@
 import os
 import json
 import logging
+from datetime import datetime
+from pathlib import Path
 from typing import List, Dict, Optional, Any, Tuple, Type
 from data_handlers import FlexibleDataHandler
 from utils import (
@@ -49,7 +51,6 @@ def main(config: Dict[str, Any]):
     # Output configuration
     output_folder = config.get('output_folder', 'outputs')
     output_format = config.get('output_format', 'json')
-    output_file_name = config.get('output_file_name', 'coded_meaning_units')
 
     # Logging configuration
     enable_logging = config.get('enable_logging', True)
@@ -211,8 +212,12 @@ def main(config: Dict[str, Any]):
             return
 
     # Stage 4: Output Results
+
     os.makedirs(output_folder, exist_ok=True)
-    output_file_path = os.path.join(output_folder, f"{output_file_name}.{output_format}")
+    #timestamp and pathlib for output filename
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    input_file_pathlib = Path(selected_json_file)
+    output_file_path = os.path.join(output_folder, f"{input_file_pathlib.stem}_output_{timestamp}.{output_format}")
 
     try:
         if output_format == 'json':
