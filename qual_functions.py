@@ -111,7 +111,7 @@ def parse_transcript(
             ],
             response_format=ParseResponse,
             temperature=0.2,
-            max_tokens=1500,
+            max_tokens=16000,
         )
 
         if not response.choices:
@@ -411,7 +411,7 @@ def assign_codes_to_meaning_units(
                     ],
                     response_format=CodeResponse,
                     temperature=0.2,
-                    max_tokens=3000,  # Increased tokens to accommodate multiple responses
+                    max_tokens=16000,  # Increased tokens to accommodate multiple responses
                 )
 
                 if not response.choices:
