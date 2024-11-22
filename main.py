@@ -9,8 +9,8 @@ from data_handlers import FlexibleDataHandler
 from utils import (
     load_environment_variables,
     load_parse_instructions,
-    load_deductive_coding_prompt,
     load_inductive_coding_prompt,
+    load_deductive_coding_prompt,
     initialize_deductive_resources,
     create_dynamic_model_for_format,
     load_schema_config,
@@ -20,6 +20,7 @@ from qual_functions import (
     MeaningUnit,
     assign_codes_to_meaning_units
 )
+from validator import run_validation  # Import the validation function
 
 def main(config: Dict[str, Any]):
     # Load configurations
@@ -220,7 +221,8 @@ def main(config: Dict[str, Any]):
     # Timestamp and pathlib for output filename
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     input_file_pathlib = Path(selected_json_file)
-    output_file_path = os.path.join(output_folder, f"{input_file_pathlib.stem}_output_{timestamp}.{output_format}")
+    output_file_basename = input_file_pathlib.stem  # e.g., 'output_cues'
+    output_file_path = os.path.join(output_folder, f"{output_file_basename}_output_{timestamp}.{output_format}")
 
     try:
         if output_format == 'json':
@@ -262,6 +264,27 @@ def main(config: Dict[str, Any]):
         logger.info(f"Master log updated at '{master_log_file}'.")
     except Exception as e:
         logger.error(f"Failed to update master log: {e}")
+
+    # Stage 5: Validation
+    try:
+        logger.info("Starting validation process.")
+        
+        # Derive the validation report filename based on the output file's name
+        output_file_basename = Path(output_file_path).stem  # e.g., 'output_cues_output_20240427_150000'
+        validation_report_filename = f"{output_file_basename}_validation_report.json"  # e.g., 'output_cues_output_20240427_150000_validation_report.json'
+        validation_report_path = os.path.join(output_folder, validation_report_filename)
+        
+        # Run validation with the new report file path
+        validation_report = run_validation(
+            input_file=os.path.join(json_folder, selected_json_file),
+            output_file=output_file_path,
+            report_file=validation_report_path,  # Updated report file path
+            similarity_threshold=1.0  # Exact match
+        )
+        logger.info(f"Validation process completed. Report saved to '{validation_report_path}'.")
+    except Exception as e:
+        logger.error(f"Validation process failed: {e}")
+        return
 
 if __name__ == "__main__":
     # Load configurations from config.json
