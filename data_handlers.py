@@ -17,6 +17,7 @@ class FlexibleDataHandler:
         content_field: str,
         speaker_field: Optional[str],
         list_field: Optional[str] = None,
+        filter_rules: Optional[List[Dict[str, Any]]] = None,  # Added parameter
         use_parsing: bool = True,
         speaking_turns_per_prompt: int = 1
     ):
@@ -26,6 +27,7 @@ class FlexibleDataHandler:
         self.content_field = content_field
         self.speaker_field = speaker_field
         self.list_field = list_field
+        self.filter_rules = filter_rules  # Store filter rules
         self.use_parsing = use_parsing
         self.speaking_turns_per_prompt = speaking_turns_per_prompt
         self.document_metadata = {}  # Store document-level metadata
@@ -62,6 +64,26 @@ class FlexibleDataHandler:
             data.rename(columns={'id': 'source_id'}, inplace=True)
             logger.debug("Renamed 'id' column to 'source_id'.")
 
+        # Apply filter rules if any
+        if self.filter_rules:
+            for rule in self.filter_rules:
+                field = rule.get('field')
+                operator = rule.get('operator', 'equals')
+                value = rule.get('value')
+                if field not in data.columns:
+                    logger.warning(f"Field '{field}' not found in data columns. Skipping this filter rule.")
+                    continue
+
+                if operator == 'equals':
+                    data = data[data[field] == value]
+                elif operator == 'not_equals':
+                    data = data[data[field] != value]
+                elif operator == 'contains':
+                    data = data[data[field].str.contains(value, na=False)]
+                else:
+                    logger.warning(f"Operator '{operator}' is not supported. Skipping this filter rule.")
+            logger.debug(f"Data shape after applying filter rules: {data.shape}")
+
         logger.debug(f"Data shape after loading: {data.shape}")
         return data
 
@@ -96,10 +118,8 @@ class FlexibleDataHandler:
                         logger.warning(f"Assigned auto-generated 'source_id' '{source_id}' to speaking turn.")
                         source_id_counter += 1  # Increment for the next source_id
                     else:
-                        # Ensure uniqueness even if source_id is present
-                        source_id = f"{source_id}_{source_id_counter}"
+                        # Use the existing source_id without modification
                         metadata['source_id'] = source_id
-                        source_id_counter += 1  # Increment for the next source_id
                     speaking_turn = {
                         "source_id": source_id,
                         "content": content,
@@ -138,10 +158,8 @@ class FlexibleDataHandler:
                     logger.warning(f"Assigned auto-generated 'source_id' '{source_id}' to speaking turn.")
                     source_id_counter += 1  # Increment for the next source_id
                 else:
-                    # Ensure uniqueness even if source_id is present
-                    source_id = f"{source_id}_{source_id_counter}"
+                    # Use the existing source_id without modification
                     metadata['source_id'] = source_id
-                    source_id_counter += 1  # Increment for the next source_id
                 # Create MeaningUnit with meaning_unit_id independent of source_id
                 meaning_unit = MeaningUnit(
                     meaning_unit_id=meaning_unit_id_counter,

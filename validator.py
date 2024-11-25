@@ -5,8 +5,8 @@ import json
 import logging
 from typing import Dict, Any, List, Tuple, Optional
 import difflib
-import math
 import re  # Import regex module for text normalization
+import math  # Import math module for NaN checks
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -26,7 +26,6 @@ def replace_nan_with_null(obj):
         return [replace_nan_with_null(v) for v in obj]
     else:
         return obj
-
 
 def load_input_file(
     input_file_path: str,
@@ -234,7 +233,6 @@ def generate_report(
 
     # Replace NaN values with null
     report = replace_nan_with_null(report)
-
 
     # Save the report to a JSON file
     try:

@@ -6,7 +6,6 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional
-from validator import replace_nan_with_null
 from data_handlers import FlexibleDataHandler
 from utils import (
     load_environment_variables,
@@ -15,13 +14,13 @@ from utils import (
     load_inductive_coding_prompt,
     load_deductive_coding_prompt,
     initialize_deductive_resources,
-    load_data_format_config  # Updated function
+    load_data_format_config
 )
 from qual_functions import (
     MeaningUnit,
     assign_codes_to_meaning_units
 )
-from validator import run_validation  # Import the validation function
+from validator import run_validation, replace_nan_with_null
 
 def main(config: Dict[str, Any]):
     """
@@ -39,8 +38,8 @@ def main(config: Dict[str, Any]):
     initialize_embedding_model = config.get('initialize_embedding_model', 'text-embedding-3-small')
     retrieve_embedding_model = config.get('retrieve_embedding_model', 'text-embedding-3-small')
     data_format = config.get('data_format', 'interview')
-    speaking_turns_per_prompt = config.get('speaking_turns_per_prompt', 1)  # Existing parameter
-    meaning_units_per_assignment_prompt = config.get('meaning_units_per_assignment_prompt', 1)  # New parameter
+    speaking_turns_per_prompt = config.get('speaking_turns_per_prompt', 1)
+    meaning_units_per_assignment_prompt = config.get('meaning_units_per_assignment_prompt', 1)
 
     # Paths configuration
     paths = config.get('paths', {})
@@ -51,14 +50,13 @@ def main(config: Dict[str, Any]):
 
     # Selected files
     selected_codebase = config.get('selected_codebase', 'new_schema.jsonl')
-    selected_json_file = config.get('selected_json_file', 'your_movie_script.json')  # Replace with your actual file name
+    selected_json_file = config.get('selected_json_file', 'your_movie_script.json')
     parse_prompt_file = config.get('parse_prompt_file', 'parse_prompt.txt')
     inductive_coding_prompt_file = config.get('inductive_coding_prompt_file', 'inductive_prompt.txt')
     deductive_coding_prompt_file = config.get('deductive_coding_prompt_file', 'deductive_prompt.txt')
 
     # Output configuration
     output_folder = config.get('output_folder', 'outputs')
-    # Removed output_format as JSON is the only supported format
 
     # Logging configuration
     enable_logging = config.get('enable_logging', True)
@@ -119,6 +117,7 @@ def main(config: Dict[str, Any]):
     content_field = format_config.get('content_field')
     speaker_field = format_config.get('speaker_field')
     list_field = format_config.get('list_field')
+    filter_rules = format_config.get('filter_rules', [])  # Get filter_rules from format_config
 
     if not content_field:
         logger.error(f"'content_field' not specified in data format configuration for '{data_format}'")
@@ -139,9 +138,10 @@ def main(config: Dict[str, Any]):
             completion_model=parse_model,
             content_field=content_field,
             speaker_field=speaker_field,
-            list_field=list_field,  # Pass the list_field to the handler
+            list_field=list_field,
+            filter_rules=filter_rules,  # Pass the filter_rules to the handler
             use_parsing=use_parsing,
-            speaking_turns_per_prompt=speaking_turns_per_prompt  # Pass the existing parameter
+            speaking_turns_per_prompt=speaking_turns_per_prompt
         )
         data_df = data_handler.load_data()
         logger.debug(f"Loaded data with shape {data_df.shape}.")
@@ -229,7 +229,7 @@ def main(config: Dict[str, Any]):
     # Timestamp and pathlib for output filename
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     input_file_pathlib = Path(selected_json_file)
-    output_file_basename = input_file_pathlib.stem  # e.g., 'output_cues'
+    output_file_basename = input_file_pathlib.stem  # e.g., 'your_movie_script'
     output_file_path = os.path.join(output_folder, f"{output_file_basename}_output_{timestamp}.json")  # Fixed to .json extension
 
     # Get document-level metadata from data_handler
@@ -272,8 +272,8 @@ def main(config: Dict[str, Any]):
         logger.info("Starting validation process.")
         
         # Derive the validation report filename based on the output file's name
-        output_file_basename = Path(output_file_path).stem  # e.g., 'output_cues_output_20240427_150000'
-        validation_report_filename = f"{output_file_basename}_validation_report.json"  # e.g., 'output_cues_output_20240427_150000_validation_report.json'
+        output_file_basename = Path(output_file_path).stem  # e.g., 'your_movie_script_output_20240427_150000'
+        validation_report_filename = f"{output_file_basename}_validation_report.json"  # e.g., 'your_movie_script_output_20240427_150000_validation_report.json'
         validation_report_path = os.path.join(output_folder, validation_report_filename)
         
         # Run validation with the new report file path, pass content_field as text_field
