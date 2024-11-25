@@ -5,10 +5,28 @@ import json
 import logging
 from typing import Dict, Any, List, Tuple, Optional
 import difflib
+import math
 import re  # Import regex module for text normalization
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+def replace_nan_with_null(obj):
+    """
+    Recursively replace NaN values with None in a data structure.
+    """
+    if isinstance(obj, float):
+        if math.isnan(obj):
+            return None
+        else:
+            return obj
+    elif isinstance(obj, dict):
+        return {k: replace_nan_with_null(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [replace_nan_with_null(v) for v in obj]
+    else:
+        return obj
+
 
 def load_input_file(
     input_file_path: str,
@@ -213,6 +231,10 @@ def generate_report(
         'skipped_speaking_turns': skipped_speaking_turns,
         'inconsistent_speaking_turns': inconsistent_speaking_turns
     }
+
+    # Replace NaN values with null
+    report = replace_nan_with_null(report)
+
 
     # Save the report to a JSON file
     try:

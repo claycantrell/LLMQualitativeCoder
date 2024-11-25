@@ -6,6 +6,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional
+from validator import replace_nan_with_null
 from data_handlers import FlexibleDataHandler
 from utils import (
     load_environment_variables,
@@ -240,6 +241,10 @@ def main(config: Dict[str, Any]):
             "document_metadata": document_metadata,
             "meaning_units": [unit.to_dict() for unit in coded_meaning_unit_list]
         }
+
+        # Replace NaN values with null
+        output_data = replace_nan_with_null(output_data)
+
         with open(output_file_path, 'w', encoding='utf-8') as outfile:
             json.dump(output_data, outfile, indent=2)
         logger.info(f"Coded meaning units saved to '{output_file_path}'.")
