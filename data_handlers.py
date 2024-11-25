@@ -2,20 +2,11 @@
 import os
 import json
 import logging
-from typing import Any, Dict, List, Tuple, Optional
-from pydantic import BaseModel
+from typing import Any, Dict, List, Optional
+import pandas as pd
 from qual_functions import parse_transcript, MeaningUnit
 
 logger = logging.getLogger(__name__)
-
-def get_nested_field(data: Dict[str, Any], field_path: str, default=None):
-    keys = field_path.split('.')
-    for key in keys:
-        if isinstance(data, dict):
-            data = data.get(key, default)
-        else:
-            return default
-    return data
 
 class FlexibleDataHandler:
     def __init__(
@@ -23,8 +14,6 @@ class FlexibleDataHandler:
         file_path: str,
         parse_instructions: str,
         completion_model: str,
-        model_class: Any,
-        item_model_class: Any,
         content_field: str,
         speaker_field: Optional[str],
         list_field: Optional[str] = None,
@@ -34,8 +23,6 @@ class FlexibleDataHandler:
         self.file_path = file_path
         self.parse_instructions = parse_instructions
         self.completion_model = completion_model
-        self.model_class = model_class
-        self.item_model_class = item_model_class
         self.content_field = content_field
         self.speaker_field = speaker_field
         self.list_field = list_field
@@ -43,12 +30,12 @@ class FlexibleDataHandler:
         self.speaking_turns_per_prompt = speaking_turns_per_prompt
         self.document_metadata = {}  # Store document-level metadata
 
-    def load_data(self) -> List[Dict[str, Any]]:
+    def load_data(self) -> pd.DataFrame:
         """
-        Loads data from the JSON file and validates it against the main data model.
+        Loads data from the JSON file and extracts the content list into a DataFrame.
 
         Returns:
-            List[Dict[str, Any]]: List of validated script entries.
+            pd.DataFrame: DataFrame containing the data.
         """
         try:
             with open(self.file_path, 'r', encoding='utf-8') as file:
@@ -58,73 +45,61 @@ class FlexibleDataHandler:
             logger.error(f"Failed to load data from '{self.file_path}': {e}")
             raise
 
-        # Validate the main data structure
-        try:
-            validated_data = self.model_class(**raw_data)
-            validated_data_dict = validated_data.model_dump()
-            logger.debug("Validated main data structure.")
-        except Exception as e:
-            logger.error(f"Validation failed for main data structure: {e}")
-            raise
+        # Extract document-level metadata
+        self.document_metadata = {k: v for k, v in raw_data.items() if k != self.list_field}
 
-        # Extract the list of script entries
-        script_entries = get_nested_field(validated_data_dict, self.list_field)
-        if not isinstance(script_entries, list):
-            logger.error(f"The list_field '{self.list_field}' does not point to a list.")
-            raise ValueError(f"The list_field '{self.list_field}' does not point to a list.")
+        # Extract the list of content items
+        content_list = raw_data.get(self.list_field, [])
+        if not content_list:
+            logger.error(f"No content found under the list_field '{self.list_field}'.")
+            raise ValueError(f"No content found under the list_field '{self.list_field}'.")
 
-        # Store document-level metadata
-        document_metadata = validated_data_dict.copy()
-        # Remove the list_field from the document_metadata
-        keys = self.list_field.split('.')
-        current_dict = document_metadata
-        for key in keys[:-1]:
-            current_dict = current_dict.get(key, {})
-        if keys[-1] in current_dict:
-            del current_dict[keys[-1]]
-        self.document_metadata = document_metadata  # Store document-level metadata
+        # Create DataFrame from the content list
+        data = pd.DataFrame(content_list)
 
-        # Validate each script entry
-        validated_entries = []
-        for entry in script_entries:
-            try:
-                validated_entry = self.item_model_class(**entry)
-                validated_entries.append(validated_entry.model_dump())
-            except Exception as e:
-                logger.warning(f"Validation failed for script entry: {e}")
-                continue
+        # Ensure that the 'id' column is treated as 'source_id' if present
+        if 'id' in data.columns and 'source_id' not in data.columns:
+            data.rename(columns={'id': 'source_id'}, inplace=True)
+            logger.debug("Renamed 'id' column to 'source_id'.")
 
-        logger.debug(f"Validated {len(validated_entries)} script entries.")
-        return validated_entries
+        logger.debug(f"Data shape after loading: {data.shape}")
+        return data
 
-    def transform_data(self, validated_data: List[Dict[str, Any]]) -> List[MeaningUnit]:
+    def transform_data(self, data: pd.DataFrame) -> List[MeaningUnit]:
         """
-        Transforms validated data into MeaningUnit objects, processing multiple speaking turns per prompt.
+        Transforms data into MeaningUnit objects, processing multiple speaking turns per prompt.
 
         Args:
-            validated_data (List[Dict[str, Any]]): List of validated script entries.
+            data (pd.DataFrame): DataFrame containing the data.
 
         Returns:
             List[MeaningUnit]: List of MeaningUnit objects.
         """
         meaning_units = []
-        meaning_unit_id_counter = 1  # Initialize a unique ID counter for meaning units
+        source_id_counter = 1  # Counter for generating unique source_ids
+        meaning_unit_id_counter = 1  # Counter for assigning unique meaning_unit_ids
 
         if self.use_parsing:
             # Group speaking turns into batches
-            for i in range(0, len(validated_data), self.speaking_turns_per_prompt):
-                batch = validated_data[i:i + self.speaking_turns_per_prompt]
+            for i in range(0, len(data), self.speaking_turns_per_prompt):
+                batch = data.iloc[i:i + self.speaking_turns_per_prompt]
                 speaking_turns = []
                 source_id_map = {}  # Map source_id to metadata
-                for j, record in enumerate(batch):
-                    content = get_nested_field(record, self.content_field, "")
-                    metadata = {k: v for k, v in record.items() if k != self.content_field}
+                for _, record in batch.iterrows():
+                    content = record.get(self.content_field, "")
+                    metadata = record.drop(labels=[self.content_field], errors='ignore').to_dict()
                     source_id = record.get('source_id')
                     if source_id is None:
                         # Generate a unique source_id if not present
-                        source_id = f"auto_{i + j + 1}"
-                        record['source_id'] = source_id  # Assign back to the record
-                        logger.warning(f"Assigned auto-generated 'id' '{source_id}' to speaking turn: {record}")
+                        source_id = f"auto_{source_id_counter}"
+                        metadata['source_id'] = source_id  # Assign back to the metadata
+                        logger.warning(f"Assigned auto-generated 'source_id' '{source_id}' to speaking turn.")
+                        source_id_counter += 1  # Increment for the next source_id
+                    else:
+                        # Ensure uniqueness even if source_id is present
+                        source_id = f"{source_id}_{source_id_counter}"
+                        metadata['source_id'] = source_id
+                        source_id_counter += 1  # Increment for the next source_id
                     speaking_turn = {
                         "source_id": source_id,
                         "content": content,
@@ -141,7 +116,7 @@ class FlexibleDataHandler:
                 )
                 for source_id, pu in parsed_units:
                     metadata = source_id_map.get(source_id, {})
-                    # Ensure 'id' is included in metadata
+                    # Ensure 'source_id' is included in metadata
                     metadata['source_id'] = source_id
                     # Create MeaningUnit with meaning_unit_id independent of source_id
                     meaning_unit = MeaningUnit(
@@ -151,19 +126,22 @@ class FlexibleDataHandler:
                     )
                     meaning_units.append(meaning_unit)
                     meaning_unit_id_counter += 1  # Increment the counter for the next meaning unit
-
         else:
-            for record in validated_data:
-                content = get_nested_field(record, self.content_field, "")
-                metadata = {k: v for k, v in record.items() if k != self.content_field}
+            for _, record in data.iterrows():
+                content = record.get(self.content_field, "")
+                metadata = record.drop(labels=[self.content_field], errors='ignore').to_dict()
                 source_id = record.get('source_id')
                 if source_id is None:
                     # Generate a unique source_id if not present
-                    source_id = f"auto_{meaning_unit_id_counter}"
-                    record['id'] = source_id  # Assign back to the record
-                    logger.warning(f"Assigned auto-generated 'source_id' '{source_id}' to speaking turn: {record}")
-                # Ensure 'id' is included in metadata
-                metadata['source_id'] = source_id
+                    source_id = f"auto_{source_id_counter}"
+                    metadata['source_id'] = source_id  # Assign back to the metadata
+                    logger.warning(f"Assigned auto-generated 'source_id' '{source_id}' to speaking turn.")
+                    source_id_counter += 1  # Increment for the next source_id
+                else:
+                    # Ensure uniqueness even if source_id is present
+                    source_id = f"{source_id}_{source_id_counter}"
+                    metadata['source_id'] = source_id
+                    source_id_counter += 1  # Increment for the next source_id
                 # Create MeaningUnit with meaning_unit_id independent of source_id
                 meaning_unit = MeaningUnit(
                     meaning_unit_id=meaning_unit_id_counter,

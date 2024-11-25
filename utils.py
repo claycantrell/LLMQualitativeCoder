@@ -2,13 +2,11 @@
 import os
 import json
 import logging
-from typing import Dict, Any, Tuple, List, Type, Optional
+from typing import Dict, Any, Tuple, List, Optional
 from qual_functions import (
     initialize_faiss_index_from_formatted_file
 )
-from pydantic import create_model, BaseModel, ConfigDict
 
-# Configure logging for utils module
 logger = logging.getLogger(__name__)
 
 def load_environment_variables() -> None:
@@ -44,6 +42,32 @@ def load_config(config_file_path: str) -> Dict[str, Any]:
         raise
     except Exception as e:
         logger.error(f"Error loading configuration: {e}")
+        raise
+
+def load_data_format_config(config_path: str) -> Dict[str, Dict[str, Any]]:
+    """
+    Loads data format configuration from the given JSON file path.
+
+    Args:
+        config_path (str): Path to the data format configuration file.
+
+    Returns:
+        Dict[str, Dict[str, Any]]: Data format configuration dictionary.
+    """
+    if not os.path.exists(config_path):
+        logger.error(f"Data format configuration file '{config_path}' not found.")
+        raise FileNotFoundError(f"Data format configuration file '{config_path}' not found.")
+
+    try:
+        with open(config_path, 'r', encoding='utf-8') as file:
+            config_data = json.load(file)
+        logger.debug(f"Data format configuration loaded from '{config_path}'.")
+        return config_data
+    except json.JSONDecodeError as e:
+        logger.error(f"Error decoding JSON from '{config_path}': {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Error loading data format configuration: {e}")
         raise
 
 def load_coding_instructions(prompts_folder: str, prompt_file: str) -> str:
@@ -221,183 +245,3 @@ def initialize_deductive_resources(
         faiss_index = None  # FAISS index is not needed
 
     return processed_codes, faiss_index, coding_instructions
-
-def load_schema_config(config_path: str) -> Dict[str, Dict[str, Any]]:
-    """
-    Loads schema configuration from the given JSON file path.
-
-    Args:
-        config_path (str): Path to the schema configuration file.
-
-    Returns:
-        Dict[str, Dict[str, Any]]: Schema configuration dictionary.
-    """
-    if not os.path.exists(config_path):
-        logger.error(f"Schema configuration file '{config_path}' not found.")
-        raise FileNotFoundError(f"Schema configuration file '{config_path}' not found.")
-
-    try:
-        with open(config_path, 'r', encoding='utf-8') as file:
-            config_data = json.load(file)
-        logger.debug(f"Schema configuration loaded from '{config_path}'.")
-        return config_data
-    except json.JSONDecodeError as e:
-        logger.error(f"Error decoding JSON from '{config_path}': {e}")
-        raise
-    except Exception as e:
-        logger.error(f"Error loading schema configuration: {e}")
-        raise
-
-def create_dynamic_models_for_format(data_format: str, schema_config: Dict[str, Dict[str, Any]]) -> Tuple[Type[BaseModel], Optional[Type[BaseModel]], str, Optional[str]]:
-    """
-    Creates dynamic Pydantic models for the given data format and item format based on the provided schema configuration.
-
-    Args:
-        data_format (str): The format of the data (e.g., "movie_script").
-        schema_config (Dict[str, Dict[str, Any]]): Schema configuration for different data formats.
-
-    Returns:
-        Tuple[Type[BaseModel], Optional[Type[BaseModel]], str, Optional[str]]: The dynamic main data model, the item model, the content field name, and the speaker field name.
-    """
-    if data_format not in schema_config:
-        raise ValueError(f"No schema configuration found for data format '{data_format}'")
-
-    format_config = schema_config[data_format]
-    if 'fields' not in format_config or 'content_field' not in format_config:
-        raise ValueError(f"Configuration for data format '{data_format}' must include 'fields' and 'content_field'.")
-
-    fields = format_config["fields"]
-    content_field = format_config["content_field"]
-    speaker_field = format_config.get("speaker_field")
-    list_field = format_config.get("list_field")
-
-    type_map = {
-        "str": str,
-        "int": int,
-        "float": float,
-        "bool": bool,
-        "Any": Any,
-        # Additional mappings as needed
-    }
-
-    def create_model_fields(fields_dict, model_name_prefix=""):
-        dynamic_fields = {}
-        for field_name, field_value in fields_dict.items():
-            is_optional = False
-            if isinstance(field_value, dict):
-                is_optional = field_value.get("optional", False)
-                field_type = field_value.get("type", "dict")
-                if field_type == "dict":
-                    # Nested dict
-                    nested_fields = field_value.get("fields", {})
-                    nested_model_name = f"{model_name_prefix}{field_name.capitalize()}Model"
-                    nested_model_fields = create_model_fields(nested_fields, model_name_prefix=nested_model_name)
-                    nested_model = create_model(
-                        nested_model_name,
-                        __base__=BaseModel,
-                        **nested_model_fields
-                    )
-                    if is_optional:
-                        dynamic_fields[field_name] = (Optional[nested_model], None)
-                    else:
-                        dynamic_fields[field_name] = (nested_model, ...)
-                elif field_type == "list":
-                    # List of items
-                    item_type_value = field_value.get("items", "Any")
-                    if isinstance(item_type_value, str) and item_type_value in schema_config:
-                        # Reference to another format (e.g., 'script_entry')
-                        item_format_config = schema_config[item_type_value]
-                        item_fields = item_format_config["fields"]
-                        item_model_name = f"{model_name_prefix}{field_name.capitalize()}ItemModel"
-                        item_model_fields = create_model_fields(item_fields, model_name_prefix=item_model_name)
-                        item_model = create_model(
-                            item_model_name,
-                            __base__=BaseModel,
-                            **item_model_fields
-                        )
-                        list_type = List[item_model]
-                        if is_optional:
-                            dynamic_fields[field_name] = (Optional[list_type], None)
-                        else:
-                            dynamic_fields[field_name] = (list_type, ...)
-                    else:
-                        # List of simple types
-                        item_py_type = type_map.get(item_type_value, Any)
-                        list_type = List[item_py_type]
-                        if is_optional:
-                            dynamic_fields[field_name] = (Optional[list_type], None)
-                        else:
-                            dynamic_fields[field_name] = (list_type, ...)
-                else:
-                    # Simple type (e.g., 'str')
-                    py_type = type_map.get(field_type, Any)
-                    if is_optional:
-                        dynamic_fields[field_name] = (Optional[py_type], None)
-                    else:
-                        dynamic_fields[field_name] = (py_type, ...)
-            elif isinstance(field_value, str):
-                # Simple type
-                py_type = type_map.get(field_value, Any)
-                dynamic_fields[field_name] = (py_type, ...)
-            else:
-                # Unrecognized field value
-                py_type = Any
-                dynamic_fields[field_name] = (py_type, ...)
-        return dynamic_fields
-
-    # Create the main data model
-    dynamic_fields = create_model_fields(fields, model_name_prefix=f"{data_format.capitalize()}")
-
-    # Use Pydantic v2's configuration for handling extra fields
-    model_config = ConfigDict(extra='allow')
-
-    try:
-        dynamic_model = create_model(
-            f"{data_format.capitalize()}DataModel",
-            __base__=BaseModel,
-            **dynamic_fields,
-            model_config=model_config  # For Pydantic v2, to allow extra fields
-        )
-        logger.debug(f"Dynamic Pydantic model '{data_format.capitalize()}DataModel' created.")
-    except Exception as e:
-        logger.error(f"Failed to create dynamic Pydantic model for '{data_format}': {type(e).__name__}: {e}")
-        raise
-
-    # Create the item model if needed
-    item_model = None
-    if 'fields' in format_config and list_field:
-        list_field_parts = list_field.split('.')
-        current_fields = fields
-        for part in list_field_parts:
-            if part in current_fields:
-                current_field = current_fields[part]
-                if isinstance(current_field, dict):
-                    field_type = current_field.get("type")
-                    if field_type == "list":
-                        item_type_value = current_field.get("items")
-                        if isinstance(item_type_value, str) and item_type_value in schema_config:
-                            # Create item model
-                            item_format_config = schema_config[item_type_value]
-                            item_fields = item_format_config['fields']
-                            item_model_fields = create_model_fields(item_fields, model_name_prefix=item_type_value.capitalize())
-                            try:
-                                item_model = create_model(
-                                    f"{item_type_value.capitalize()}Model",
-                                    __base__=BaseModel,
-                                    **item_model_fields,
-                                    model_config=model_config
-                                )
-                                logger.debug(f"Dynamic Pydantic item model '{item_type_value.capitalize()}Model' created.")
-                            except Exception as e:
-                                logger.error(f"Failed to create dynamic Pydantic item model for '{item_type_value}': {type(e).__name__}: {e}")
-                                raise
-                        else:
-                            item_model = None
-                    elif field_type == "dict":
-                        current_fields = current_field.get("fields", {})
-                    else:
-                        item_model = None
-                else:
-                    item_model = None
-
-    return dynamic_model, item_model, content_field, speaker_field

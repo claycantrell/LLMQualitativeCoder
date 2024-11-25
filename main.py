@@ -5,7 +5,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Optional, Any, Tuple, Type
+from typing import Dict, Any, Optional
 from data_handlers import FlexibleDataHandler
 from utils import (
     load_environment_variables,
@@ -14,8 +14,7 @@ from utils import (
     load_inductive_coding_prompt,
     load_deductive_coding_prompt,
     initialize_deductive_resources,
-    create_dynamic_models_for_format,
-    load_schema_config
+    load_data_format_config  # Updated function
 )
 from qual_functions import (
     MeaningUnit,
@@ -102,29 +101,27 @@ def main(config: Dict[str, Any]):
             logger.error(f"Failed to load parse instructions: {e}")
             return
 
-    # Load schema mapping configuration for dynamic model creation
-    schema_config_path = os.path.join(config_folder, 'data_format_config.json')
+    # Load data format configuration
+    data_format_config_path = os.path.join(config_folder, 'data_format_config.json')
     try:
-        schema_config = load_schema_config(schema_config_path)
-        logger.debug("Schema configuration loaded.")
+        data_format_config = load_data_format_config(data_format_config_path)
+        logger.debug("Data format configuration loaded.")
     except Exception as e:
-        logger.error(f"Failed to load schema configuration: {e}")
+        logger.error(f"Failed to load data format configuration: {e}")
         return
 
-    if data_format not in schema_config:
-        logger.error(f"No schema configuration found for data format: {data_format}")
-        raise ValueError(f"No schema configuration found for data format: {data_format}")
+    if data_format not in data_format_config:
+        logger.error(f"No configuration found for data format: {data_format}")
+        raise ValueError(f"No configuration found for data format: {data_format}")
 
-    # Create dynamic Pydantic models for the specified data format
-    try:
-        dynamic_data_model, item_model_class, content_field, speaker_field = create_dynamic_models_for_format(data_format, schema_config)
-        logger.debug(f"Dynamic data models for '{data_format}' created.")
-    except Exception as e:
-        logger.error(f"Failed to create dynamic data models: {e}")
-        return
+    format_config = data_format_config[data_format]
+    content_field = format_config.get('content_field')
+    speaker_field = format_config.get('speaker_field')
+    list_field = format_config.get('list_field')
 
-    # Get list_field from schema_config
-    list_field = schema_config[data_format].get('list_field')
+    if not content_field:
+        logger.error(f"'content_field' not specified in data format configuration for '{data_format}'")
+        raise ValueError(f"'content_field' not specified in data format configuration for '{data_format}'")
 
     # Determine the data file to load based on selected_json_file
     data_file = selected_json_file
@@ -133,23 +130,21 @@ def main(config: Dict[str, Any]):
         logger.error(f"Data file '{file_path}' not found.")
         raise FileNotFoundError(f"Data file '{file_path}' not found.")
 
-    # Stage 2: Data Loading and Validation Using FlexibleDataHandler
+    # Stage 2: Data Loading and Transformation Using FlexibleDataHandler
     try:
         data_handler = FlexibleDataHandler(
             file_path=file_path,
             parse_instructions=parse_instructions,
             completion_model=parse_model,
-            model_class=dynamic_data_model,
-            item_model_class=item_model_class,
             content_field=content_field,
             speaker_field=speaker_field,
             list_field=list_field,  # Pass the list_field to the handler
             use_parsing=use_parsing,
             speaking_turns_per_prompt=speaking_turns_per_prompt  # Pass the existing parameter
         )
-        validated_data = data_handler.load_data()
-        logger.debug(f"Loaded {len(validated_data)} validated data items.")
-        meaning_unit_object_list = data_handler.transform_data(validated_data)
+        data_df = data_handler.load_data()
+        logger.debug(f"Loaded data with shape {data_df.shape}.")
+        meaning_unit_object_list = data_handler.transform_data(data_df)
         logger.debug(f"Transformed data into {len(meaning_unit_object_list)} meaning units.")
     except Exception as e:
         logger.error(f"Data loading and transformation failed: {e}")
