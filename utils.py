@@ -248,16 +248,16 @@ def load_schema_config(config_path: str) -> Dict[str, Dict[str, Any]]:
         logger.error(f"Error loading schema configuration: {e}")
         raise
 
-def create_dynamic_model_for_format(data_format: str, schema_config: Dict[str, Dict[str, Any]]) -> Tuple[Type[BaseModel], str, Optional[str]]:
+def create_dynamic_models_for_format(data_format: str, schema_config: Dict[str, Dict[str, Any]]) -> Tuple[Type[BaseModel], Optional[Type[BaseModel]], str, Optional[str]]:
     """
-    Creates a dynamic Pydantic model for the given data format based on the provided schema configuration.
+    Creates dynamic Pydantic models for the given data format and item format based on the provided schema configuration.
 
     Args:
-        data_format (str): The format of the data (e.g., "interview").
+        data_format (str): The format of the data (e.g., "movie_script").
         schema_config (Dict[str, Dict[str, Any]]): Schema configuration for different data formats.
 
     Returns:
-        Tuple[Type[BaseModel], str, Optional[str]]: The dynamic Pydantic model, the content field name, and the speaker field name.
+        Tuple[Type[BaseModel], Optional[Type[BaseModel]], str, Optional[str]]: The dynamic main data model, the item model, the content field name, and the speaker field name.
     """
     if data_format not in schema_config:
         raise ValueError(f"No schema configuration found for data format '{data_format}'")
@@ -269,21 +269,84 @@ def create_dynamic_model_for_format(data_format: str, schema_config: Dict[str, D
     fields = format_config["fields"]
     content_field = format_config["content_field"]
     speaker_field = format_config.get("speaker_field")
+    list_field = format_config.get("list_field")
 
     type_map = {
         "str": str,
         "int": int,
         "float": float,
-        "list": list,
-        "dict": dict,
         "bool": bool,
+        "Any": Any,
         # Additional mappings as needed
     }
 
-    dynamic_fields = {}
-    for field_name, field_type_str in fields.items():
-        py_type = type_map.get(field_type_str, Any)  # Default to Any if not found
-        dynamic_fields[field_name] = (py_type, ...)  # Required field by default
+    def create_model_fields(fields_dict, model_name_prefix=""):
+        dynamic_fields = {}
+        for field_name, field_value in fields_dict.items():
+            is_optional = False
+            if isinstance(field_value, dict):
+                is_optional = field_value.get("optional", False)
+                field_type = field_value.get("type", "dict")
+                if field_type == "dict":
+                    # Nested dict
+                    nested_fields = field_value.get("fields", {})
+                    nested_model_name = f"{model_name_prefix}{field_name.capitalize()}Model"
+                    nested_model_fields = create_model_fields(nested_fields, model_name_prefix=nested_model_name)
+                    nested_model = create_model(
+                        nested_model_name,
+                        __base__=BaseModel,
+                        **nested_model_fields
+                    )
+                    if is_optional:
+                        dynamic_fields[field_name] = (Optional[nested_model], None)
+                    else:
+                        dynamic_fields[field_name] = (nested_model, ...)
+                elif field_type == "list":
+                    # List of items
+                    item_type_value = field_value.get("items", "Any")
+                    if isinstance(item_type_value, str) and item_type_value in schema_config:
+                        # Reference to another format (e.g., 'script_entry')
+                        item_format_config = schema_config[item_type_value]
+                        item_fields = item_format_config["fields"]
+                        item_model_name = f"{model_name_prefix}{field_name.capitalize()}ItemModel"
+                        item_model_fields = create_model_fields(item_fields, model_name_prefix=item_model_name)
+                        item_model = create_model(
+                            item_model_name,
+                            __base__=BaseModel,
+                            **item_model_fields
+                        )
+                        list_type = List[item_model]
+                        if is_optional:
+                            dynamic_fields[field_name] = (Optional[list_type], None)
+                        else:
+                            dynamic_fields[field_name] = (list_type, ...)
+                    else:
+                        # List of simple types
+                        item_py_type = type_map.get(item_type_value, Any)
+                        list_type = List[item_py_type]
+                        if is_optional:
+                            dynamic_fields[field_name] = (Optional[list_type], None)
+                        else:
+                            dynamic_fields[field_name] = (list_type, ...)
+                else:
+                    # Simple type (e.g., 'str')
+                    py_type = type_map.get(field_type, Any)
+                    if is_optional:
+                        dynamic_fields[field_name] = (Optional[py_type], None)
+                    else:
+                        dynamic_fields[field_name] = (py_type, ...)
+            elif isinstance(field_value, str):
+                # Simple type
+                py_type = type_map.get(field_value, Any)
+                dynamic_fields[field_name] = (py_type, ...)
+            else:
+                # Unrecognized field value
+                py_type = Any
+                dynamic_fields[field_name] = (py_type, ...)
+        return dynamic_fields
+
+    # Create the main data model
+    dynamic_fields = create_model_fields(fields, model_name_prefix=f"{data_format.capitalize()}")
 
     # Use Pydantic v2's configuration for handling extra fields
     model_config = ConfigDict(extra='allow')
@@ -295,9 +358,46 @@ def create_dynamic_model_for_format(data_format: str, schema_config: Dict[str, D
             **dynamic_fields,
             model_config=model_config  # For Pydantic v2, to allow extra fields
         )
-        logger.debug(f"Dynamic Pydantic model '{data_format.capitalize()}DataModel' created with content_field '{content_field}' and speaker_field '{speaker_field}'.")
+        logger.debug(f"Dynamic Pydantic model '{data_format.capitalize()}DataModel' created.")
     except Exception as e:
         logger.error(f"Failed to create dynamic Pydantic model for '{data_format}': {type(e).__name__}: {e}")
         raise
 
-    return dynamic_model, content_field, speaker_field
+    # Create the item model if needed
+    item_model = None
+    if 'fields' in format_config and list_field:
+        list_field_parts = list_field.split('.')
+        current_fields = fields
+        for part in list_field_parts:
+            if part in current_fields:
+                current_field = current_fields[part]
+                if isinstance(current_field, dict):
+                    field_type = current_field.get("type")
+                    if field_type == "list":
+                        item_type_value = current_field.get("items")
+                        if isinstance(item_type_value, str) and item_type_value in schema_config:
+                            # Create item model
+                            item_format_config = schema_config[item_type_value]
+                            item_fields = item_format_config['fields']
+                            item_model_fields = create_model_fields(item_fields, model_name_prefix=item_type_value.capitalize())
+                            try:
+                                item_model = create_model(
+                                    f"{item_type_value.capitalize()}Model",
+                                    __base__=BaseModel,
+                                    **item_model_fields,
+                                    model_config=model_config
+                                )
+                                logger.debug(f"Dynamic Pydantic item model '{item_type_value.capitalize()}Model' created.")
+                            except Exception as e:
+                                logger.error(f"Failed to create dynamic Pydantic item model for '{item_type_value}': {type(e).__name__}: {e}")
+                                raise
+                        else:
+                            item_model = None
+                    elif field_type == "dict":
+                        current_fields = current_field.get("fields", {})
+                    else:
+                        item_model = None
+                else:
+                    item_model = None
+
+    return dynamic_model, item_model, content_field, speaker_field

@@ -41,14 +41,14 @@ class CodeAssigned:
 
 @dataclass
 class MeaningUnit:
-    unique_id: int
+    meaning_unit_id: int
     meaning_unit_string: str
     assigned_code_list: List[CodeAssigned] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "unique_id": self.unique_id,
+            "meaning_unit_id": self.meaning_unit_id,
             "meaning_unit_string": self.meaning_unit_string,
             "assigned_code_list": [code.__dict__ for code in self.assigned_code_list],
             "metadata": self.metadata
@@ -59,14 +59,14 @@ class MeaningUnit:
 # -------------------------------
 
 class ParseFormat(BaseModel):
-    source_id: int
+    source_id: str  # Changed from int to str
     quote: str
 
 class ParseResponse(BaseModel):
     parse_list: List[ParseFormat]
 
 class CodeAssignment(BaseModel):
-    unique_id: int
+    meaning_unit_id: int
     codeList: List[CodeAssigned]
 
 class CodeResponse(BaseModel):
@@ -80,7 +80,7 @@ def parse_transcript(
     speaking_turns: List[Dict[str, Any]],
     prompt: str,
     completion_model: str
-) -> List[Tuple[int, str]]:
+) -> List[Tuple[str, str]]:  # Updated to Tuple[str, str]
     """
     Breaks up multiple speaking turns into smaller meaning units based on criteria in the LLM prompt.
     Returns a list of tuples containing source_id and the meaning unit string.
@@ -91,7 +91,7 @@ def parse_transcript(
         completion_model (str): The language model to use.
 
     Returns:
-        List[Tuple[int, str]]: A list of tuples where each tuple contains the source_id and a meaning unit string.
+        List[Tuple[str, str]]: A list of tuples where each tuple contains the source_id and a meaning unit string.
     """
     try:
         response = completion_with_backoff(
@@ -384,13 +384,13 @@ def assign_codes_to_meaning_units(
                 speaker = unit.metadata.get(speaker_field, "Unknown Speaker") if speaker_field else "Unknown Speaker"
                 current_unit_excerpt = f"Quote: {unit.meaning_unit_string}\n\n"
                 full_prompt += (
-                    f"Current Excerpt For Coding (Meaning Unit ID {unit.unique_id}) Speaker: {speaker}:\n{current_unit_excerpt}"
+                    f"Current Excerpt For Coding (Meaning Unit ID {unit.meaning_unit_id}) Speaker: {speaker}:\n{current_unit_excerpt}"
                 )
 
             full_prompt += (
                 f"{'**Apply codes exclusively to the current excerpt provided above. Do not assign codes to the contextual excerpts.**' if codes_to_include is not None else '**Generate codes based on the current excerpt provided above using the guidelines.**'}\n\n"
                 f"Please provide the assigned codes for the meaning unit(s) above in the following JSON format:\n"
-                f"{{\n  \"assignments\": [\n    {{\n      \"unique_id\": <Meaning Unit ID>,\n      \"codeList\": [\n        {{\"code_name\": \"<Name of the code>\", \"code_justification\": \"<Justification for the code>\"}},\n        ...\n      ]\n    }},\n    ...\n  ]\n}}\n\n"
+                f"{{\n  \"assignments\": [\n    {{\n      \"meaning_unit_id\": <Meaning Unit ID>,\n      \"codeList\": [\n        {{\"code_name\": \"<Name of the code>\", \"code_justification\": \"<Justification for the code>\"}},\n        ...\n      ]\n    }},\n    ...\n  ]\n}}\n\n"
             )
 
             logger.debug(f"Full Prompt for Batch starting at index {i}:\n{full_prompt}")
@@ -428,9 +428,9 @@ def assign_codes_to_meaning_units(
 
                 for assignment in code_output.assignments:
                     # Find the corresponding meaning unit
-                    matching_units = [mu for mu in batch if mu.unique_id == assignment.unique_id]
+                    matching_units = [mu for mu in batch if mu.meaning_unit_id == assignment.meaning_unit_id]
                     if not matching_units:
-                        logger.warning(f"No matching meaning unit found for unique_id {assignment.unique_id}.")
+                        logger.warning(f"No matching meaning unit found for meaning_unit_id {assignment.meaning_unit_id}.")
                         continue
                     meaning_unit = matching_units[0]
 

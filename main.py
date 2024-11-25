@@ -1,4 +1,5 @@
 # main.py
+
 import os
 import json
 import logging
@@ -8,13 +9,13 @@ from typing import List, Dict, Optional, Any, Tuple, Type
 from data_handlers import FlexibleDataHandler
 from utils import (
     load_environment_variables,
+    load_config,
     load_parse_instructions,
     load_inductive_coding_prompt,
     load_deductive_coding_prompt,
     initialize_deductive_resources,
-    create_dynamic_model_for_format,
-    load_schema_config,
-    load_config
+    create_dynamic_models_for_format,
+    load_schema_config
 )
 from qual_functions import (
     MeaningUnit,
@@ -23,6 +24,12 @@ from qual_functions import (
 from validator import run_validation  # Import the validation function
 
 def main(config: Dict[str, Any]):
+    """
+    Main function to execute the qualitative coding pipeline.
+    
+    Args:
+        config (Dict[str, Any]): Configuration dictionary loaded from config.json.
+    """
     # Load configurations
     coding_mode = config.get('coding_mode', 'deductive')
     use_parsing = config.get('use_parsing', True)
@@ -44,14 +51,14 @@ def main(config: Dict[str, Any]):
 
     # Selected files
     selected_codebase = config.get('selected_codebase', 'new_schema.jsonl')
-    selected_json_file = config.get('selected_json_file', 'output_cues.json')
+    selected_json_file = config.get('selected_json_file', 'your_movie_script.json')  # Replace with your actual file name
     parse_prompt_file = config.get('parse_prompt_file', 'parse_prompt.txt')
     inductive_coding_prompt_file = config.get('inductive_coding_prompt_file', 'inductive_prompt.txt')
     deductive_coding_prompt_file = config.get('deductive_coding_prompt_file', 'deductive_prompt.txt')
 
     # Output configuration
     output_folder = config.get('output_folder', 'outputs')
-    output_format = config.get('output_format', 'json')
+    # Removed output_format as JSON is the only supported format
 
     # Logging configuration
     enable_logging = config.get('enable_logging', True)
@@ -108,13 +115,16 @@ def main(config: Dict[str, Any]):
         logger.error(f"No schema configuration found for data format: {data_format}")
         raise ValueError(f"No schema configuration found for data format: {data_format}")
 
-    # Create a dynamic Pydantic model for the specified data format
+    # Create dynamic Pydantic models for the specified data format
     try:
-        dynamic_data_model, content_field, speaker_field = create_dynamic_model_for_format(data_format, schema_config)
-        logger.debug(f"Dynamic data model for '{data_format}' created.")
+        dynamic_data_model, item_model_class, content_field, speaker_field = create_dynamic_models_for_format(data_format, schema_config)
+        logger.debug(f"Dynamic data models for '{data_format}' created.")
     except Exception as e:
-        logger.error(f"Failed to create dynamic data model: {e}")
+        logger.error(f"Failed to create dynamic data models: {e}")
         return
+
+    # Get list_field from schema_config
+    list_field = schema_config[data_format].get('list_field')
 
     # Determine the data file to load based on selected_json_file
     data_file = selected_json_file
@@ -130,8 +140,10 @@ def main(config: Dict[str, Any]):
             parse_instructions=parse_instructions,
             completion_model=parse_model,
             model_class=dynamic_data_model,
+            item_model_class=item_model_class,
             content_field=content_field,
             speaker_field=speaker_field,
+            list_field=list_field,  # Pass the list_field to the handler
             use_parsing=use_parsing,
             speaking_turns_per_prompt=speaking_turns_per_prompt  # Pass the existing parameter
         )
@@ -222,30 +234,20 @@ def main(config: Dict[str, Any]):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     input_file_pathlib = Path(selected_json_file)
     output_file_basename = input_file_pathlib.stem  # e.g., 'output_cues'
-    output_file_path = os.path.join(output_folder, f"{output_file_basename}_output_{timestamp}.{output_format}")
+    output_file_path = os.path.join(output_folder, f"{output_file_basename}_output_{timestamp}.json")  # Fixed to .json extension
+
+    # Get document-level metadata from data_handler
+    document_metadata = data_handler.document_metadata
 
     try:
-        if output_format == 'json':
-            with open(output_file_path, 'w', encoding='utf-8') as outfile:
-                json.dump([unit.to_dict() for unit in coded_meaning_unit_list], outfile, indent=2)
-            logger.info(f"Coded meaning units saved to '{output_file_path}'.")
-        elif output_format == 'csv':
-            import csv
-
-            with open(output_file_path, 'w', encoding='utf-8', newline='') as csvfile:
-                fieldnames = ['unique_id', 'meaning_unit_string', 'metadata', 'assigned_codes']
-                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                writer.writeheader()
-                for unit in coded_meaning_unit_list:
-                    writer.writerow({
-                        'unique_id': unit.unique_id,
-                        'meaning_unit_string': unit.meaning_unit_string,
-                        'metadata': json.dumps(unit.metadata),
-                        'assigned_codes': json.dumps([code.__dict__ for code in unit.assigned_code_list])
-                    })
-            logger.info(f"Coded meaning units saved to '{output_file_path}'.")
-        else:
-            logger.error(f"Unsupported output format: {output_format}")
+        # Prepare the output data with document-level metadata at the top
+        output_data = {
+            "document_metadata": document_metadata,
+            "meaning_units": [unit.to_dict() for unit in coded_meaning_unit_list]
+        }
+        with open(output_file_path, 'w', encoding='utf-8') as outfile:
+            json.dump(output_data, outfile, indent=2)
+        logger.info(f"Coded meaning units saved to '{output_file_path}'.")
     except Exception as e:
         logger.error(f"Failed to save output: {e}")
         return
@@ -274,12 +276,15 @@ def main(config: Dict[str, Any]):
         validation_report_filename = f"{output_file_basename}_validation_report.json"  # e.g., 'output_cues_output_20240427_150000_validation_report.json'
         validation_report_path = os.path.join(output_folder, validation_report_filename)
         
-        # Run validation with the new report file path
+        # Run validation with the new report file path, pass content_field as text_field
         validation_report = run_validation(
             input_file=os.path.join(json_folder, selected_json_file),
             output_file=output_file_path,
             report_file=validation_report_path,  # Updated report file path
-            similarity_threshold=1.0  # Exact match
+            similarity_threshold=1.0,  # Exact match
+            input_list_field=list_field,    # Pass the list_field for input
+            output_list_field='meaning_units',  # Specify the path to the list in output JSON
+            text_field=content_field  # Pass the content_field as text_field
         )
         logger.info(f"Validation process completed. Report saved to '{validation_report_path}'.")
     except Exception as e:
@@ -287,6 +292,9 @@ def main(config: Dict[str, Any]):
         return
 
 if __name__ == "__main__":
+    """
+    Entry point for the application.
+    """
     # Load configurations from config.json
     config_file_path = 'configs/config.json'  # Adjust the path if needed
     try:
