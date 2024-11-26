@@ -4,7 +4,7 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 import pandas as pd
-from qual_functions import parse_transcript, MeaningUnit
+from qual_functions import parse_transcript, MeaningUnit, SpeakingTurn
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +33,7 @@ class FlexibleDataHandler:
         self.use_parsing = use_parsing
         self.speaking_turns_per_prompt = speaking_turns_per_prompt
         self.document_metadata = {}  # Store document-level metadata
+        self.full_data = None  # To store pre-filtered data
 
     def load_data(self) -> pd.DataFrame:
         """
@@ -60,6 +61,15 @@ class FlexibleDataHandler:
 
         # Create DataFrame from the content list
         data = pd.DataFrame(content_list)
+
+        # Assign source_id if not present
+        if self.source_id_field and self.source_id_field in data.columns:
+            data['source_id'] = data[self.source_id_field].astype(str)  # Ensure source_id is string
+        else:
+            data['source_id'] = [f"auto_{i}" for i in range(len(data))]
+
+        # Store pre-filtered data
+        self.full_data = data.copy()
 
         # Apply filter rules if any
         if self.filter_rules:
@@ -95,53 +105,49 @@ class FlexibleDataHandler:
             List[MeaningUnit]: List of MeaningUnit objects.
         """
         meaning_units = []
-        source_id_counter = 1  # Counter for generating unique source_ids
         meaning_unit_id_counter = 1  # Counter for assigning unique meaning_unit_ids
 
         if self.use_parsing:
             # Group speaking turns into batches
             for i in range(0, len(data), self.speaking_turns_per_prompt):
                 batch = data.iloc[i:i + self.speaking_turns_per_prompt]
-                speaking_turns = []
-                source_id_map = {}  # Map source_id to metadata
+                speaking_turns_dicts = []
+                source_id_map = {}  # Map source_id to SpeakingTurn objects
                 for _, record in batch.iterrows():
                     content = record.get(self.content_field, "")
                     metadata = record.drop(labels=[self.content_field], errors='ignore').to_dict()
-                    source_id = record.get(self.source_id_field, 0)
-                    if source_id is None:
-                        # Generate a unique source_id if not present
-                        source_id = f"auto_{source_id_counter}"
-                        metadata['source_id'] = source_id  # Assign back to the metadata
-                        logger.warning(f"Assigned auto-generated 'source_id' '{source_id}' to speaking turn.")
-                        source_id_counter += 1  # Increment for the next source_id
-                    else:
-                        # Use the existing source_id without modification
-                        metadata['source_id'] = source_id
-                    # Include speaking_turn_content in metadata
-                    metadata['speaking_turn_content'] = content
-                    speaking_turn = {
+                    source_id = str(record['source_id'])
+                    # Create SpeakingTurn object
+                    speaking_turn = SpeakingTurn(
+                        source_id=source_id,
+                        content=content,
+                        metadata=metadata
+                    )
+                    # Prepare data for parsing (dict format)
+                    speaking_turn_dict = {
                         "source_id": source_id,
                         "content": content,
                         "metadata": metadata
                     }
-                    speaking_turns.append(speaking_turn)
-                    source_id_map[source_id] = metadata
+                    speaking_turns_dicts.append(speaking_turn_dict)
+                    source_id_map[source_id] = speaking_turn
 
                 # Parse the batch of speaking turns
                 parsed_units = parse_transcript(
-                    speaking_turns=speaking_turns,
+                    speaking_turns=speaking_turns_dicts,
                     prompt=self.parse_instructions,
                     completion_model=self.completion_model
                 )
                 for source_id, pu in parsed_units:
-                    metadata = source_id_map.get(source_id, {})
-                    # Ensure 'source_id' is included in metadata
-                    metadata['source_id'] = source_id
-                    # Create MeaningUnit with meaning_unit_id independent of source_id
+                    speaking_turn = source_id_map.get(source_id)
+                    if not speaking_turn:
+                        logger.warning(f"SpeakingTurn not found for source_id {source_id}")
+                        continue
+                    # Create MeaningUnit with meaning_unit_id and link to speaking_turn
                     meaning_unit = MeaningUnit(
                         meaning_unit_id=meaning_unit_id_counter,
                         meaning_unit_string=pu,
-                        metadata=metadata
+                        speaking_turn=speaking_turn
                     )
                     meaning_units.append(meaning_unit)
                     meaning_unit_id_counter += 1  # Increment the counter for the next meaning unit
@@ -149,23 +155,18 @@ class FlexibleDataHandler:
             for _, record in data.iterrows():
                 content = record.get(self.content_field, "")
                 metadata = record.drop(labels=[self.content_field], errors='ignore').to_dict()
-                source_id = record.get(self.source_id_field, 0)
-                if source_id is None:
-                    # Generate a unique source_id if not present
-                    source_id = f"auto_{source_id_counter}"
-                    metadata['source_id'] = source_id  # Assign back to the metadata
-                    logger.warning(f"Assigned auto-generated 'source_id' '{source_id}' to speaking turn.")
-                    source_id_counter += 1  # Increment for the next source_id
-                else:
-                    # Use the existing source_id without modification
-                    metadata['source_id'] = source_id
-                # Include speaking_turn_content in metadata
-                metadata['speaking_turn_content'] = content
-                # Create MeaningUnit with meaning_unit_id independent of source_id
+                source_id = str(record['source_id'])
+                # Create SpeakingTurn object
+                speaking_turn = SpeakingTurn(
+                    source_id=source_id,
+                    content=content,
+                    metadata=metadata
+                )
+                # Create MeaningUnit with meaning_unit_id and link to speaking_turn
                 meaning_unit = MeaningUnit(
                     meaning_unit_id=meaning_unit_id_counter,
                     meaning_unit_string=content,
-                    metadata=metadata
+                    speaking_turn=speaking_turn
                 )
                 meaning_units.append(meaning_unit)
                 meaning_unit_id_counter += 1  # Increment the counter for the next meaning unit

@@ -10,6 +10,12 @@ import math  # Import math module for NaN checks
 
 # Configure logging
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)  # Set to DEBUG for detailed logs; adjust as needed
+
+handler = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 def replace_nan_with_null(obj):
     """
@@ -68,7 +74,7 @@ def load_input_file(
 
     for item in data:
         if source_id_field and source_id_field in item:
-            source_id = item[source_id_field]
+            source_id = str(item[source_id_field])
         else:
             # Auto-generate a unique ID since 'source_id_field' is missing
             source_id = f"auto_{auto_id_counter}"
@@ -116,10 +122,10 @@ def load_output_file(
 
     meaning_units = {}
     for unit in data:
-        metadata = unit.get('metadata', {})
-        source_id = metadata.get('source_id')
+        speaking_turn = unit.get('speaking_turn', {})
+        source_id = speaking_turn.get('source_id')
         if source_id is None:
-            logger.warning(f"Skipping meaning unit without 'source_id' in metadata: {unit}")
+            logger.warning(f"Skipping meaning unit without 'source_id' in speaking_turn: {unit}")
             continue
         if source_id not in meaning_units:
             meaning_units[source_id] = []
@@ -294,6 +300,7 @@ def run_validation(
         input_list_field (Optional[str], optional): Dot-separated path to the list of items within the input JSON. Defaults to None.
         output_list_field (Optional[str], optional): Dot-separated path to the list of items within the output JSON. Defaults to None.
         text_field (str, optional): The field name that contains the speaking turn text.
+        source_id_field (Optional[str], optional): The field name that contains the source_id.
 
     Returns:
         Dict[str, Any]: The validation report.

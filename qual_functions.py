@@ -40,18 +40,34 @@ class CodeAssigned:
     code_justification: str
 
 @dataclass
+class SpeakingTurn:
+    source_id: str
+    content: str
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        metadata = self.metadata.copy()
+        # Ensure source_id is not duplicated in metadata
+        metadata.pop('source_id', None)
+        return {
+            "source_id": self.source_id,
+            "content": self.content,
+            "metadata": metadata
+        }
+
+@dataclass
 class MeaningUnit:
     meaning_unit_id: int
     meaning_unit_string: str
     assigned_code_list: List[CodeAssigned] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    speaking_turn: SpeakingTurn = None  # Link to associated SpeakingTurn
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "meaning_unit_id": self.meaning_unit_id,
             "meaning_unit_string": self.meaning_unit_string,
             "assigned_code_list": [code.__dict__ for code in self.assigned_code_list],
-            "metadata": self.metadata
+            "speaking_turn": self.speaking_turn.to_dict() if self.speaking_turn else None
         }
 
 # -------------------------------
@@ -59,18 +75,18 @@ class MeaningUnit:
 # -------------------------------
 
 class ParseFormat(BaseModel):
-    source_id: int  # Changed from int to str
+    source_id: str  # Ensure source_id is string
     quote: str
 
 class ParseResponse(BaseModel):
     parse_list: List[ParseFormat]
 
-class CodeAssignment(BaseModel):
+class CodeAssignmentResponse(BaseModel):
     meaning_unit_id: int
     codeList: List[CodeAssigned]
 
 class CodeResponse(BaseModel):
-    assignments: List[CodeAssignment]
+    assignments: List[CodeAssignmentResponse]
 
 # -------------------------------
 # Core Functions
@@ -80,7 +96,7 @@ def parse_transcript(
     speaking_turns: List[Dict[str, Any]],
     prompt: str,
     completion_model: str
-) -> List[Tuple[str, str]]:  # Updated to Tuple[str, str]
+) -> List[Tuple[str, str]]:
     """
     Breaks up multiple speaking turns into smaller meaning units based on criteria in the LLM prompt.
     Returns a list of tuples containing source_id and the meaning unit string.
@@ -231,7 +247,7 @@ def initialize_faiss_index_from_formatted_file(
         raise e
 
 def retrieve_relevant_codes_batch(
-    meaning_units: List[MeaningUnit],
+    meaning_units: List['MeaningUnit'],
     index: faiss.IndexFlatL2,
     processed_codes: List[Dict[str, Any]],
     top_k: int = 5,
@@ -255,7 +271,7 @@ def retrieve_relevant_codes_batch(
         # Combine meaning unit strings and metadata
         combined_texts = []
         for mu in meaning_units:
-            meaning_unit_string_with_metadata = f"Metadata:\n{json.dumps(mu.metadata)}\nUnit: {mu.meaning_unit_string}"
+            meaning_unit_string_with_metadata = f"Metadata:\n{json.dumps(mu.speaking_turn.metadata)}\nUnit: {mu.meaning_unit_string}"
             combined_texts.append(meaning_unit_string_with_metadata)
 
         # Get embeddings for all meaning units in the batch
@@ -287,7 +303,7 @@ def retrieve_relevant_codes_batch(
         return []
 
 def assign_codes_to_meaning_units(
-    meaning_unit_list: List[MeaningUnit],
+    meaning_unit_list: List['MeaningUnit'],
     coding_instructions: str,
     processed_codes: Optional[List[Dict[str, Any]]] = None,
     index: Optional[faiss.IndexFlatL2] = None,
@@ -298,10 +314,12 @@ def assign_codes_to_meaning_units(
     completion_model: Optional[str] = "gpt-4o-mini",
     embedding_model: Optional[str] = "text-embedding-3-small",
     meaning_units_per_assignment_prompt: int = 1,
-    speaker_field: Optional[str] = None  # New parameter
-) -> List[MeaningUnit]:
+    speaker_field: Optional[str] = None,
+    content_field: str = 'content',
+    full_speaking_turns: Optional[List[Dict[str, Any]]] = None
+) -> List['MeaningUnit']:
     """
-    Assigns codes to each MeaningUnit object, including contextual information from surrounding units.
+    Assigns codes to each MeaningUnit object, including contextual information from subsequent speaking turns.
     Processes multiple meaning units per prompt based on configuration.
 
     Args:
@@ -310,18 +328,27 @@ def assign_codes_to_meaning_units(
         processed_codes (Optional[List[Dict[str, Any]]], optional): List of processed codes for deductive coding.
         index (Optional[faiss.IndexFlatL2], optional): FAISS index for RAG.
         top_k (Optional[int], optional): Number of top similar codes to retrieve.
-        context_size (int, optional): Number of surrounding meaning units to include as context.
+        context_size (int, optional): Number of subsequent speaking turns to include as context.
         use_rag (bool, optional): Whether to use RAG for code retrieval.
         codebase (Optional[List[Dict[str, Any]]], optional): Entire codebase for deductive coding without RAG.
         completion_model (Optional[str], optional): Language model to use for code assignment.
         embedding_model (Optional[str]): Embedding model to use for code retrieval.
         meaning_units_per_assignment_prompt (int, optional): Number of meaning units to process per assignment prompt.
         speaker_field (Optional[str], optional): The field name for speaker information.
+        content_field (str, optional): The field name for content in full speaking turns.
+        full_speaking_turns (Optional[List[Dict[str, Any]]], optional): List of pre-filtered speaking turns.
 
     Returns:
         List[MeaningUnit]: Updated list with assigned codes.
     """
     try:
+        if full_speaking_turns is None:
+            logger.error("full_speaking_turns must be provided for context.")
+            raise ValueError("full_speaking_turns must be provided for context.")
+
+        # Create a mapping from source_id to index in full_speaking_turns
+        source_id_to_index = {str(d.get('source_id')): idx for idx, d in enumerate(full_speaking_turns)}  # Ensure keys are strings
+
         total_units = len(meaning_unit_list)
         for i in range(0, total_units, meaning_units_per_assignment_prompt):
             batch = meaning_unit_list[i:i + meaning_units_per_assignment_prompt]
@@ -348,22 +375,28 @@ def assign_codes_to_meaning_units(
                 codes_to_include = None
 
             # Prepare context for the batch
-            batch_start_idx = meaning_unit_list.index(batch[0])
-            batch_end_idx = meaning_unit_list.index(batch[-1])
-
-            start_context_idx = max(0, batch_start_idx - context_size)
-            context_units = meaning_unit_list[start_context_idx:batch_end_idx + 1]
-
-            # Prepare context excerpts without repeating speaking turns
             batch_context = ""
             added_speaking_turns = set()
-            for unit in context_units:
-                speaker = unit.metadata.get(speaker_field, "Unknown Speaker") if speaker_field else "Unknown Speaker"
-                speaking_turn_content = unit.metadata.get('speaking_turn_content', unit.meaning_unit_string)
-                speaking_turn_id = unit.metadata.get('source_id', unit.meaning_unit_id)
-                if speaking_turn_id not in added_speaking_turns:
-                    batch_context += f"Speaker: {speaker}\n{speaking_turn_content}\n"
-                    added_speaking_turns.add(speaking_turn_id)
+
+            # Get the source_id of the first meaning unit in the batch
+            first_unit = batch[0]
+            first_source_id = first_unit.speaking_turn.source_id
+
+            # Find the index in full_speaking_turns
+            idx = source_id_to_index.get(first_source_id)
+            if idx is not None:
+                # Get context_size speaking turns starting from idx
+                end_context_idx = min(len(full_speaking_turns), idx + context_size)
+                context_speaking_turns = full_speaking_turns[idx:end_context_idx]
+                for st in context_speaking_turns:
+                    st_source_id = str(st.get('source_id'))
+                    if st_source_id not in added_speaking_turns:
+                        speaker = st.get(speaker_field, "Unknown Speaker") if speaker_field else "Unknown Speaker"
+                        content = st.get(content_field, "")
+                        batch_context += f"Source ID: {st_source_id}\nSpeaker: {speaker}\n{content}\n\n"
+                        added_speaking_turns.add(st_source_id)
+            else:
+                logger.warning(f"Source ID {first_source_id} not found in full speaking turns.")
 
             # Construct the prompt for the batch
             full_prompt = f"{coding_instructions}\n\n"
@@ -381,12 +414,12 @@ def assign_codes_to_meaning_units(
 
             # Include context once per batch
             full_prompt += (
-                f"Contextual Excerpts (Speaking Turns):\n{batch_context}\n\n"
+                f"Contextual Excerpts (Starting from Source ID {first_source_id}):\n{batch_context}\n\n"
                 f"**Important:** Please use the provided contextual excerpts **only** as background information to understand the current excerpt better. "
             )
 
             for unit in batch:
-                speaker = unit.metadata.get(speaker_field, "Unknown Speaker") if speaker_field else "Unknown Speaker"
+                speaker = unit.speaking_turn.metadata.get(speaker_field, "Unknown Speaker") if speaker_field else "Unknown Speaker"
                 current_unit_excerpt = f"Quote: {unit.meaning_unit_string}\n\n"
                 full_prompt += (
                     f"Current Excerpt For Coding (Meaning Unit ID {unit.meaning_unit_id}) Speaker: {speaker}:\n{current_unit_excerpt}"

@@ -1,13 +1,21 @@
 # utils.py
+
 import os
 import json
 import logging
 from typing import Dict, Any, Tuple, List, Optional
+
 from qual_functions import (
     initialize_faiss_index_from_formatted_file
 )
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)  # Set to DEBUG for detailed logs; adjust as needed
+
+handler = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 def load_environment_variables() -> None:
     """

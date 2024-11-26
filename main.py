@@ -190,7 +190,9 @@ def main(config: Dict[str, Any]):
                 completion_model=assign_model,
                 embedding_model=retrieve_embedding_model if use_rag else None,
                 meaning_units_per_assignment_prompt=meaning_units_per_assignment_prompt,  # Pass the new parameter
-                speaker_field=speaker_field  # Pass the speaker_field
+                speaker_field=speaker_field,  # Pass the speaker_field
+                content_field=content_field,  # Pass the content_field
+                full_speaking_turns=data_handler.full_data.to_dict(orient='records')  # Pass the pre-filtered speaking turns
             )
             logger.debug(f"Assigned codes using deductive mode with {'RAG' if use_rag else 'full codebase'}.")
         except Exception as e:
@@ -216,7 +218,9 @@ def main(config: Dict[str, Any]):
                 completion_model=assign_model,
                 embedding_model=None,
                 meaning_units_per_assignment_prompt=meaning_units_per_assignment_prompt,  # Pass the new parameter
-                speaker_field=speaker_field  # Pass the speaker_field
+                speaker_field=speaker_field,  # Pass the speaker_field
+                content_field=content_field,  # Pass the content_field
+                full_speaking_turns=data_handler.full_data.to_dict(orient='records')  # Pass the pre-filtered speaking turns
             )
             logger.debug("Assigned codes using inductive mode.")
         except Exception as e:
