@@ -12,12 +12,10 @@ from utils import (
     load_config,
     load_parse_instructions,
     load_inductive_coding_prompt,
-    load_deductive_coding_prompt,
     initialize_deductive_resources,
     load_data_format_config
 )
 from qual_functions import (
-    MeaningUnit,
     assign_codes_to_meaning_units
 )
 from validator import run_validation, replace_nan_with_null
@@ -117,6 +115,7 @@ def main(config: Dict[str, Any]):
     content_field = format_config.get('content_field')
     speaker_field = format_config.get('speaker_field')
     list_field = format_config.get('list_field')
+    source_id_field = format_config.get('source_id_field')
     filter_rules = format_config.get('filter_rules', [])  # Get filter_rules from format_config
 
     if not content_field:
@@ -139,8 +138,9 @@ def main(config: Dict[str, Any]):
             content_field=content_field,
             speaker_field=speaker_field,
             list_field=list_field,
-            filter_rules=filter_rules,  # Pass the filter_rules to the handler
+            filter_rules=filter_rules,  
             use_parsing=use_parsing,
+            source_id_field=source_id_field,
             speaking_turns_per_prompt=speaking_turns_per_prompt
         )
         data_df = data_handler.load_data()
@@ -284,7 +284,8 @@ def main(config: Dict[str, Any]):
             similarity_threshold=1.0,  # Exact match
             input_list_field=list_field,    # Pass the list_field for input
             output_list_field='meaning_units',  # Specify the path to the list in output JSON
-            text_field=content_field  # Pass the content_field as text_field
+            text_field=content_field,  # Pass the content_field as text_field
+            source_id_field=source_id_field
         )
         logger.info(f"Validation process completed. Report saved to '{validation_report_path}'.")
     except Exception as e:

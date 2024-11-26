@@ -59,7 +59,7 @@ class MeaningUnit:
 # -------------------------------
 
 class ParseFormat(BaseModel):
-    source_id: str  # Changed from int to str
+    source_id: int  # Changed from int to str
     quote: str
 
 class ParseResponse(BaseModel):

@@ -17,6 +17,7 @@ class FlexibleDataHandler:
         content_field: str,
         speaker_field: Optional[str],
         list_field: Optional[str] = None,
+        source_id_field: Optional[int] = None,
         filter_rules: Optional[List[Dict[str, Any]]] = None,  # Added parameter
         use_parsing: bool = True,
         speaking_turns_per_prompt: int = 1
@@ -27,6 +28,7 @@ class FlexibleDataHandler:
         self.content_field = content_field
         self.speaker_field = speaker_field
         self.list_field = list_field
+        self.source_id_field = source_id_field
         self.filter_rules = filter_rules  # Store filter rules
         self.use_parsing = use_parsing
         self.speaking_turns_per_prompt = speaking_turns_per_prompt
@@ -58,11 +60,6 @@ class FlexibleDataHandler:
 
         # Create DataFrame from the content list
         data = pd.DataFrame(content_list)
-
-        # Ensure that the 'id' column is treated as 'source_id' if present
-        if 'id' in data.columns and 'source_id' not in data.columns:
-            data.rename(columns={'id': 'source_id'}, inplace=True)
-            logger.debug("Renamed 'id' column to 'source_id'.")
 
         # Apply filter rules if any
         if self.filter_rules:
@@ -110,7 +107,7 @@ class FlexibleDataHandler:
                 for _, record in batch.iterrows():
                     content = record.get(self.content_field, "")
                     metadata = record.drop(labels=[self.content_field], errors='ignore').to_dict()
-                    source_id = record.get('source_id')
+                    source_id = record.get(self.source_id_field, 0)
                     if source_id is None:
                         # Generate a unique source_id if not present
                         source_id = f"auto_{source_id_counter}"
@@ -150,7 +147,7 @@ class FlexibleDataHandler:
             for _, record in data.iterrows():
                 content = record.get(self.content_field, "")
                 metadata = record.drop(labels=[self.content_field], errors='ignore').to_dict()
-                source_id = record.get('source_id')
+                source_id = record.get(self.source_id_field, 0)
                 if source_id is None:
                     # Generate a unique source_id if not present
                     source_id = f"auto_{source_id_counter}"

@@ -30,7 +30,8 @@ def replace_nan_with_null(obj):
 def load_input_file(
     input_file_path: str,
     list_field: Optional[str] = None,  # Added list_field parameter
-    text_field: str = 'text'  # Added text_field parameter
+    text_field: str = 'text',  # Added text_field parameter
+    source_id_field: int = 0
 ) -> Dict[int, Dict[str, Any]]:
     """
     Loads the input file and returns a dictionary mapping id to speaking turn data.
@@ -65,7 +66,7 @@ def load_input_file(
     auto_id_counter = 1  # Initialize a counter for auto-generating IDs
 
     for item in data:
-        source_id = item.get('source_id')
+        source_id = item.get(source_id_field)
         if source_id is None:
             # Auto-generate a unique ID since 'id' is missing
             source_id = f"auto_{auto_id_counter}"
@@ -176,7 +177,8 @@ def generate_report(
     meaning_units: Dict[str, List[Dict[str, Any]]],
     similarity_threshold: float = 1.0,  # Exact match
     report_file: str = 'validation_report.json',
-    text_field: str = 'text'  # Added text_field parameter
+    text_field: str = 'text',  # Added text_field parameter,
+    source_id_field: int = 0
 ) -> Dict[str, Any]:
     """
     Generates a report of inconsistencies and missing meaning units.
@@ -276,7 +278,8 @@ def run_validation(
     similarity_threshold: float = 1.0,
     input_list_field: Optional[str] = None,   # New parameter for input file
     output_list_field: Optional[str] = None,  # New parameter for output file
-    text_field: str = 'text'  # Added text_field parameter
+    text_field: str = 'text',  # Added text_field parameter
+    source_id_field: int = 0
 ) -> Dict[str, Any]:
     """
     Runs the validation process.
@@ -294,7 +297,7 @@ def run_validation(
         Dict[str, Any]: The validation report.
     """
     # Load files with separate list_fields and text_field
-    speaking_turns = load_input_file(input_file, list_field=input_list_field, text_field=text_field)
+    speaking_turns = load_input_file(input_file, list_field=input_list_field, text_field=text_field, source_id_field=source_id_field)
     meaning_units = load_output_file(output_file, list_field=output_list_field)
 
     # Generate report
@@ -303,7 +306,8 @@ def run_validation(
         meaning_units,
         similarity_threshold=similarity_threshold,
         report_file=report_file,
-        text_field=text_field
+        text_field=text_field,
+        source_id_field=source_id_field
     )
 
     return report
