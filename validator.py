@@ -29,20 +29,21 @@ def replace_nan_with_null(obj):
 
 def load_input_file(
     input_file_path: str,
-    list_field: Optional[str] = None,  # Added list_field parameter
-    text_field: str = 'text',  # Added text_field parameter
-    source_id_field: int = 0
-) -> Dict[int, Dict[str, Any]]:
+    list_field: Optional[str] = None,
+    text_field: str = 'text',
+    source_id_field: Optional[str] = None
+) -> Dict[str, Dict[str, Any]]:
     """
-    Loads the input file and returns a dictionary mapping id to speaking turn data.
+    Loads the input file and returns a dictionary mapping source_id to speaking turn data.
 
     Args:
         input_file_path (str): Path to the input JSON file.
         list_field (Optional[str]): Dot-separated path to the list of items within the JSON.
         text_field (str): The field name that contains the speaking turn text.
+        source_id_field (Optional[str]): The field name that contains the source_id.
 
     Returns:
-        Dict[int, Dict[str, Any]]: Mapping from id to speaking turn data.
+        Dict[str, Dict[str, Any]]: Mapping from source_id to speaking turn data.
     """
     try:
         with open(input_file_path, 'r', encoding='utf-8') as infile:
@@ -66,30 +67,31 @@ def load_input_file(
     auto_id_counter = 1  # Initialize a counter for auto-generating IDs
 
     for item in data:
-        source_id = item.get(source_id_field)
-        if source_id is None:
-            # Auto-generate a unique ID since 'id' is missing
+        if source_id_field and source_id_field in item:
+            source_id = item[source_id_field]
+        else:
+            # Auto-generate a unique ID since 'source_id_field' is missing
             source_id = f"auto_{auto_id_counter}"
             auto_id_counter += 1
-            item['source_id'] = source_id  # Assign the generated ID back to the item
-            logger.warning(f"Assigned auto-generated 'id' '{source_id}' to speaking turn: {item}")
+            item[source_id_field or 'source_id'] = source_id  # Assign the generated ID back to the item
+            logger.warning(f"Assigned auto-generated 'source_id' '{source_id}' to speaking turn: {item}")
         speaking_turns[source_id] = item
     logger.info(f"Loaded {len(speaking_turns)} speaking turns from input file.")
     return speaking_turns
 
 def load_output_file(
     output_file_path: str,
-    list_field: Optional[str] = None  # Added list_field parameter
-) -> Dict[int, List[Dict[str, Any]]]:
+    list_field: Optional[str] = None
+) -> Dict[str, List[Dict[str, Any]]]:
     """
-    Loads the output file and returns a dictionary mapping id to a list of meaning units.
+    Loads the output file and returns a dictionary mapping source_id to a list of meaning units.
 
     Args:
         output_file_path (str): Path to the output JSON file.
         list_field (Optional[str]): Dot-separated path to the list of items within the JSON.
 
     Returns:
-        Dict[int, List[Dict[str, Any]]]: Mapping from id to list of meaning units.
+        Dict[str, List[Dict[str, Any]]]: Mapping from source_id to list of meaning units.
     """
     try:
         with open(output_file_path, 'r', encoding='utf-8') as outfile:
@@ -122,7 +124,7 @@ def load_output_file(
         if source_id not in meaning_units:
             meaning_units[source_id] = []
         meaning_units[source_id].append(unit)
-    logger.info(f"Loaded meaning units derived from {len(meaning_units)} unique ids.")
+    logger.info(f"Loaded meaning units derived from {len(meaning_units)} unique source_ids.")
     return meaning_units
 
 def normalize_text(text: str) -> str:
@@ -175,17 +177,17 @@ def compare_texts(original: str, concatenated: str) -> Tuple[bool, str]:
 def generate_report(
     speaking_turns: Dict[str, Dict[str, Any]],
     meaning_units: Dict[str, List[Dict[str, Any]]],
-    similarity_threshold: float = 1.0,  # Exact match
+    similarity_threshold: float = 1.0,
     report_file: str = 'validation_report.json',
-    text_field: str = 'text',  # Added text_field parameter,
-    source_id_field: int = 0
+    text_field: str = 'text',
+    source_id_field: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Generates a report of inconsistencies and missing meaning units.
 
     Args:
-        speaking_turns (Dict[str, Dict[str, Any]]): Mapping from id to speaking turn data.
-        meaning_units (Dict[str, List[Dict[str, Any]]]): Mapping from id to list of meaning units.
+        speaking_turns (Dict[str, Dict[str, Any]]): Mapping from source_id to speaking turn data.
+        meaning_units (Dict[str, List[Dict[str, Any]]]): Mapping from source_id to list of meaning units.
         similarity_threshold (float, optional): Threshold for similarity. Defaults to 1.0 for exact match.
         report_file (str, optional): Path to save the validation report JSON file. Defaults to 'validation_report.json'.
         text_field (str, optional): The field name that contains the speaking turn text.
@@ -202,7 +204,7 @@ def generate_report(
     inconsistent_speaking_turns = []
 
     for source_id, turn in speaking_turns.items():
-        original_text = turn.get(text_field, '').strip()  # Changed from 'text' to text_field
+        original_text = turn.get(text_field, '').strip()
         units = meaning_units.get(source_id, [])
 
         if not units:
@@ -276,10 +278,10 @@ def run_validation(
     output_file: str,
     report_file: str = 'validation_report.json',
     similarity_threshold: float = 1.0,
-    input_list_field: Optional[str] = None,   # New parameter for input file
-    output_list_field: Optional[str] = None,  # New parameter for output file
-    text_field: str = 'text',  # Added text_field parameter
-    source_id_field: int = 0
+    input_list_field: Optional[str] = None,
+    output_list_field: Optional[str] = None,
+    text_field: str = 'text',
+    source_id_field: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Runs the validation process.

@@ -17,8 +17,8 @@ class FlexibleDataHandler:
         content_field: str,
         speaker_field: Optional[str],
         list_field: Optional[str] = None,
-        source_id_field: Optional[int] = None,
-        filter_rules: Optional[List[Dict[str, Any]]] = None,  # Added parameter
+        source_id_field: Optional[str] = None,
+        filter_rules: Optional[List[Dict[str, Any]]] = None,
         use_parsing: bool = True,
         speaking_turns_per_prompt: int = 1
     ):
@@ -29,7 +29,7 @@ class FlexibleDataHandler:
         self.speaker_field = speaker_field
         self.list_field = list_field
         self.source_id_field = source_id_field
-        self.filter_rules = filter_rules  # Store filter rules
+        self.filter_rules = filter_rules
         self.use_parsing = use_parsing
         self.speaking_turns_per_prompt = speaking_turns_per_prompt
         self.document_metadata = {}  # Store document-level metadata
@@ -117,6 +117,8 @@ class FlexibleDataHandler:
                     else:
                         # Use the existing source_id without modification
                         metadata['source_id'] = source_id
+                    # Include speaking_turn_content in metadata
+                    metadata['speaking_turn_content'] = content
                     speaking_turn = {
                         "source_id": source_id,
                         "content": content,
@@ -157,6 +159,8 @@ class FlexibleDataHandler:
                 else:
                     # Use the existing source_id without modification
                     metadata['source_id'] = source_id
+                # Include speaking_turn_content in metadata
+                metadata['speaking_turn_content'] = content
                 # Create MeaningUnit with meaning_unit_id independent of source_id
                 meaning_unit = MeaningUnit(
                     meaning_unit_id=meaning_unit_id_counter,

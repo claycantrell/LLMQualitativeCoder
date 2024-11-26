@@ -354,11 +354,16 @@ def assign_codes_to_meaning_units(
             start_context_idx = max(0, batch_start_idx - context_size)
             context_units = meaning_unit_list[start_context_idx:batch_end_idx + 1]
 
-            # Prepare context excerpts without repeating information
+            # Prepare context excerpts without repeating speaking turns
             batch_context = ""
+            added_speaking_turns = set()
             for unit in context_units:
                 speaker = unit.metadata.get(speaker_field, "Unknown Speaker") if speaker_field else "Unknown Speaker"
-                batch_context += f"Speaker: {speaker}\n{unit.meaning_unit_string}\n"
+                speaking_turn_content = unit.metadata.get('speaking_turn_content', unit.meaning_unit_string)
+                speaking_turn_id = unit.metadata.get('source_id', unit.meaning_unit_id)
+                if speaking_turn_id not in added_speaking_turns:
+                    batch_context += f"Speaker: {speaker}\n{speaking_turn_content}\n"
+                    added_speaking_turns.add(speaking_turn_id)
 
             # Construct the prompt for the batch
             full_prompt = f"{coding_instructions}\n\n"
@@ -376,7 +381,7 @@ def assign_codes_to_meaning_units(
 
             # Include context once per batch
             full_prompt += (
-                f"Contextual Excerpts:\n{batch_context}\n\n"
+                f"Contextual Excerpts (Speaking Turns):\n{batch_context}\n\n"
                 f"**Important:** Please use the provided contextual excerpts **only** as background information to understand the current excerpt better. "
             )
 
