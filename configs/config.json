@@ -1,14 +1,14 @@
 {
   "coding_mode": "inductive",
   "use_parsing": true,
-  "use_rag": false,
+  "use_rag": true,
   "speaking_turns_per_prompt": 50,
-  "meaning_units_per_assignment_prompt": 50,
+  "meaning_units_per_assignment_prompt": 10,
   "parse_model": "gpt-4o-mini",
   "assign_model": "gpt-4o-mini",
   "initialize_embedding_model": "text-embedding-3-small",
   "retrieve_embedding_model": "text-embedding-3-small",
-  "data_format": "transcript",
+  "data_format": "movie_script",
   "paths": {
     "prompts_folder": "prompts",
     "codebase_folder": "qual_codebase",
@@ -16,14 +16,13 @@
     "config_folder": "configs"
   },
   "selected_codebase": "teacher_schema.jsonl",               
-  "selected_json_file": "teacher_transcript.json",              
+  "selected_json_file": "5.json",              
   "parse_prompt_file": "parse.txt",               
   "inductive_coding_prompt_file": "inductive.txt",
   "deductive_coding_prompt_file": "deductive.txt", 
   "output_folder": "outputs",                            
-  "output_format": "json",                               
   "enable_logging": true,                                
-  "logging_level": "INFO",                              
+  "logging_level": "DEBUG",                              
   "log_to_file": true,                                   
   "log_file_path": "logs/application.log"                
 }
