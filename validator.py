@@ -33,6 +33,39 @@ def replace_nan_with_null(obj):
     else:
         return obj
 
+def load_json_file(
+    file_path: str,
+    list_field: Optional[str] = None
+) -> Any:
+    """
+    Loads a JSON file and optionally navigates to a list of items using list_field.
+
+    Args:
+        file_path (str): Path to the JSON file.
+        list_field (Optional[str]): Dot-separated path to the list of items within the JSON.
+
+    Returns:
+        Any: The data loaded from the JSON file, possibly after navigating to the list_field.
+    """
+    try:
+        with open(file_path, 'r', encoding='utf-8') as infile:
+            data = json.load(infile)
+    except Exception as e:
+        logger.error(f"Error loading JSON file '{file_path}': {e}")
+        raise e
+
+    # Navigate to the list of items using list_field if provided
+    if list_field:
+        keys = list_field.split('.')
+        for key in keys:
+            if isinstance(data, dict):
+                data = data.get(key, [])
+            else:
+                logger.error(f"Expected dict while accessing '{key}' in 'list_field', but got {type(data)}")
+                data = []
+                break
+    return data
+
 def load_input_file(
     input_file_path: str,
     list_field: Optional[str] = None,
@@ -51,23 +84,7 @@ def load_input_file(
     Returns:
         Dict[str, Dict[str, Any]]: Mapping from source_id to speaking turn data.
     """
-    try:
-        with open(input_file_path, 'r', encoding='utf-8') as infile:
-            data = json.load(infile)
-    except Exception as e:
-        logger.error(f"Error loading input file '{input_file_path}': {e}")
-        raise e
-
-    # Navigate to the list of items using list_field if provided
-    if list_field:
-        keys = list_field.split('.')
-        for key in keys:
-            if isinstance(data, dict):
-                data = data.get(key, [])
-            else:
-                logger.error(f"Expected dict while accessing '{key}' in 'list_field', but got {type(data)}")
-                data = []
-                break
+    data = load_json_file(input_file_path, list_field)
 
     speaking_turns = {}
     auto_id_counter = 1  # Initialize a counter for auto-generating IDs
@@ -99,25 +116,10 @@ def load_output_file(
     Returns:
         Dict[str, List[Dict[str, Any]]]: Mapping from source_id to list of meaning units.
     """
-    try:
-        with open(output_file_path, 'r', encoding='utf-8') as outfile:
-            data = json.load(outfile)
-    except Exception as e:
-        logger.error(f"Error loading output file '{output_file_path}': {e}")
-        raise e
+    data = load_json_file(output_file_path, list_field)
 
-    # Navigate to the list of items using list_field if provided
-    if list_field:
-        keys = list_field.split('.')
-        for key in keys:
-            if isinstance(data, dict):
-                data = data.get(key, [])
-            else:
-                logger.error(f"Expected dict while accessing '{key}' in 'list_field', but got {type(data)}")
-                data = []
-                break
-    else:
-        # If no list_field is provided, assume the list is directly under a key (e.g., "meaning_units")
+    # If no list_field is provided, assume the list is directly under a key (e.g., "meaning_units")
+    if not list_field and isinstance(data, dict):
         data = data.get('meaning_units', [])
 
     meaning_units = {}

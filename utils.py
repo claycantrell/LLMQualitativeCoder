@@ -78,120 +78,35 @@ def load_data_format_config(config_path: str) -> Dict[str, Dict[str, Any]]:
         logger.error(f"Error loading data format configuration: {e}")
         raise
 
-def load_coding_instructions(prompts_folder: str, prompt_file: str) -> str:
+def load_prompt_file(prompts_folder: str, prompt_file: str, description: str = 'prompt') -> str:
     """
-    Loads coding instructions from a specified prompt file.
+    Loads a prompt from a specified file.
 
     Args:
         prompts_folder (str): Directory where prompt files are stored.
         prompt_file (str): Name of the prompt file.
+        description (str): Description of the prompt (for logging purposes).
 
     Returns:
-        str: Coding instructions as a string.
+        str: The prompt content as a string.
     """
-    coding_instructions_file = os.path.join(prompts_folder, prompt_file)
-    if not os.path.exists(coding_instructions_file):
-        logger.error(f"Coding instructions file '{coding_instructions_file}' not found.")
-        raise FileNotFoundError(f"Coding instructions file '{coding_instructions_file}' not found.")
+    prompt_path = os.path.join(prompts_folder, prompt_file)
+    if not os.path.exists(prompt_path):
+        logger.error(f"{description.capitalize()} file '{prompt_path}' not found.")
+        raise FileNotFoundError(f"{description.capitalize()} file '{prompt_path}' not found.")
 
     try:
-        with open(coding_instructions_file, 'r', encoding='utf-8') as file:
-            coding_instructions = file.read().strip()
-        if not coding_instructions:
-            logger.error("Coding instructions file is empty.")
-            raise ValueError("Coding instructions file is empty.")
+        with open(prompt_path, 'r', encoding='utf-8') as file:
+            prompt_content = file.read().strip()
     except Exception as e:
-        logger.error(f"Error reading coding instructions file '{coding_instructions_file}': {e}")
+        logger.error(f"Error reading {description} file '{prompt_path}': {e}")
         raise
 
-    return coding_instructions
+    if not prompt_content:
+        logger.error(f"{description.capitalize()} file is empty.")
+        raise ValueError(f"{description.capitalize()} file is empty.")
 
-def load_parse_instructions(prompts_folder: str, parse_prompt_file: str) -> str:
-    """
-    Loads parse instructions from a specified prompt file for breaking down speaking turns into meaning units.
-
-    Args:
-        prompts_folder (str): Directory where prompt files are stored.
-        parse_prompt_file (str): Name of the parse prompt file.
-
-    Returns:
-        str: Parse instructions as a string.
-    """
-    parse_prompt_path = os.path.join(prompts_folder, parse_prompt_file)
-    if not os.path.exists(parse_prompt_path):
-        logger.error(f"Parse instructions file '{parse_prompt_path}' not found.")
-        raise FileNotFoundError(f"Parse instructions file '{parse_prompt_path}' not found.")
-
-    try:
-        with open(parse_prompt_path, 'r', encoding='utf-8') as file:
-            parse_instructions = file.read().strip()
-    except Exception as e:
-        logger.error(f"Error reading parse instructions file '{parse_prompt_path}': {e}")
-        raise
-
-    if not parse_instructions:
-        logger.error("Parse instructions file is empty.")
-        raise ValueError("Parse instructions file is empty.")
-
-    return parse_instructions
-
-def load_inductive_coding_prompt(prompts_folder: str, inductive_prompt_file: str) -> str:
-    """
-    Loads the inductive coding prompt from a specified file.
-
-    Args:
-        prompts_folder (str): Directory where prompt files are stored.
-        inductive_prompt_file (str): Name of the inductive coding prompt file.
-
-    Returns:
-        str: Inductive coding prompt as a string.
-    """
-    inductive_coding_prompt_path = os.path.join(prompts_folder, inductive_prompt_file)
-    if not os.path.exists(inductive_coding_prompt_path):
-        logger.error(f"Inductive coding prompt file '{inductive_coding_prompt_path}' not found.")
-        raise FileNotFoundError(f"Inductive coding prompt file '{inductive_coding_prompt_path}' not found.")
-
-    try:
-        with open(inductive_coding_prompt_path, 'r', encoding='utf-8') as file:
-            inductive_coding_prompt = file.read().strip()
-    except Exception as e:
-        logger.error(f"Error reading inductive coding prompt file '{inductive_coding_prompt_path}': {e}")
-        raise
-
-    if not inductive_coding_prompt:
-        logger.error("Inductive coding prompt file is empty.")
-        raise ValueError("Inductive coding prompt file is empty.")
-
-    return inductive_coding_prompt
-
-def load_deductive_coding_prompt(prompts_folder: str, deductive_prompt_file: str) -> str:
-    """
-    Loads the deductive coding prompt from a specified file.
-
-    Args:
-        prompts_folder (str): Directory where prompt files are stored.
-        deductive_prompt_file (str): Name of the deductive coding prompt file.
-
-    Returns:
-        str: Deductive coding prompt as a string.
-    """
-    deductive_coding_prompt_path = os.path.join(prompts_folder, deductive_prompt_file)
-    if not os.path.exists(deductive_coding_prompt_path):
-        logger.error(f"Deductive coding prompt file '{deductive_coding_prompt_path}' not found.")
-        raise FileNotFoundError(f"Deductive coding prompt file '{deductive_coding_prompt_path}' not found.")
-
-    try:
-        with open(deductive_coding_prompt_path, 'r', encoding='utf-8') as file:
-            deductive_coding_prompt = file.read().strip()
-    except Exception as e:
-        logger.error(f"Error reading deductive coding prompt file '{deductive_coding_prompt_path}': {e}")
-        raise
-
-    if not deductive_coding_prompt:
-        logger.error("Deductive coding prompt file is empty.")
-        raise ValueError("Deductive coding prompt file is empty.")
-
-    return deductive_coding_prompt
+    return prompt_content
 
 def initialize_deductive_resources(
     codebase_folder: str,
@@ -218,7 +133,7 @@ def initialize_deductive_resources(
     """
     # Load coding instructions for deductive coding
     try:
-        coding_instructions = load_coding_instructions(prompts_folder, deductive_prompt_file)
+        coding_instructions = load_prompt_file(prompts_folder, deductive_prompt_file, description='deductive coding prompt')
         logger.debug("Coding instructions loaded for deductive coding.")
     except Exception as e:
         logger.error(f"Failed to load coding instructions: {e}")

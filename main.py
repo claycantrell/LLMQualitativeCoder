@@ -10,8 +10,7 @@ from data_handlers import FlexibleDataHandler
 from utils import (
     load_environment_variables,
     load_config,
-    load_parse_instructions,
-    load_inductive_coding_prompt,
+    load_prompt_file,
     initialize_deductive_resources,
     load_data_format_config
 )
@@ -92,7 +91,7 @@ def main(config: Dict[str, Any]):
     parse_instructions = ""
     if use_parsing:
         try:
-            parse_instructions = load_parse_instructions(prompts_folder, parse_prompt_file)
+            parse_instructions = load_prompt_file(prompts_folder, parse_prompt_file, description='parse instructions')
             logger.debug("Parse instructions loaded.")
         except Exception as e:
             logger.error(f"Failed to load parse instructions: {e}")
@@ -202,7 +201,7 @@ def main(config: Dict[str, Any]):
     else:  # Inductive coding
         try:
             # Load inductive coding prompt
-            inductive_coding_prompt = load_inductive_coding_prompt(prompts_folder, inductive_coding_prompt_file)
+            inductive_coding_prompt = load_prompt_file(prompts_folder, inductive_coding_prompt_file, description='inductive coding prompt')
             logger.debug("Inductive coding prompt loaded.")
 
             # Assign codes to meaning units in inductive mode
