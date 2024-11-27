@@ -399,7 +399,7 @@ def assign_codes_to_meaning_units(
                     if st_source_id not in added_speaking_turns:
                         speaker = st.get(speaker_field, "Unknown Speaker") if speaker_field else "Unknown Speaker"
                         content = st.get(content_field, "")
-                        batch_context += f"Source ID: {st_source_id}\nSpeaker: {speaker}\n{content}\n\n"
+                        batch_context += f"Speaker: {speaker}\n{content}\n"
                         added_speaking_turns.add(st_source_id)
             else:
                 logger.warning(f"Source IDs {first_source_id} or {last_source_id} not found in full speaking turns.")
