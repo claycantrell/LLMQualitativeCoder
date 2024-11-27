@@ -1,20 +1,27 @@
 {
-    "transcript": {
-        "content_field": "text_context",
-        "speaker_field": "speaker_name",
-        "fields": {
-            "id": "int",
-            "length_of_time_spoken_seconds": "float",
-            "text_context": "str",
-            "speaker_name": "str"
-        }
-    },
-    "news": {
-        "content_field": "content",
-        "fields": {
-            "id": "int",
-            "title": "str",
-            "content": "str"
-        }
-    }
+  "interview": {
+    "content_field": "text_context",
+    "speaker_field": "speaker_name",
+    "list_field": "content",
+    "source_id_field" : "id",
+    "filter_rules": [
+      {
+        "field": "speaker_name",
+        "operator": "equals",
+        "value": "Coach"
+      }
+    ]
+  },
+    "movie_script": {
+    "content_field": "text",
+    "speaker_field": "character",
+    "list_field": "movie_script",
+    "filter_rules": [
+      {
+        "field": "type",
+        "operator": "equals",
+        "value": "speech"
+      }
+    ]
+  }
 }
