@@ -328,7 +328,7 @@ def assign_codes_to_meaning_units(
         processed_codes (Optional[List[Dict[str, Any]]], optional): List of processed codes for deductive coding.
         index (Optional[faiss.IndexFlatL2], optional): FAISS index for RAG.
         top_k (Optional[int], optional): Number of top similar codes to retrieve.
-        context_size (int, optional): Number of speaking turns to include before the first meaning unit's speaking turn.
+        context_size (int, optional): Context size as per new specifications.
         use_rag (bool, optional): Whether to use RAG for code retrieval.
         codebase (Optional[List[Dict[str, Any]]], optional): Entire codebase for deductive coding without RAG.
         completion_model (Optional[str], optional): Language model to use for code assignment.
@@ -376,33 +376,40 @@ def assign_codes_to_meaning_units(
 
             # Prepare context for the batch
             batch_context = ""
-            added_speaking_turns = set()
+            if context_size > 0:
+                added_speaking_turns = set()
 
-            # Get the source_ids of the first and last meaning units in the batch
-            first_unit = batch[0]
-            first_source_id = first_unit.speaking_turn.source_id
+                # Get the source_ids of the first and last meaning units in the batch
+                first_unit = batch[0]
+                first_source_id = first_unit.speaking_turn.source_id
 
-            last_unit = batch[-1]
-            last_source_id = last_unit.speaking_turn.source_id
+                last_unit = batch[-1]
+                last_source_id = last_unit.speaking_turn.source_id
 
-            first_idx = source_id_to_index.get(first_source_id)
-            last_idx = source_id_to_index.get(last_source_id)
+                first_idx = source_id_to_index.get(first_source_id)
+                last_idx = source_id_to_index.get(last_source_id)
 
-            if first_idx is not None and last_idx is not None:
-                # Include context_size speaking turns before first_idx
-                start_context_idx = max(0, first_idx - context_size)
-                # Include speaking turns from first_idx to last_idx (inclusive)
-                end_context_idx = last_idx + 1  # Since slicing is exclusive at the end
-                context_speaking_turns = full_speaking_turns[start_context_idx:end_context_idx]
-                for st in context_speaking_turns:
-                    st_source_id = str(st.get('source_id'))
-                    if st_source_id not in added_speaking_turns:
-                        speaker = st.get(speaker_field, "Unknown Speaker") if speaker_field else "Unknown Speaker"
-                        content = st.get(content_field, "")
-                        batch_context += f"Speaker: {speaker}\n{content}\n"
-                        added_speaking_turns.add(st_source_id)
+                if first_idx is not None and last_idx is not None:
+                    # Determine start index based on context_size
+                    # context_size of 1 means include the speaking turns for the meaning units in the batch
+                    # context_size of 2 means include the speaking turns for the meaning units plus one before
+                    start_context_idx = max(0, first_idx - (context_size - 1))
+                    end_context_idx = last_idx + 1  # Slicing is exclusive at the end
+
+                    context_speaking_turns = full_speaking_turns[start_context_idx:end_context_idx]
+                    for st in context_speaking_turns:
+                        st_source_id = str(st.get('source_id'))
+                        if st_source_id not in added_speaking_turns:
+                            speaker = st.get(speaker_field, "Unknown Speaker") if speaker_field else "Unknown Speaker"
+                            content = st.get(content_field, "")
+                            # Include the ID in the context
+                            batch_context += f"ID: {st_source_id}\nSpeaker: {speaker}\n{content}\n\n"
+                            added_speaking_turns.add(st_source_id)
+                else:
+                    logger.warning(f"Source IDs {first_source_id} or {last_source_id} not found in full speaking turns.")
             else:
-                logger.warning(f"Source IDs {first_source_id} or {last_source_id} not found in full speaking turns.")
+                # No context is provided
+                pass
 
             # Construct the prompt for the batch
             full_prompt = f"{coding_instructions}\n\n"
@@ -418,11 +425,15 @@ def assign_codes_to_meaning_units(
                 code_heading = "Guidelines for Inductive Coding:"
                 full_prompt += f"{code_heading}\n{codes_str}\n\n"
 
-            # Include context once per batch
-            full_prompt += (
-                f"Contextual Excerpts (Including {context_size} speaking turns before the first meaning unit):\n{batch_context}\n\n"
-                f"**Important:** Please use the provided contextual excerpts **only** as background information to understand the current excerpt better. "
-            )
+            if context_size > 0:
+                # Include context in the prompt
+                full_prompt += (
+                    f"Contextual Excerpts:\n{batch_context}\n"
+                    f"**Important:** Please use the provided contextual excerpts **only** as background information to understand the current excerpt better. "
+                )
+            else:
+                # No context to include
+                pass
 
             for unit in batch:
                 speaker = unit.speaking_turn.metadata.get(speaker_field, "Unknown Speaker") if speaker_field else "Unknown Speaker"

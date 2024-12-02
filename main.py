@@ -11,8 +11,7 @@ from utils import (
     load_environment_variables,
     load_config,
     load_prompt_file,
-    initialize_deductive_resources,
-    load_data_format_config
+    initialize_deductive_resources
 )
 from qual_functions import (
     assign_codes_to_meaning_units
@@ -100,7 +99,7 @@ def main(config: Dict[str, Any]):
     # Load data format configuration
     data_format_config_path = os.path.join(config_folder, 'data_format_config.json')
     try:
-        data_format_config = load_data_format_config(data_format_config_path)
+        data_format_config = load_config(data_format_config_path)
         logger.debug("Data format configuration loaded.")
     except Exception as e:
         logger.error(f"Failed to load data format configuration: {e}")

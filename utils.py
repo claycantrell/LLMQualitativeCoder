@@ -10,12 +10,6 @@ from qual_functions import (
 )
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)  # Set to DEBUG for detailed logs; adjust as needed
-
-handler = logging.StreamHandler()
-formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
 
 def load_environment_variables() -> None:
     """
@@ -50,32 +44,6 @@ def load_config(config_file_path: str) -> Dict[str, Any]:
         raise
     except Exception as e:
         logger.error(f"Error loading configuration: {e}")
-        raise
-
-def load_data_format_config(config_path: str) -> Dict[str, Dict[str, Any]]:
-    """
-    Loads data format configuration from the given JSON file path.
-
-    Args:
-        config_path (str): Path to the data format configuration file.
-
-    Returns:
-        Dict[str, Dict[str, Any]]: Data format configuration dictionary.
-    """
-    if not os.path.exists(config_path):
-        logger.error(f"Data format configuration file '{config_path}' not found.")
-        raise FileNotFoundError(f"Data format configuration file '{config_path}' not found.")
-
-    try:
-        with open(config_path, 'r', encoding='utf-8') as file:
-            config_data = json.load(file)
-        logger.debug(f"Data format configuration loaded from '{config_path}'.")
-        return config_data
-    except json.JSONDecodeError as e:
-        logger.error(f"Error decoding JSON from '{config_path}': {e}")
-        raise
-    except Exception as e:
-        logger.error(f"Error loading data format configuration: {e}")
         raise
 
 def load_prompt_file(prompts_folder: str, prompt_file: str, description: str = 'prompt') -> str:
