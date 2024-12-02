@@ -2,7 +2,7 @@
 import os
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 import pandas as pd
 from qual_functions import parse_transcript, MeaningUnit, SpeakingTurn
 
@@ -34,6 +34,7 @@ class FlexibleDataHandler:
         self.speaking_turns_per_prompt = speaking_turns_per_prompt
         self.document_metadata = {}  # Store document-level metadata
         self.full_data = None  # To store pre-filtered data
+        self.filtered_out_source_ids: Set[str] = set()  # New attribute to store filtered out source_ids
 
     def load_data(self) -> pd.DataFrame:
         """
@@ -71,6 +72,9 @@ class FlexibleDataHandler:
         # Store pre-filtered data
         self.full_data = data.copy()
 
+        # Before filtering
+        all_source_ids = set(data['source_id'])
+
         # Apply filter rules if any
         if self.filter_rules:
             for rule in self.filter_rules:
@@ -90,6 +94,10 @@ class FlexibleDataHandler:
                 else:
                     logger.warning(f"Operator '{operator}' is not supported. Skipping this filter rule.")
             logger.debug(f"Data shape after applying filter rules: {data.shape}")
+
+        # After filtering
+        filtered_source_ids = all_source_ids - set(data['source_id'])
+        self.filtered_out_source_ids = filtered_source_ids
 
         logger.debug(f"Data shape after loading: {data.shape}")
         return data

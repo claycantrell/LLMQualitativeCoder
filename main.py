@@ -284,6 +284,7 @@ def main(config: Dict[str, Any]):
             output_file=output_file_path,
             report_file=validation_report_path,  # Updated report file path
             similarity_threshold=1.0,  # Exact match
+            filter_rules=filter_rules,
             input_list_field=list_field,    # Pass the list_field for input
             output_list_field='meaning_units',  # Specify the path to the list in output JSON
             text_field=content_field,  # Pass the content_field as text_field

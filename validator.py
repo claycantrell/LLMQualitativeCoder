@@ -3,7 +3,7 @@
 import os
 import json
 import logging
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Dict, Any, List, Tuple, Optional, Set
 import difflib
 import re  # Import regex module for text normalization
 import math  # Import math module for NaN checks
@@ -93,7 +93,8 @@ def generate_report(
     similarity_threshold: float = 1.0,
     report_file: str = 'validation_report.json',
     text_field: str = 'text',
-    source_id_field: Optional[str] = None
+    source_id_field: Optional[str] = None,
+    filtered_source_ids: Optional[Set[str]] = None  # New parameter
 ) -> Dict[str, Any]:
     """
     Generates a report of inconsistencies and missing meaning units.
@@ -104,6 +105,8 @@ def generate_report(
         similarity_threshold (float, optional): Threshold for similarity. Defaults to 1.0 for exact match.
         report_file (str, optional): Path to save the validation report JSON file. Defaults to 'validation_report.json'.
         text_field (str, optional): The field name that contains the speaking turn text.
+        source_id_field (Optional[str], optional): The field name that contains the source_id.
+        filtered_source_ids (Optional[Set[str]], optional): Set of source_ids that were filtered out.
 
     Returns:
         Dict[str, Any]: Report containing skipped and inconsistent speaking turns.
@@ -117,6 +120,10 @@ def generate_report(
     inconsistent_speaking_turns = []
 
     for source_id, turn in speaking_turns.items():
+        # Skip if the speaking turn was filtered out
+        if filtered_source_ids and source_id in filtered_source_ids:
+            continue
+
         original_text = turn.get(text_field, '').strip()
         units = meaning_units.get(source_id, [])
 
@@ -173,7 +180,7 @@ def run_validation(
     output_list_field: Optional[str] = None,
     text_field: str = 'text',
     source_id_field: Optional[str] = None,
-    filter_rules: Optional[List[Dict[str, Any]]] = None,
+    filter_rules: Optional[List[Dict[str, Any]]] = None,  # Ensure filter_rules can be passed
     speaker_field: Optional[str] = None,
     use_parsing: bool = True,
     parse_instructions: str = '',
@@ -189,7 +196,7 @@ def run_validation(
         report_file (str, optional): Path to save the validation report JSON file. Defaults to 'validation_report.json'.
         similarity_threshold (float, optional): Threshold for similarity. Defaults to 1.0 for exact match.
         input_list_field (Optional[str], optional): Dot-separated path to the list of items within the input JSON. Defaults to None.
-        output_list_field (Optional[str], optional): Dot-separated path to the list of items within the output JSON. Defaults to None.
+        output_list_field (Optional[str], optional): Dot-separated path to the list of items within the output JSON.
         text_field (str, optional): The field name that contains the speaking turn text.
         source_id_field (Optional[str], optional): The field name that contains the source_id.
         filter_rules (Optional[List[Dict[str, Any]]], optional): List of filter rules to apply.
@@ -211,19 +218,20 @@ def run_validation(
             content_field=text_field,
             speaker_field=speaker_field,
             list_field=input_list_field,
-            filter_rules=filter_rules,
+            filter_rules=filter_rules,  # Pass the filter_rules here
             use_parsing=False,  # We don't need to parse again
             source_id_field=source_id_field,
             speaking_turns_per_prompt=speaking_turns_per_prompt
         )
         data_df = data_handler.load_data()
         logger.debug(f"Loaded data with shape {data_df.shape}.")
+        filtered_out_source_ids = data_handler.filtered_out_source_ids  # Get filtered out source_ids
     except Exception as e:
         logger.error(f"Data loading failed: {e}")
         raise e
 
-    # Create a dictionary mapping source_id to speaking turn data
-    speaking_turns = data_df.set_index('source_id').to_dict(orient='index')
+    # Use the full_data to include all speaking_turns in the report
+    speaking_turns = data_handler.full_data.set_index('source_id').to_dict(orient='index')
 
     # Load meaning units from output file
     meaning_units = load_output_file(output_file, list_field=output_list_field)
@@ -234,8 +242,9 @@ def run_validation(
         meaning_units,
         similarity_threshold=similarity_threshold,
         report_file=report_file,
-        text_field=text_field,  
-        source_id_field=source_id_field
+        text_field=text_field,
+        source_id_field=source_id_field,
+        filtered_source_ids=filtered_out_source_ids  # Pass filtered source_ids
     )
 
     return report
