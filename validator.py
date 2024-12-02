@@ -8,6 +8,9 @@ import difflib
 import re  # Import regex module for text normalization
 import math  # Import math module for NaN checks
 
+# Import FlexibleDataHandler
+from data_handlers import FlexibleDataHandler
+
 # Configure logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)  # Set to DEBUG for detailed logs; adjust as needed
@@ -16,6 +19,7 @@ handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
+
 
 def replace_nan_with_null(obj):
     """
@@ -33,107 +37,6 @@ def replace_nan_with_null(obj):
     else:
         return obj
 
-def load_json_file(
-    file_path: str,
-    list_field: Optional[str] = None
-) -> Any:
-    """
-    Loads a JSON file and optionally navigates to a list of items using list_field.
-
-    Args:
-        file_path (str): Path to the JSON file.
-        list_field (Optional[str]): Dot-separated path to the list of items within the JSON.
-
-    Returns:
-        Any: The data loaded from the JSON file, possibly after navigating to the list_field.
-    """
-    try:
-        with open(file_path, 'r', encoding='utf-8') as infile:
-            data = json.load(infile)
-    except Exception as e:
-        logger.error(f"Error loading JSON file '{file_path}': {e}")
-        raise e
-
-    # Navigate to the list of items using list_field if provided
-    if list_field:
-        keys = list_field.split('.')
-        for key in keys:
-            if isinstance(data, dict):
-                data = data.get(key, [])
-            else:
-                logger.error(f"Expected dict while accessing '{key}' in 'list_field', but got {type(data)}")
-                data = []
-                break
-    return data
-
-def load_input_file(
-    input_file_path: str,
-    list_field: Optional[str] = None,
-    text_field: str = 'text',
-    source_id_field: Optional[str] = None
-) -> Dict[str, Dict[str, Any]]:
-    """
-    Loads the input file and returns a dictionary mapping source_id to speaking turn data.
-
-    Args:
-        input_file_path (str): Path to the input JSON file.
-        list_field (Optional[str]): Dot-separated path to the list of items within the JSON.
-        text_field (str): The field name that contains the speaking turn text.
-        source_id_field (Optional[str]): The field name that contains the source_id.
-
-    Returns:
-        Dict[str, Dict[str, Any]]: Mapping from source_id to speaking turn data.
-    """
-    data = load_json_file(input_file_path, list_field)
-
-    speaking_turns = {}
-    auto_id_counter = 1  # Initialize a counter for auto-generating IDs
-
-    for item in data:
-        if source_id_field and source_id_field in item:
-            source_id = str(item[source_id_field])
-        else:
-            # Auto-generate a unique ID since 'source_id_field' is missing
-            source_id = f"auto_{auto_id_counter}"
-            auto_id_counter += 1
-            item[source_id_field or 'source_id'] = source_id  # Assign the generated ID back to the item
-            logger.warning(f"Assigned auto-generated 'source_id' '{source_id}' to speaking turn: {item}")
-        speaking_turns[source_id] = item
-    logger.info(f"Loaded {len(speaking_turns)} speaking turns from input file.")
-    return speaking_turns
-
-def load_output_file(
-    output_file_path: str,
-    list_field: Optional[str] = None
-) -> Dict[str, List[Dict[str, Any]]]:
-    """
-    Loads the output file and returns a dictionary mapping source_id to a list of meaning units.
-
-    Args:
-        output_file_path (str): Path to the output JSON file.
-        list_field (Optional[str]): Dot-separated path to the list of items within the JSON.
-
-    Returns:
-        Dict[str, List[Dict[str, Any]]]: Mapping from source_id to list of meaning units.
-    """
-    data = load_json_file(output_file_path, list_field)
-
-    # If no list_field is provided, assume the list is directly under a key (e.g., "meaning_units")
-    if not list_field and isinstance(data, dict):
-        data = data.get('meaning_units', [])
-
-    meaning_units = {}
-    for unit in data:
-        speaking_turn = unit.get('speaking_turn', {})
-        source_id = speaking_turn.get('source_id')
-        if source_id is None:
-            logger.warning(f"Skipping meaning unit without 'source_id' in speaking_turn: {unit}")
-            continue
-        if source_id not in meaning_units:
-            meaning_units[source_id] = []
-        meaning_units[source_id].append(unit)
-    logger.info(f"Loaded meaning units derived from {len(meaning_units)} unique source_ids.")
-    return meaning_units
 
 def normalize_text(text: str) -> str:
     """
@@ -149,6 +52,7 @@ def normalize_text(text: str) -> str:
     # Replace any sequence of whitespace characters with a single space
     normalized = re.sub(r'\s+', ' ', text).strip()
     return normalized
+
 
 def compare_texts(original: str, concatenated: str) -> Tuple[bool, str]:
     """
@@ -181,6 +85,7 @@ def compare_texts(original: str, concatenated: str) -> Tuple[bool, str]:
         )
         diff_string = '\n'.join(diff)
         return False, diff_string
+
 
 def generate_report(
     speaking_turns: Dict[str, Dict[str, Any]],
@@ -256,30 +161,8 @@ def generate_report(
         logger.error(f"Error saving validation report to '{report_file}': {e}")
         raise e
 
-    # Optionally, print summary
-    print("\nValidation Report Summary:")
-    print(f"Total Speaking Turns: {total_speaking_turns}")
-    print(f"Total Meaning Units: {total_meaning_units}")
-    print(f"Skipped Speaking Turns: {len(skipped_speaking_turns)}")
-    print(f"Inconsistent Speaking Turns: {len(inconsistent_speaking_turns)}")
-    print(f"Detailed report saved to '{report_file}'.")
-    print("\nDetails:")
-    if skipped_speaking_turns:
-        print("\nSkipped Speaking Turns:")
-        for skipped in skipped_speaking_turns:
-            print(f"- Source ID: {skipped['source_id']}")
-            print(f"  Text: {skipped['speaking_turn_text']}")
-            print(f"  Metadata: {skipped['metadata']}")
-    if inconsistent_speaking_turns:
-        print("\nInconsistent Speaking Turns:")
-        for inconsistent in inconsistent_speaking_turns:
-            print(f"- Source ID: {inconsistent['source_id']}")
-            print(f"  Original Text: {inconsistent['speaking_turn_text']}")
-            print(f"  Concatenated Meaning Units Text: {inconsistent['concatenated_meaning_units_text']}")
-            print(f"  Differences:\n{inconsistent['diff']}")
-            print(f"  Metadata: {inconsistent['metadata']}")
-
     return report
+
 
 def run_validation(
     input_file: str,
@@ -289,7 +172,13 @@ def run_validation(
     input_list_field: Optional[str] = None,
     output_list_field: Optional[str] = None,
     text_field: str = 'text',
-    source_id_field: Optional[str] = None
+    source_id_field: Optional[str] = None,
+    filter_rules: Optional[List[Dict[str, Any]]] = None,
+    speaker_field: Optional[str] = None,
+    use_parsing: bool = True,
+    parse_instructions: str = '',
+    completion_model: str = 'gpt-4o-mini',
+    speaking_turns_per_prompt: int = 1
 ) -> Dict[str, Any]:
     """
     Runs the validation process.
@@ -303,12 +192,40 @@ def run_validation(
         output_list_field (Optional[str], optional): Dot-separated path to the list of items within the output JSON. Defaults to None.
         text_field (str, optional): The field name that contains the speaking turn text.
         source_id_field (Optional[str], optional): The field name that contains the source_id.
+        filter_rules (Optional[List[Dict[str, Any]]], optional): List of filter rules to apply.
+        speaker_field (Optional[str], optional): The field name that contains the speaker.
+        use_parsing (bool, optional): Whether parsing was used in the main processing.
+        parse_instructions (str, optional): Parse instructions used in the main processing.
+        completion_model (str, optional): Completion model used for parsing.
+        speaking_turns_per_prompt (int, optional): Number of speaking turns per parsing prompt.
 
     Returns:
         Dict[str, Any]: The validation report.
     """
-    # Load files with separate list_fields and text_field
-    speaking_turns = load_input_file(input_file, list_field=input_list_field, text_field=text_field, source_id_field=source_id_field)
+    # Load input data using FlexibleDataHandler
+    try:
+        data_handler = FlexibleDataHandler(
+            file_path=input_file,
+            parse_instructions=parse_instructions,
+            completion_model=completion_model,
+            content_field=text_field,
+            speaker_field=speaker_field,
+            list_field=input_list_field,
+            filter_rules=filter_rules,
+            use_parsing=False,  # We don't need to parse again
+            source_id_field=source_id_field,
+            speaking_turns_per_prompt=speaking_turns_per_prompt
+        )
+        data_df = data_handler.load_data()
+        logger.debug(f"Loaded data with shape {data_df.shape}.")
+    except Exception as e:
+        logger.error(f"Data loading failed: {e}")
+        raise e
+
+    # Create a dictionary mapping source_id to speaking turn data
+    speaking_turns = data_df.set_index('source_id').to_dict(orient='index')
+
+    # Load meaning units from output file
     meaning_units = load_output_file(output_file, list_field=output_list_field)
 
     # Generate report
@@ -317,8 +234,76 @@ def run_validation(
         meaning_units,
         similarity_threshold=similarity_threshold,
         report_file=report_file,
-        text_field=text_field,
+        text_field=text_field,  
         source_id_field=source_id_field
     )
 
     return report
+
+
+def load_output_file(
+    output_file_path: str,
+    list_field: Optional[str] = None
+) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Loads the output file and returns a dictionary mapping source_id to a list of meaning units.
+
+    Args:
+        output_file_path (str): Path to the output JSON file.
+        list_field (Optional[str]): Dot-separated path to the list of items within the JSON.
+
+    Returns:
+        Dict[str, List[Dict[str, Any]]]: Mapping from source_id to list of meaning units.
+    """
+    data = load_json_file(output_file_path, list_field)
+
+    # If no list_field is provided, assume the list is directly under a key (e.g., "meaning_units")
+    if not list_field and isinstance(data, dict):
+        data = data.get('meaning_units', [])
+
+    meaning_units = {}
+    for unit in data:
+        speaking_turn = unit.get('speaking_turn', {})
+        source_id = speaking_turn.get('source_id')
+        if source_id is None:
+            logger.warning(f"Skipping meaning unit without 'source_id' in speaking_turn: {unit}")
+            continue
+        if source_id not in meaning_units:
+            meaning_units[source_id] = []
+        meaning_units[source_id].append(unit)
+    logger.info(f"Loaded meaning units derived from {len(meaning_units)} unique source_ids.")
+    return meaning_units
+
+
+def load_json_file(
+    file_path: str,
+    list_field: Optional[str] = None
+) -> Any:
+    """
+    Loads a JSON file and optionally navigates to a list of items using list_field.
+
+    Args:
+        file_path (str): Path to the JSON file.
+        list_field (Optional[str]): Dot-separated path to the list of items within the JSON.
+
+    Returns:
+        Any: The data loaded from the JSON file, possibly after navigating to the list_field.
+    """
+    try:
+        with open(file_path, 'r', encoding='utf-8') as infile:
+            data = json.load(infile)
+    except Exception as e:
+        logger.error(f"Error loading JSON file '{file_path}': {e}")
+        raise e
+
+    # Navigate to the list of items using list_field if provided
+    if list_field:
+        keys = list_field.split('.')
+        for key in keys:
+            if isinstance(data, dict):
+                data = data.get(key, [])
+            else:
+                logger.error(f"Expected dict while accessing '{key}' in 'list_field', but got {type(data)}")
+                data = []
+                break
+    return data
