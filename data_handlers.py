@@ -51,14 +51,31 @@ class FlexibleDataHandler:
             logger.error(f"Failed to load data from '{self.file_path}': {e}")
             raise
 
-        # Extract document-level metadata
-        self.document_metadata = {k: v for k, v in raw_data.items() if k != self.list_field}
-
-        # Extract the list of content items
-        content_list = raw_data.get(self.list_field, [])
-        if not content_list:
-            logger.error(f"No content found under the list_field '{self.list_field}'.")
-            raise ValueError(f"No content found under the list_field '{self.list_field}'.")
+        if isinstance(raw_data, list):
+            # raw_data is a list of content items
+            self.document_metadata = {}
+            content_list = raw_data
+        elif isinstance(raw_data, dict):
+            if self.list_field:
+                # Extract document-level metadata
+                self.document_metadata = {k: v for k, v in raw_data.items() if k != self.list_field}
+                # Extract the list of content items
+                content_list = raw_data.get(self.list_field, [])
+                if not content_list:
+                    logger.error(f"No content found under the list_field '{self.list_field}'.")
+                    raise ValueError(f"No content found under the list_field '{self.list_field}'.")
+            else:
+                # No list_field provided; assume raw_data is the content list
+                self.document_metadata = {k: v for k, v in raw_data.items() if not isinstance(v, list)}
+                content_list = [v for v in raw_data.values() if isinstance(v, list)]
+                if content_list:
+                    content_list = content_list[0]
+                else:
+                    logger.error("No list of content items found in the data.")
+                    raise ValueError("No list of content items found in the data.")
+        else:
+            logger.error(f"Unexpected data format in '{self.file_path}'. Expected dict or list.")
+            raise ValueError(f"Unexpected data format in '{self.file_path}'. Expected dict or list.")
 
         # Create DataFrame from the content list
         data = pd.DataFrame(content_list)
