@@ -308,7 +308,7 @@ def assign_codes_to_meaning_units(
     processed_codes: Optional[List[Dict[str, Any]]] = None,
     index: Optional[faiss.IndexFlatL2] = None,
     top_k: Optional[int] = 5,
-    context_size: int = 5,
+    context_size: int = 2,
     use_rag: bool = True,
     codebase: Optional[List[Dict[str, Any]]] = None,
     completion_model: Optional[str] = "gpt-4o-mini",
@@ -374,44 +374,7 @@ def assign_codes_to_meaning_units(
                 # Inductive coding: No predefined codes
                 codes_to_include = None
 
-            # Prepare context for the batch
-            batch_context = ""
-            if context_size > 0:
-                added_speaking_turns = set()
-
-                # Get the source_ids of the first and last meaning units in the batch
-                first_unit = batch[0]
-                first_source_id = first_unit.speaking_turn.source_id
-
-                last_unit = batch[-1]
-                last_source_id = last_unit.speaking_turn.source_id
-
-                first_idx = source_id_to_index.get(first_source_id)
-                last_idx = source_id_to_index.get(last_source_id)
-
-                if first_idx is not None and last_idx is not None:
-                    # Determine start index based on context_size
-                    # context_size of 1 means include the speaking turns for the meaning units in the batch
-                    # context_size of 2 means include the speaking turns for the meaning units plus one before
-                    start_context_idx = max(0, first_idx - (context_size - 1))
-                    end_context_idx = last_idx + 1  # Slicing is exclusive at the end
-
-                    context_speaking_turns = full_speaking_turns[start_context_idx:end_context_idx]
-                    for st in context_speaking_turns:
-                        st_source_id = str(st.get('source_id'))
-                        if st_source_id not in added_speaking_turns:
-                            speaker = st.get(speaker_field, "Unknown Speaker") if speaker_field else "Unknown Speaker"
-                            content = st.get(content_field, "")
-                            # Include the ID in the context
-                            batch_context += f"ID: {st_source_id}\nSpeaker: {speaker}\n{content}\n\n"
-                            added_speaking_turns.add(st_source_id)
-                else:
-                    logger.warning(f"Source IDs {first_source_id} or {last_source_id} not found in full speaking turns.")
-            else:
-                # No context is provided
-                pass
-
-            # Construct the prompt for the batch
+            # Prepare the prompt
             full_prompt = f"{coding_instructions}\n\n"
 
             if codes_to_include is not None:
@@ -425,17 +388,36 @@ def assign_codes_to_meaning_units(
                 code_heading = "Guidelines for Inductive Coding:"
                 full_prompt += f"{code_heading}\n{codes_str}\n\n"
 
-            if context_size > 0:
-                # Include context in the prompt
-                full_prompt += (
-                    f"Contextual Excerpts:\n{batch_context}\n"
-                    f"**Important:** Please use the provided contextual excerpts **only** as background information to understand the current excerpt better. "
-                )
-            else:
-                # No context to include
-                pass
-
+            # Prepare context and excerpts for each meaning unit in the batch
             for unit in batch:
+                unit_context = ""
+                source_id = unit.speaking_turn.source_id
+                unit_idx = source_id_to_index.get(source_id)
+
+                if unit_idx is not None:
+                    # For context_size = 1, include only the speaking turn the meaning unit came from
+                    # For context_size > 1, include the speaking turn and previous ones, up to context_size
+                    start_context_idx = max(0, unit_idx - (context_size - 1))
+                    end_context_idx = unit_idx + 1  # Include the current speaking turn
+
+                    context_speaking_turns = full_speaking_turns[start_context_idx:end_context_idx]
+
+                    for st in context_speaking_turns:
+                        st_source_id = str(st.get('source_id'))
+                        speaker = st.get(speaker_field, "Unknown Speaker") if speaker_field else "Unknown Speaker"
+                        content = st.get(content_field, "")
+                        # Include the ID in the context
+                        unit_context += f"ID: {st_source_id}\nSpeaker: {speaker}\n{content}\n\n"
+
+                    # Include context in the prompt
+                    full_prompt += (
+                        f"Contextual Excerpts for Meaning Unit ID {unit.meaning_unit_id}:\n{unit_context}\n"
+                        f"**Important:** Please use the provided contextual excerpts **only** as background information to understand the current excerpt better. "
+                    )
+                else:
+                    logger.warning(f"Source ID {source_id} not found in full speaking turns.")
+
+                # Add the current excerpt to the prompt
                 speaker = unit.speaking_turn.metadata.get(speaker_field, "Unknown Speaker") if speaker_field else "Unknown Speaker"
                 current_unit_excerpt = f"Quote: {unit.meaning_unit_string}\n\n"
                 full_prompt += (
@@ -443,7 +425,7 @@ def assign_codes_to_meaning_units(
                 )
 
             full_prompt += (
-                f"{'**Apply codes exclusively to the current excerpt provided above. Do not assign codes to the contextual excerpts.**' if codes_to_include is not None else '**Generate codes based on the current excerpt provided above using the guidelines.**'}\n\n"
+                f"{'**Apply codes exclusively to the current excerpt(s) provided above. Do not assign codes to the contextual excerpts.**' if codes_to_include is not None else '**Generate codes based on the current excerpt(s) provided above using the guidelines.**'}\n\n"
                 f"Please provide the assigned codes for the meaning unit(s) above in the following JSON format:\n"
                 f"{{\n  \"assignments\": [\n    {{\n      \"meaning_unit_id\": <Meaning Unit ID>,\n      \"codeList\": [\n        {{\"code_name\": \"<Name of the code>\", \"code_justification\": \"<Justification for the code>\"}},\n        ...\n      ]\n    }},\n    ...\n  ]\n}}\n\n"
             )
