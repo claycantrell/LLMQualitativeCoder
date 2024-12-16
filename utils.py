@@ -79,7 +79,7 @@ def load_prompt_file(prompts_folder: str, prompt_file: str, description: str = '
 def initialize_deductive_resources(
     codebase_folder: str,
     prompts_folder: str,
-    initialize_embedding_model: str,
+    embedding_model: str,
     use_rag: bool,
     selected_codebase: str,
     deductive_prompt_file: str
@@ -91,7 +91,7 @@ def initialize_deductive_resources(
     Args:
         codebase_folder (str): Directory where the codebase files are stored.
         prompts_folder (str): Directory where prompt files are stored.
-        initialize_embedding_model (str): Embedding model to use for FAISS.
+        embedding_model (str): Embedding model to use for FAISS.
         use_rag (bool): Whether to use Retrieval-Augmented Generation.
         selected_codebase (str): Specific codebase file to use.
         deductive_prompt_file (str): Name of the deductive coding prompt file.
@@ -126,7 +126,7 @@ def initialize_deductive_resources(
         try:
             faiss_index, _ = initialize_faiss_index_from_formatted_file(
                 codes_list_file=list_of_codes_file,
-                embedding_model=initialize_embedding_model
+                embedding_model=embedding_model
             )
             logger.debug("FAISS index initialized with processed codes.")
         except Exception as e:

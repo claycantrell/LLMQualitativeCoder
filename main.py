@@ -31,11 +31,12 @@ def main(config: Dict[str, Any]):
     use_rag = config.get('use_rag', True)
     parse_model = config.get('parse_model', 'gpt-4o-mini')
     assign_model = config.get('assign_model', 'gpt-4o-mini')
-    initialize_embedding_model = config.get('initialize_embedding_model', 'text-embedding-3-small')
-    retrieve_embedding_model = config.get('retrieve_embedding_model', 'text-embedding-3-small')
+    embedding_model = config.get('embedding_model', 'text-embedding-3-small')
     data_format = config.get('data_format', 'interview')
     speaking_turns_per_prompt = config.get('speaking_turns_per_prompt', 1)
     meaning_units_per_assignment_prompt = config.get('meaning_units_per_assignment_prompt', 1)
+    top_k=config.get('top_k', 5)
+    context_size=config.get('context_size', 5)
 
     # Paths configuration
     paths = config.get('paths', {})
@@ -160,7 +161,7 @@ def main(config: Dict[str, Any]):
             processed_codes, faiss_index, coding_instructions = initialize_deductive_resources(
                 codebase_folder=codebase_folder,
                 prompts_folder=prompts_folder,
-                initialize_embedding_model=initialize_embedding_model,
+                embedding_model=embedding_model,
                 use_rag=use_rag,
                 selected_codebase=selected_codebase,
                 deductive_prompt_file=deductive_coding_prompt_file  # Pass the prompt file from config
@@ -181,12 +182,12 @@ def main(config: Dict[str, Any]):
                 coding_instructions=coding_instructions,
                 processed_codes=processed_codes,
                 index=faiss_index if use_rag else None,
-                top_k=config.get('top_k', 5),
-                context_size=config.get('context_size', 5),
+                top_k=top_k,
+                context_size=context_size,
                 use_rag=use_rag,
                 codebase=processed_codes if not use_rag else None,
                 completion_model=assign_model,
-                embedding_model=retrieve_embedding_model if use_rag else None,
+                embedding_model=embedding_model if use_rag else None,
                 meaning_units_per_assignment_prompt=meaning_units_per_assignment_prompt,  # Pass the new parameter
                 speaker_field=speaker_field,  # Pass the speaker_field
                 content_field=content_field,  # Pass the content_field
@@ -210,7 +211,7 @@ def main(config: Dict[str, Any]):
                 processed_codes=None,
                 index=None,
                 top_k=None,
-                context_size=config.get('context_size', 5),
+                context_size=context_size,
                 use_rag=False,
                 codebase=None,
                 completion_model=assign_model,
