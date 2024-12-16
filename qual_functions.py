@@ -409,11 +409,13 @@ def assign_codes_to_meaning_units(
                         # Include the ID in the context
                         unit_context += f"ID: {st_source_id}\nSpeaker: {speaker}\n{content}\n\n"
 
-                    # Include context in the prompt
-                    full_prompt += (
+                    # Include context in the prompt if context included
+                    if context_size > 0: 
+                        full_prompt += (
                         f"Contextual Excerpts for Meaning Unit ID {unit.meaning_unit_id}:\n{unit_context}\n"
                         f"**Important:** Please use the provided contextual excerpts **only** as background information to understand the current excerpt better. "
                     )
+                    
                 else:
                     logger.warning(f"Source ID {source_id} not found in full speaking turns.")
 
@@ -426,8 +428,6 @@ def assign_codes_to_meaning_units(
 
             full_prompt += (
                 f"{'**Apply codes exclusively to the current excerpt(s) provided above. Do not assign codes to the contextual excerpts.**' if codes_to_include is not None else '**Generate codes based on the current excerpt(s) provided above using the guidelines.**'}\n\n"
-                f"Please provide the assigned codes for the meaning unit(s) above in the following JSON format:\n"
-                f"{{\n  \"assignments\": [\n    {{\n      \"meaning_unit_id\": <Meaning Unit ID>,\n      \"codeList\": [\n        {{\"code_name\": \"<Name of the code>\", \"code_justification\": \"<Justification for the code>\"}},\n        ...\n      ]\n    }},\n    ...\n  ]\n}}\n\n"
             )
 
             logger.debug(f"Full Prompt for Batch starting at index {i}:\n{full_prompt}")
@@ -439,8 +439,8 @@ def assign_codes_to_meaning_units(
                         {
                             "role": "system",
                             "content": (
-                                "You are tasked with applying qualitative codes to excerpts from transcripts or articles. "
-                                "The purpose of this task is to identify all codes that best describe each excerpt based on the provided instructions."
+                                "You are tasked with applying qualitative codes to segments of text. "
+                                "The purpose of this task is to identify all codes that best describe each text segment based on the provided instructions."
                             )
                         },
                         {
