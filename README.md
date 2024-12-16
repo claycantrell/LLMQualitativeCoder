@@ -1,79 +1,72 @@
-= Qualitative Coding Application
+Transcript Analyzer is a comprehensive tool designed to facilitate the analysis of qualitative data through automated coding processes. This pipeline leverages advanced language models to parse, transform, and assign codes to qualitative data.
 
-The *Qualitative Coding Application* is a tool designed to assist in analyzing qualitative data. Leveraging LLMs, this application automates the process of breaking down textual data into smaller units for analysis and assigning qualitative codes.
+Flexible Data Handling: Supports various JSON data formats
+Automated Parsing: Breaks down large texts into smaller, manageable meaning units.
+Deductive and Inductive Coding: Offers both predefined (deductive) and emergent (inductive) coding approaches.
+Retrieval-Augmented Generation (RAG): Enhances code assignment accuracy by leveraging FAISS indexes.
+Customizable Configuration: Easily adaptable to different datasets and coding schemas.
 
-== Features
+Main Pipeline (main.py): Orchestrates the entire workflow, from data loading to code assignment and validation.
+Data Handlers (data_handlers.py): Manages data loading, transformation, and filtering based on configuration.
+Qualitative Functions (qual_functions.py): Contains core functionalities like parsing transcripts and assigning codes.
+Utilities (utils.py): Provides helper functions for environment setup, configuration loading, and resource initialization.
+Validator (validator.py): Ensures the output's consistency and completeness through validation reports.
 
-* *Dynamic Configuration*: Driven by a `config.json` file, allowing customization without modifying the codebase.
-* *Deductive and Inductive Coding*: You can select between *Deductive* and *Inductive* coding modes by modifying the `"coding_mode"` parameter in the `config.json` file.
+Configuration
+The pipeline is highly configurable through two main JSON configuration files:
+Pipeline Configuration (config.json)
+Data Format Configuration (data_format_config.json)
 
-- *Deductive*: Predefined codes are assigned from the codebase.
-- *Inductive*: Codes are generated during the analysis based on instructions outlined in your inductive coding prompt
+1. Pipeline Configuration (config.json)
+This file controls the overall behavior of the pipeline, including coding modes, model selections, paths, and logging settings.
 
-* *Parsing Transcripts*: Breaks down speaking turns into smaller meaning units based on customizable prompts.
-* *Code Retrieval with FAISS*: Utilizes FAISS for efficient retrieval of relevant codes, reducing token usage and possibly increasing performance with larger codebases.
-* *Flexible Output Formats*: Exports coded data in JSON or CSV formats.
-* *Comprehensive Logging*: Detailed logging with options to log to console and/or files.
+2. Data Format Configuration (data_format_config.json)
+This file defines how different data formats are handled, specifying fields for content, speaker, source IDs, and any filtering rules.
 
-== Architecture
+Usage
+Setting Up Environment Variables
+Before running the pipeline, set the OpenAI API key.
+export OPENAI_API_KEY='your-openai-api-key'
+On Windows:
+set OPENAI_API_KEY=your-openai-api-key
 
-* *`main.py`*: Orchestrates the entire workflow.
-* *`utils.py`*: Contains utility functions for loading configurations, prompts, and initializing resources.
-* *`data_handlers.py`*: Handles data loading, validation, and transformation of data into units for analysis.
-* *`qual_functions.py`*: Implements core functionalities such as parsing transcripts and assigning codes to meaning units.
+Running the Pipeline
+Execute the main script to start the coding process:
 
-== Installation
+Modules
+1. main.py
+The entry point of the pipeline, responsible for orchestrating all stages from data loading to validation. It reads configurations, initializes resources, processes data, assigns codes, and generates outputs and reports.
 
-=== Prerequisites
+2. data_handlers.py
+Handles data operations, including loading JSON files, applying filter rules, and transforming data into MeaningUnit objects. It ensures that data conforms to the specified formats and applies necessary preprocessing steps.
 
-- Python 3.8 or above
-- `pip` (Python package manager)
-- An API key for OpenAI (set as an environment variable)
+3. qual_functions.py
+Contains core functionalities such as parsing transcripts into meaning units and assigning codes using language models. It interfaces with OpenAI's API and manages FAISS indexes for RAG.
 
-=== Steps
+4. utils.py
+Provides utility functions for environment setup, configuration loading, prompt file handling, and initializing resources like FAISS indexes. It ensures that all necessary resources are available and correctly configured.
 
-*Set Up Environment Variables*
+5. validator.py
+Validates the consistency and integrity of the coded outputs. It compares original speaking turns with concatenated meaning units, identifies inconsistencies, and generates detailed validation reports in JSON format.
 
-Ensure you have your OpenAI API key available as an environment variable:
+Input and Output
+Input
+JSON Files: The pipeline accepts JSON files containing qualitative data. Depending on the data_format specified in the configuration, it expects certain fields:
 
-export OPENAI_API_KEY='your_openai_api_key_here'
+Codebase Files: For deductive coding, JSONL files containing predefined codes are used. Each line should represent a JSON object with text and metadata.
 
-== Configuration
+Prompts: Text files containing prompts for parsing and coding instructions.
 
-The application relies on a `config.json` file for all configurable settings. 
+Coded JSON Files: The output includes meaning_units with assigned codes and document_metadata. These files are saved in the specified output_folder with timestamped filenames.
 
-=== Configuration Parameters
+Validation Reports: JSON reports detailing skipped and inconsistent speaking turns to ensure data integrity.
 
-* *coding_mode*: `"deductive"` or `"inductive"` depending on the approach you want to use (open or closed coding).
-* *use_parsing*: Boolean to enable or disable parsing of texual data into smaller units.
-* *use_rag*: Boolean to use Retrieval-Augmented Generation (RAG) for storage and retrieval of codebase (limits the size of context window in prompts, reducing token usage with larger codebases. It could also improve performance with larger codebases but I have not tested this).
-* Below are the default models used for this tool, better performance can be achived with larger and more advanced models.
-* *parse_model*: The model to use for parsing transcripts (e.g., `gpt-4o-mini`).
-* *assign_model*: The model used for assigning codes (e.g., `gpt-4o-mini`).
-* *initialize_embedding_model*: Model used for embedding (e.g., `text-embedding-3-small`).
-* *retrieve_embedding_model*: Model used for code retrieval embeddings.
-* *data_format*: Defines the format of the input data (e.g., `interview`).
-* new data formats must be defined in (`data_format_config.json`) Here you will assign your `content_field` to the JSON value associated with your textual data for analysis. You will also list all other fields in your JSON file. Use the existing data formats and .json data files to get a better understanding of how to format this config file for new data types.
-* This program does not currently support JSON data files which have nesting or use dictonaries.
-* *paths*: Specifies folder and file paths to be used during the process.
-** *prompts_folder*: Path to the folder containing prompt files.
-** *codebase_folder*: Path to the folder containing the qualitative codebase files.
-** *json_folder*: Path to the folder with JSON transcripts.
-** *config_folder*: Path where configuration files are located.
-** *parse_prompt_file*: File containing the prompt for parsing.
-** *deductive_coding_prompt_file*: File for deductive coding prompts.
-** *inductive_coding_prompt_file*: File for inductive coding prompts.
-** *codebase_file*: JSONL file with the codebase definitions.
-** *data_file*: JSON file to be processed.
+Logs: Detailed logs are maintained in both the console and specified log files for monitoring and debugging.
 
-== Usage
+Logging Levels: Configurable through config.json (DEBUG, INFO, WARNING, ERROR, CRITICAL).
 
-=== Running the Main Pipeline
+Log Outputs: Logs are output to the console and can be saved to files as specified in the configuration.
 
-To run the main pipeline, execute the `main.py` script:
+Master Log: A master log file (logs/master_log.jsonl) records each run's timestamp, output file, and configuration for auditing purposes.
 
-== Logging
-
-The application generates logs to aid in debugging and understanding the workflow. Logging is configured with different levels (INFO, DEBUG, ERROR) to capture varying degrees of detail. 
-
-Logs are printed to the console by default. You can configure log files or use different logging handlers as needed.
+Validation Reports: Post-processing reports (*_validation_report.json) highlight any discrepancies between the original data and the coded outputs, ensuring reliability.
