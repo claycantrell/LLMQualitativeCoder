@@ -1,5 +1,5 @@
 {
-  "interview": {
+  "transcript": {
     "content_field": "text_context",
     "speaker_field": "speaker_name",
     "list_field": "content",
@@ -18,10 +18,22 @@
     "list_field": "movie_script",
     "filter_rules": [
       {
-        "field": "type",
+        "field": "character",
         "operator": "equals",
-        "value": "speech"
+        "value": "PROFESSOR"
       }
+    ]
+  },
+    "amazon": {
+    "content_field": "reviews.text",
+    "speaker_field": "reviews.username",
+    "filter_rules": [
+      {
+        "field": "name",
+        "operator": "contains",
+        "value": "Amazon Kindle Paperwhite"
+      }
+
     ]
   }
 }
