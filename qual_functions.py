@@ -1,9 +1,9 @@
 # qual_functions.py
+
 import logging
 from openai import OpenAI
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, Tuple
-import faiss
+from typing import List, Dict, Any, Optional, Tuple, Union
 import json
 import numpy as np
 import os
@@ -21,8 +21,11 @@ try:
         raise ValueError("OPENAI_API_KEY environment variable is not set.")
     client = OpenAI(api_key=openai_api_key)
     logger = logging.getLogger(__name__)
-except Exception as e:
+except ValueError as e:
     logging.getLogger(__name__).error(f"Failed to initialize OpenAI client: {e}")
+    raise
+except Exception as e:
+    logging.getLogger(__name__).error(f"Unexpected error initializing OpenAI client: {e}")
     raise
 
 # Retry functionality with Tenacity
@@ -107,7 +110,7 @@ def parse_transcript(
         completion_model (str): The language model to use.
 
     Returns:
-        List[Tuple[str, str]]: A list of tuples where each tuple contains the source_id and a meaning unit string.
+        List[Tuple[str, str]]: A list of tuples (source_id, meaning unit string).
     """
     try:
         response = completion_with_backoff(
@@ -140,7 +143,6 @@ def parse_transcript(
             logger.error("Parsed output is empty.")
             return []
 
-        # Access the root list from ParseResponse
         if not isinstance(parsed_output, ParseResponse):
             logger.error("Parsed output is not an instance of ParseResponse.")
             return []
@@ -152,172 +154,31 @@ def parse_transcript(
                 continue
             meaning_units.append((unit.source_id, unit.quote))
 
-        # Log the parsed meaning units
         logger.debug(f"Parsed Meaning Units: {meaning_units}")
-
         return meaning_units
 
     except ValidationError as ve:
         logger.error(f"Validation error while parsing transcript: {ve}")
         return []
-    except Exception as e:
-        logger.error(f"An error occurred while parsing transcript into meaning units: {e}")
+    except (OSError, json.JSONDecodeError) as e:
+        logger.error(f"File or JSON error while parsing transcript: {e}")
         return []
-
-def initialize_faiss_index_from_formatted_file(
-    codes_list_file: str,
-    embedding_model: str = "text-embedding-3-small",
-    batch_size: int = 32
-) -> Tuple[faiss.IndexFlatL2, List[Dict[str, Any]]]:
-    """
-    Reads a JSONL-formatted file, processes code data, and initializes a FAISS index directly using batch embedding.
-    Returns the FAISS index and the processed codes as dictionaries.
-
-    Args:
-        codes_list_file (str): Path to the JSONL codebase file.
-        embedding_model (str, optional): Embedding model to use.
-        batch_size (int, optional): Number of items to process in each batch.
-
-    Returns:
-        Tuple[faiss.IndexFlatL2, List[Dict[str, Any]]]: FAISS index and processed codes.
-    """
-    embeddings = []
-    processed_codes = []
-    combined_texts = []  # For batch processing
-
-    try:
-        with open(codes_list_file, 'r', encoding='utf-8') as file:
-            for line in file:
-                line = line.strip()
-                if not line:
-                    continue  # Skip empty lines
-
-                # Parse each JSONL line
-                data = json.loads(line)
-                text = data.get("text", "")
-                metadata = data.get("metadata", {})
-
-                processed_code = {
-                    'text': text,
-                    'metadata': metadata
-                }
-                processed_codes.append(processed_code)
-
-                # Combine `text` and metadata elements for embedding
-                combined_text = f"{text} Metadata: {metadata}"
-                combined_texts.append(combined_text)
-
-                # If batch size is reached, process the batch
-                if len(combined_texts) == batch_size:
-                    response = client.embeddings.create(
-                        input=combined_texts,
-                        model=embedding_model
-                    )
-                    batch_embeddings = [res.embedding for res in response.data]
-                    embeddings.extend(batch_embeddings)
-
-                    # Reset for the next batch
-                    combined_texts = []
-
-            # Process any remaining texts in the last batch
-            if combined_texts:
-                response = client.embeddings.create(
-                    input=combined_texts,
-                    model=embedding_model
-                )
-                batch_embeddings = [res.embedding for res in response.data]
-                embeddings.extend(batch_embeddings)
-
-        # Convert embeddings to numpy array
-        embeddings = np.array(embeddings).astype('float32')
-
-        # Initialize FAISS index
-        if embeddings.size > 0:
-            dimension = len(embeddings[0])
-            index = faiss.IndexFlatL2(dimension)
-            index.add(embeddings)
-        else:
-            raise ValueError("No valid embeddings found. Check the content of your JSONL file.")
-
-        logger.info(f"Initialized FAISS index with {len(processed_codes)} codes from file '{codes_list_file}'.")
-        return index, processed_codes
-
     except Exception as e:
-        logger.error(f"An error occurred while processing the file '{codes_list_file}' and initializing FAISS index: {e}")
-        raise e
-
-def retrieve_relevant_codes_batch(
-    meaning_units: List['MeaningUnit'],
-    index: faiss.IndexFlatL2,
-    processed_codes: List[Dict[str, Any]],
-    top_k: int = 5,
-    embedding_model: str = "text-embedding-3-small"
-) -> List[Dict[str, Any]]:
-    """
-    Retrieves the top_k most relevant codes for a batch of meaning units using multi-vector search.
-    Returns a list of code dictionaries with relevant information.
-
-    Args:
-        meaning_units (List[MeaningUnit]): The meaning unit objects.
-        index (faiss.IndexFlatL2): The FAISS index.
-        processed_codes (List[Dict[str, Any]]): List of processed codes.
-        top_k (int, optional): Number of top similar codes to retrieve per meaning unit.
-        embedding_model (str, optional): Embedding model to use.
-
-    Returns:
-        List[Dict[str, Any]]: List of relevant code dictionaries.
-    """
-    try:
-        # Combine meaning unit strings and metadata
-        combined_texts = []
-        for mu in meaning_units:
-            meaning_unit_string_with_metadata = f"Metadata:\n{json.dumps(mu.speaking_turn.metadata)}\nUnit: {mu.meaning_unit_string}"
-            combined_texts.append(meaning_unit_string_with_metadata)
-
-        # Get embeddings for all meaning units in the batch
-        response = client.embeddings.create(
-            input=combined_texts,
-            model=embedding_model
-        )
-        if not response.data:
-            logger.error("No embedding data returned from OpenAI API.")
-            return []
-        meaning_unit_embeddings = np.array([res.embedding for res in response.data]).astype('float32')
-
-        # Perform similarity search for each embedding
-        all_indices = []
-        for embedding in meaning_unit_embeddings:
-            distances, indices = index.search(np.array([embedding]), top_k)
-            all_indices.extend(indices[0].tolist())
-
-        # Remove duplicates
-        unique_indices = list(set(all_indices))
-
-        # Collect relevant codes
-        relevant_codes = [processed_codes[idx] for idx in unique_indices if idx < len(processed_codes)]
-        code_names = [code.get('text', 'Unnamed Code') for code in relevant_codes]
-        logger.debug(f"Retrieved relevant codes for batch: {code_names}")
-        return relevant_codes
-    except Exception as e:
-        logger.error(f"An error occurred while retrieving relevant codes for batch: {e}")
+        logger.error(f"An unexpected error occurred while parsing transcript into meaning units: {e}")
         return []
 
 def assign_codes_to_meaning_units(
-    meaning_unit_list: List['MeaningUnit'],
+    meaning_unit_list: List[MeaningUnit],
     coding_instructions: str,
     processed_codes: Optional[List[Dict[str, Any]]] = None,
-    index: Optional[faiss.IndexFlatL2] = None,
-    top_k: Optional[int] = 5,
-    context_size: int = 2,
-    use_rag: bool = True,
     codebase: Optional[List[Dict[str, Any]]] = None,
     completion_model: Optional[str] = "gpt-4o-mini",
-    embedding_model: Optional[str] = "text-embedding-3-small",
+    context_size: int = 2,
     meaning_units_per_assignment_prompt: int = 1,
     speaker_field: Optional[str] = None,
     content_field: str = 'content',
     full_speaking_turns: Optional[List[Dict[str, Any]]] = None
-) -> List['MeaningUnit']:
+) -> List[MeaningUnit]:
     """
     Assigns codes to each MeaningUnit object, including contextual information from speaking turns.
     Processes multiple meaning units per prompt based on configuration.
@@ -325,18 +186,14 @@ def assign_codes_to_meaning_units(
     Args:
         meaning_unit_list (List[MeaningUnit]): List of meaning units to process.
         coding_instructions (str): Coding instructions prompt.
-        processed_codes (Optional[List[Dict[str, Any]]], optional): List of processed codes for deductive coding.
-        index (Optional[faiss.IndexFlatL2], optional): FAISS index for RAG.
-        top_k (Optional[int], optional): Number of top similar codes to retrieve.
-        context_size (int, optional): Context size as per new specifications.
-        use_rag (bool, optional): Whether to use RAG for code retrieval.
-        codebase (Optional[List[Dict[str, Any]]], optional): Entire codebase for deductive coding without RAG.
-        completion_model (Optional[str], optional): Language model to use for code assignment.
-        embedding_model (Optional[str]): Embedding model to use for code retrieval.
-        meaning_units_per_assignment_prompt (int, optional): Number of meaning units to process per assignment prompt.
-        speaker_field (Optional[str], optional): The field name for speaker information.
-        content_field (str, optional): The field name for content in full speaking turns.
-        full_speaking_turns (Optional[List[Dict[str, Any]]], optional): List of pre-filtered speaking turns.
+        processed_codes (Optional[List[Dict[str, Any]]]): Full codebase for deductive coding.
+        codebase (Optional[List[Dict[str, Any]]]): Same as processed_codes, included for clarity.
+        completion_model (str): Language model to use for code assignment.
+        context_size (int): How many speaking turns to include as context (backward in the transcript).
+        meaning_units_per_assignment_prompt (int): Number of meaning units to process per assignment prompt.
+        speaker_field (Optional[str]): The field name for speaker information.
+        content_field (str): The field name for the text content in speaking turns.
+        full_speaking_turns (Optional[List[Dict[str, Any]]]): List of the original speaking turns for context.
 
     Returns:
         List[MeaningUnit]: Updated list with assigned codes.
@@ -347,32 +204,14 @@ def assign_codes_to_meaning_units(
             raise ValueError("full_speaking_turns must be provided for context.")
 
         # Create a mapping from source_id to index in full_speaking_turns
-        source_id_to_index = {str(d.get('source_id')): idx for idx, d in enumerate(full_speaking_turns)}  # Ensure keys are strings
+        source_id_to_index = {str(d.get('source_id')): idx for idx, d in enumerate(full_speaking_turns)}
 
         total_units = len(meaning_unit_list)
         for i in range(0, total_units, meaning_units_per_assignment_prompt):
             batch = meaning_unit_list[i:i + meaning_units_per_assignment_prompt]
 
-            # Determine coding approach for the batch
-            is_deductive = processed_codes is not None
-
-            if is_deductive and use_rag and index is not None:
-                # Retrieve relevant codes for the batch using multi-vector search
-                relevant_codes = retrieve_relevant_codes_batch(
-                    meaning_units=batch,
-                    index=index,
-                    processed_codes=processed_codes,
-                    top_k=top_k,
-                    embedding_model=embedding_model
-                )
-                # Ensure no duplicates
-                codes_to_include = relevant_codes
-            elif is_deductive and not use_rag and codebase:
-                # Deductive coding without RAG, using entire codebase
-                codes_to_include = codebase
-            else:
-                # Inductive coding: No predefined codes
-                codes_to_include = None
+            # For deductive coding with a known codebase
+            codes_to_include = codebase if processed_codes else None
 
             # Prepare the prompt
             full_prompt = f"{coding_instructions}\n\n"
@@ -381,7 +220,7 @@ def assign_codes_to_meaning_units(
                 # Collect unique codes
                 unique_codes_set = set(json.dumps(code, indent=2) for code in codes_to_include)
                 codes_str = "\n\n".join(unique_codes_set)
-                code_heading = "Relevant Codes (full details):" if use_rag else "Full Codebase (all codes with details):"
+                code_heading = "Full Codebase (all codes with details):"
                 full_prompt += f"{code_heading}\n{codes_str}\n\n"
             else:
                 codes_str = "No predefined codes. Please generate codes based on the following guidelines."
@@ -395,40 +234,41 @@ def assign_codes_to_meaning_units(
                 unit_idx = source_id_to_index.get(source_id)
 
                 if unit_idx is not None:
-                    # For context_size = 1, include only the speaking turn the meaning unit came from
-                    # For context_size > 1, include the speaking turn and previous ones, up to context_size
                     start_context_idx = max(0, unit_idx - (context_size - 1))
                     end_context_idx = unit_idx + 1  # Include the current speaking turn
 
                     context_speaking_turns = full_speaking_turns[start_context_idx:end_context_idx]
-
                     for st in context_speaking_turns:
                         st_source_id = str(st.get('source_id'))
                         speaker = st.get(speaker_field, "Unknown Speaker") if speaker_field else "Unknown Speaker"
                         content = st.get(content_field, "")
-                        # Include the ID in the context
                         unit_context += f"ID: {st_source_id}\nSpeaker: {speaker}\n{content}\n\n"
 
-                    # Include context in the prompt if context included
-                    if context_size > 0: 
+                    if context_size > 0:
                         full_prompt += (
-                        f"Contextual Excerpts for Meaning Unit ID {unit.meaning_unit_id}:\n{unit_context}\n"
-                        f"**Important:** Please use the provided contextual excerpts **only** as background information to understand the current excerpt better. "
-                    )
-                    
+                            f"Contextual Excerpts for Meaning Unit ID {unit.meaning_unit_id}:\n{unit_context}\n"
+                            f"**Important:** Please use the provided contextual excerpts **only** as background information "
+                            f"to understand the current excerpt better.\n\n"
+                        )
                 else:
                     logger.warning(f"Source ID {source_id} not found in full speaking turns.")
 
-                # Add the current excerpt to the prompt
                 speaker = unit.speaking_turn.metadata.get(speaker_field, "Unknown Speaker") if speaker_field else "Unknown Speaker"
                 current_unit_excerpt = f"Quote: {unit.meaning_unit_string}\n\n"
                 full_prompt += (
-                    f"Current Excerpt For Coding (Meaning Unit ID {unit.meaning_unit_id}) Speaker: {speaker}:\n{current_unit_excerpt}"
+                    f"Current Excerpt For Coding (Meaning Unit ID {unit.meaning_unit_id}) Speaker: {speaker}:\n"
+                    f"{current_unit_excerpt}"
                 )
 
-            full_prompt += (
-                f"{'**Apply codes exclusively to the current excerpt(s) provided above. Do not assign codes to the contextual excerpts.**' if codes_to_include is not None else '**Generate codes based on the current excerpt(s) provided above using the guidelines.**'}\n\n"
-            )
+            if codes_to_include is not None:
+                full_prompt += (
+                    "**Apply codes exclusively to the current excerpt(s) provided above. "
+                    "Do not assign codes to the contextual excerpts.**\n\n"
+                )
+            else:
+                full_prompt += (
+                    "**Generate codes based on the current excerpt(s) provided above using the guidelines.**\n\n"
+                )
 
             logger.debug(f"Full Prompt for Batch starting at index {i}:\n{full_prompt}")
 
@@ -440,7 +280,8 @@ def assign_codes_to_meaning_units(
                             "role": "system",
                             "content": (
                                 "You are tasked with applying qualitative codes to segments of text. "
-                                "The purpose of this task is to identify all codes that best describe each text segment based on the provided instructions."
+                                "The purpose of this task is to identify all codes that best describe each text segment "
+                                "based on the provided instructions."
                             )
                         },
                         {
@@ -448,9 +289,10 @@ def assign_codes_to_meaning_units(
                             "content": full_prompt
                         }
                     ],
+                    store=True,
                     response_format=CodeResponse,
                     temperature=0.2,
-                    max_tokens=16000,  # Increased tokens to accommodate multiple responses
+                    max_tokens=16000,
                 )
 
                 if not response.choices:
@@ -464,7 +306,6 @@ def assign_codes_to_meaning_units(
                     continue
 
                 for assignment in code_output.assignments:
-                    # Find the corresponding meaning unit
                     matching_units = [mu for mu in batch if mu.meaning_unit_id == assignment.meaning_unit_id]
                     if not matching_units:
                         logger.warning(f"No matching meaning unit found for meaning_unit_id {assignment.meaning_unit_id}.")
@@ -481,10 +322,15 @@ def assign_codes_to_meaning_units(
             except ValidationError as ve:
                 logger.error(f"Validation error while assigning codes for batch starting at index {i}: {ve}")
                 continue
+            except (OSError, json.JSONDecodeError) as e:
+                logger.error(f"File or JSON error while assigning codes for batch starting at index {i}: {e}")
+                continue
             except Exception as e:
-                logger.error(f"An error occurred while assigning codes for batch starting at index {i}: {e}")
+                logger.error(f"An unexpected error occurred while assigning codes for batch starting at index {i}: {e}")
                 continue
 
+    except ValueError as ve:
+        logger.error(f"Validation or value error while assigning codes: {ve}")
     except Exception as e:
         logger.error(f"An error occurred while assigning codes: {e}")
 

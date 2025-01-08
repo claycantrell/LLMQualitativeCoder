@@ -1,9 +1,12 @@
 # data_handlers.py
-import os
+
 import json
 import logging
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
+
 import pandas as pd
+
 from qual_functions import parse_transcript, MeaningUnit, SpeakingTurn
 
 logger = logging.getLogger(__name__)
@@ -44,11 +47,11 @@ class FlexibleDataHandler:
             pd.DataFrame: DataFrame containing the data.
         """
         try:
-            with open(self.file_path, 'r', encoding='utf-8') as file:
+            with Path(self.file_path).open('r', encoding='utf-8') as file:
                 raw_data = json.load(file)
             logger.debug(f"Loaded data from '{self.file_path}'.")
-        except Exception as e:
-            logger.error(f"Failed to load data from '{self.file_path}': {e}")
+        except (OSError, json.JSONDecodeError) as e:
+            logger.error(f"Failed to load or parse data from '{self.file_path}': {e}")
             raise
 
         if isinstance(raw_data, list):
@@ -65,8 +68,9 @@ class FlexibleDataHandler:
                     logger.error(f"No content found under the list_field '{self.list_field}'.")
                     raise ValueError(f"No content found under the list_field '{self.list_field}'.")
             else:
-                # No list_field provided; assume raw_data is the content list
-                self.document_metadata = {k: v for k, v in raw_data.items() if not isinstance(v, list)}
+                self.document_metadata = {
+                    k: v for k, v in raw_data.items() if not isinstance(v, list)
+                }
                 content_list = [v for v in raw_data.values() if isinstance(v, list)]
                 if content_list:
                     content_list = content_list[0]
@@ -77,7 +81,6 @@ class FlexibleDataHandler:
             logger.error(f"Unexpected data format in '{self.file_path}'. Expected dict or list.")
             raise ValueError(f"Unexpected data format in '{self.file_path}'. Expected dict or list.")
 
-        # Create DataFrame from the content list
         data = pd.DataFrame(content_list)
 
         # Assign source_id if not present
@@ -107,7 +110,7 @@ class FlexibleDataHandler:
                 elif operator == 'not_equals':
                     data = data[data[field] != value]
                 elif operator == 'contains':
-                    data = data[data[field].str.contains(value, na=False)]
+                    data = data[data[field].str.contains(value, na=False, regex=False)]
                 else:
                     logger.warning(f"Operator '{operator}' is not supported. Skipping this filter rule.")
             logger.debug(f"Data shape after applying filter rules: {data.shape}")
@@ -137,18 +140,16 @@ class FlexibleDataHandler:
             for i in range(0, len(data), self.speaking_turns_per_prompt):
                 batch = data.iloc[i:i + self.speaking_turns_per_prompt]
                 speaking_turns_dicts = []
-                source_id_map = {}  # Map source_id to SpeakingTurn objects
+                source_id_map = {}
                 for _, record in batch.iterrows():
                     content = record.get(self.content_field, "")
                     metadata = record.drop(labels=[self.content_field], errors='ignore').to_dict()
                     source_id = str(record['source_id'])
-                    # Create SpeakingTurn object
                     speaking_turn = SpeakingTurn(
                         source_id=source_id,
                         content=content,
                         metadata=metadata
                     )
-                    # Prepare data for parsing (dict format)
                     speaking_turn_dict = {
                         "source_id": source_id,
                         "content": content,
@@ -157,7 +158,6 @@ class FlexibleDataHandler:
                     speaking_turns_dicts.append(speaking_turn_dict)
                     source_id_map[source_id] = speaking_turn
 
-                # Parse the batch of speaking turns
                 parsed_units = parse_transcript(
                     speaking_turns=speaking_turns_dicts,
                     prompt=self.parse_instructions,
@@ -168,33 +168,31 @@ class FlexibleDataHandler:
                     if not speaking_turn:
                         logger.warning(f"SpeakingTurn not found for source_id {source_id}")
                         continue
-                    # Create MeaningUnit with meaning_unit_id and link to speaking_turn
                     meaning_unit = MeaningUnit(
                         meaning_unit_id=meaning_unit_id_counter,
                         meaning_unit_string=pu,
                         speaking_turn=speaking_turn
                     )
                     meaning_units.append(meaning_unit)
-                    meaning_unit_id_counter += 1  # Increment the counter for the next meaning unit
+                    meaning_unit_id_counter += 1
         else:
+            # No LLM-based parsing, treat each row as one meaning unit
             for _, record in data.iterrows():
                 content = record.get(self.content_field, "")
                 metadata = record.drop(labels=[self.content_field], errors='ignore').to_dict()
                 source_id = str(record['source_id'])
-                # Create SpeakingTurn object
                 speaking_turn = SpeakingTurn(
                     source_id=source_id,
                     content=content,
                     metadata=metadata
                 )
-                # Create MeaningUnit with meaning_unit_id and link to speaking_turn
                 meaning_unit = MeaningUnit(
                     meaning_unit_id=meaning_unit_id_counter,
                     meaning_unit_string=content,
                     speaking_turn=speaking_turn
                 )
                 meaning_units.append(meaning_unit)
-                meaning_unit_id_counter += 1  # Increment the counter for the next meaning unit
+                meaning_unit_id_counter += 1
 
         logger.debug(f"Transformed data into {len(meaning_units)} meaning units.")
         return meaning_units

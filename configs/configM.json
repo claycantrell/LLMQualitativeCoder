@@ -1,14 +1,11 @@
 {
   "coding_mode": "deductive",
   "use_parsing": true,
-  "use_rag": false,
-  "top_k": 0,
   "speaking_turns_per_prompt": 50,
   "meaning_units_per_assignment_prompt": 10,
   "context_size": 3,
   "parse_model": "gpt-4o-mini",
   "assign_model": "gpt-4o-mini",
-  "embedding_model": "text-embedding-3-small",
   "data_format": "movie_script",
   "paths": {
     "prompts_folder": "prompts",
