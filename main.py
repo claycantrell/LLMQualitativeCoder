@@ -9,10 +9,12 @@ from typing import Dict, Any, Optional
 # Import the centralized logging setup function
 from logging_config import setup_logging
 
-from data_handlers import FlexibleDataHandler
+# Import Pydantic models and updated utils
+from config_schemas import ConfigModel, DataFormatConfig
 from utils import (
     load_environment_variables,
     load_config,
+    load_data_format_config,
     load_prompt_file,
     initialize_deductive_resources
 )
@@ -21,45 +23,44 @@ from qual_functions import (
 )
 from validator import run_validation, replace_nan_with_null
 
-def main(config: Dict[str, Any]):
+def main(config: ConfigModel):
     """
     Main function to execute the qualitative coding pipeline.
     
     Args:
-        config (Dict[str, Any]): Configuration dictionary loaded from config.json.
+        config (ConfigModel): Validated configuration object loaded from config.json.
     """
-    # Load configurations
-    coding_mode = config.get('coding_mode', 'deductive')
-    use_parsing = config.get('use_parsing', True)
-    parse_model = config.get('parse_model', 'gpt-4o-mini')
-    assign_model = config.get('assign_model', 'gpt-4o-mini')
-    data_format = config.get('data_format', 'interview')
-    speaking_turns_per_prompt = config.get('speaking_turns_per_prompt', 1)
-    meaning_units_per_assignment_prompt = config.get('meaning_units_per_assignment_prompt', 1)
-    context_size = config.get('context_size', 5)
+    # --- Access config fields directly from Pydantic model ---
+    coding_mode = config.coding_mode
+    use_parsing = config.use_parsing
+    parse_model = config.parse_model
+    assign_model = config.assign_model
+    data_format = config.data_format
+    speaking_turns_per_prompt = config.speaking_turns_per_prompt
+    meaning_units_per_assignment_prompt = config.meaning_units_per_assignment_prompt
+    context_size = config.context_size
 
-    # Paths configuration
-    paths = config.get('paths', {})
-    prompts_folder = paths.get('prompts_folder', 'prompts')
-    codebase_folder = paths.get('codebase_folder', 'qual_codebase')
-    json_folder = paths.get('json_folder', 'json_transcripts')
-    config_folder = paths.get('config_folder', 'configs')
+    # Paths
+    prompts_folder = config.paths.prompts_folder
+    codebase_folder = config.paths.codebase_folder
+    json_folder = config.paths.json_folder
+    config_folder = config.paths.config_folder
 
     # Selected files
-    selected_codebase = config.get('selected_codebase', 'new_schema.jsonl')
-    selected_json_file = config.get('selected_json_file', 'your_movie_script.json')
-    parse_prompt_file = config.get('parse_prompt_file', 'parse_prompt.txt')
-    inductive_coding_prompt_file = config.get('inductive_coding_prompt_file', 'inductive_prompt.txt')
-    deductive_coding_prompt_file = config.get('deductive_coding_prompt_file', 'deductive_prompt.txt')
+    selected_codebase = config.selected_codebase
+    selected_json_file = config.selected_json_file
+    parse_prompt_file = config.parse_prompt_file
+    inductive_coding_prompt_file = config.inductive_coding_prompt_file
+    deductive_coding_prompt_file = config.deductive_coding_prompt_file
 
     # Output configuration
-    output_folder = config.get('output_folder', 'outputs')
+    output_folder = config.output_folder
 
     # Logging configuration (centralized)
-    enable_logging = config.get('enable_logging', True)
-    logging_level_str = config.get('logging_level', 'DEBUG')
-    log_to_file = config.get('log_to_file', True)
-    log_file_path = config.get('log_file_path', 'logs/application.log')
+    enable_logging = config.enable_logging
+    logging_level_str = config.logging_level
+    log_to_file = config.log_to_file
+    log_file_path = config.log_file_path
     setup_logging(enable_logging, logging_level_str, log_to_file, log_file_path)
     logger = logging.getLogger(__name__)
 
@@ -86,12 +87,12 @@ def main(config: Dict[str, Any]):
             logger.error(f"Failed to load parse instructions: {e}")
             return
 
-    # Load data format configuration
+    # Load data format configuration via Pydantic
     data_format_config_path = Path(config_folder) / 'data_format_config.json'
     try:
-        data_format_config = load_config(str(data_format_config_path))
-        logger.debug("Data format configuration loaded.")
-    except (FileNotFoundError, json.JSONDecodeError, OSError, ValueError) as e:
+        data_format_config: DataFormatConfig = load_data_format_config(str(data_format_config_path))
+        logger.debug("Data format configuration loaded and validated.")
+    except (FileNotFoundError, json.JSONDecodeError, OSError, ValueError, ValidationError) as e:
         logger.error(f"Failed to load data format configuration: {e}")
         return
 
@@ -100,15 +101,11 @@ def main(config: Dict[str, Any]):
         raise ValueError(f"No configuration found for data format: {data_format}")
 
     format_config = data_format_config[data_format]
-    content_field = format_config.get('content_field')
-    speaker_field = format_config.get('speaker_field')
-    list_field = format_config.get('list_field')
-    source_id_field = format_config.get('source_id_field')
-    filter_rules = format_config.get('filter_rules', [])  # Get filter_rules from format_config
-
-    if not content_field:
-        logger.error(f"'content_field' not specified in data format configuration for '{data_format}'")
-        raise ValueError(f"'content_field' not specified in data format configuration for '{data_format}'")
+    content_field = format_config.content_field
+    speaker_field = format_config.speaker_field
+    list_field = format_config.list_field
+    source_id_field = format_config.source_id_field
+    filter_rules = format_config.filter_rules
 
     # Determine the data file to load based on selected_json_file
     data_file = selected_json_file
@@ -117,7 +114,11 @@ def main(config: Dict[str, Any]):
         logger.error(f"Data file '{file_path}' not found.")
         raise FileNotFoundError(f"Data file '{file_path}' not found.")
 
-    # Stage 2: Data Loading and Transformation Using FlexibleDataHandler
+    # ---------------------------------
+    # STAGE 2: Data Loading & Transform
+    # ---------------------------------
+    from data_handlers import FlexibleDataHandler
+
     try:
         data_handler = FlexibleDataHandler(
             file_path=str(file_path),
@@ -126,7 +127,7 @@ def main(config: Dict[str, Any]):
             content_field=content_field,
             speaker_field=speaker_field,
             list_field=list_field,
-            filter_rules=filter_rules,
+            filter_rules=[rule.model_dump() for rule in filter_rules],  # Convert Pydantic model to dict
             use_parsing=use_parsing,
             source_id_field=source_id_field,
             speaking_turns_per_prompt=speaking_turns_per_prompt
@@ -143,7 +144,9 @@ def main(config: Dict[str, Any]):
         logger.warning("No meaning units to process. Exiting.")
         return
 
-    # Stage 3: Code Assignment
+    # ---------------------------------
+    # STAGE 3: Code Assignment
+    # ---------------------------------
     if coding_mode == "deductive":
         try:
             # Initialize deductive resources (always load the full codebase)
@@ -181,7 +184,7 @@ def main(config: Dict[str, Any]):
             logger.error(f"Failed to assign codes in deductive mode: {e}")
             return
 
-    else:  # Inductive coding
+    else:  # "inductive"
         try:
             # Load inductive coding prompt
             inductive_coding_prompt = load_prompt_file(prompts_folder, inductive_coding_prompt_file, description='inductive coding prompt')
@@ -209,11 +212,13 @@ def main(config: Dict[str, Any]):
             logger.error(f"Unexpected error in inductive coding: {e}")
             return
 
-    # Stage 4: Output Results
+    # ----------------------
+    # STAGE 4: Output Results
+    # ----------------------
     Path(output_folder).mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     input_file_pathlib = Path(selected_json_file)
-    output_file_basename = input_file_pathlib.stem  # e.g., 'your_movie_script'
+    output_file_basename = input_file_pathlib.stem
     output_file_path = Path(output_folder) / f"{output_file_basename}_output_{timestamp}.json"
 
     # Get document-level metadata from data_handler
@@ -244,14 +249,16 @@ def main(config: Dict[str, Any]):
             log_entry = {
                 'timestamp': timestamp,
                 'output_file': str(output_file_path),
-                'config': config
+                'config': config.model_dump()  # Use model_dump in Pydantic v2.x
             }
             log_file.write(json.dumps(log_entry) + '\n')
         logger.info(f"Master log updated at '{master_log_file_obj}'.")
     except OSError as e:
         logger.error(f"Failed to update master log: {e}")
 
-    # Stage 5: Validation
+    # -------------------------
+    # STAGE 5: Validation
+    # -------------------------
     try:
         logger.info("Starting validation process.")
         
@@ -263,7 +270,7 @@ def main(config: Dict[str, Any]):
             output_file=str(output_file_path),
             report_file=str(validation_report_path),
             similarity_threshold=1.0,  # Exact match
-            filter_rules=filter_rules,
+            filter_rules=[rule.model_dump() for rule in filter_rules],
             input_list_field=list_field,
             output_list_field='meaning_units',
             text_field=content_field,
@@ -277,15 +284,18 @@ def main(config: Dict[str, Any]):
         logger.error(f"Unexpected error during validation: {e}")
         return
 
+
 if __name__ == "__main__":
     """
     Entry point for the application.
     """
     config_file_path = 'configs/config.json'  # Adjust the path if needed
     try:
-        config = load_config(config_file_path)
-    except (FileNotFoundError, ValueError, OSError, json.JSONDecodeError) as e:
+        # Load and validate config
+        config: ConfigModel = load_config(config_file_path)
+    except (FileNotFoundError, ValueError, OSError, json.JSONDecodeError, ValidationError) as e:
         print(f"Failed to load configuration: {e}")
         exit(1)
 
+    # Pass the validated Pydantic model to main
     main(config)

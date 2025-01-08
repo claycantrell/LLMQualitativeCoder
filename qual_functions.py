@@ -1,46 +1,50 @@
 # qual_functions.py
 
 import logging
-from openai import OpenAI
-from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, Tuple, Union
+import os
 import json
 import numpy as np
-import os
+from dataclasses import dataclass, field
+from typing import List, Dict, Any, Optional, Tuple, Union
 from pydantic import BaseModel, ValidationError
 from tenacity import (
     retry,
     stop_after_attempt,
     wait_random_exponential,
 )
+import openai
+from openai import OpenAI
 
-# Initialize OpenAI client
-try:
-    openai_api_key = os.getenv('OPENAI_API_KEY')
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------
+# 14. Improve OpenAI Client Initialization
+# ---------------------------------------------
+
+def get_openai_client() -> OpenAI:
+    """
+    Retrieves an instance of the OpenAI client. This function can be
+    called multiple times to create fresh or different client instances
+    based on dynamic configurations.
+    """
+    openai_api_key = os.getenv("OPENAI_API_KEY")
     if not openai_api_key:
         raise ValueError("OPENAI_API_KEY environment variable is not set.")
-    client = OpenAI(api_key=openai_api_key)
-    logger = logging.getLogger(__name__)
-except ValueError as e:
-    logging.getLogger(__name__).error(f"Failed to initialize OpenAI client: {e}")
-    raise
-except Exception as e:
-    logging.getLogger(__name__).error(f"Unexpected error initializing OpenAI client: {e}")
-    raise
+    return OpenAI(api_key=openai_api_key)
 
-# Retry functionality with Tenacity
-@retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(6))
-def completion_with_backoff(**kwargs):
-    return client.beta.chat.completions.parse(**kwargs)
-
-# -------------------------------
-# Data Classes
-# -------------------------------
+# ---------------------------------------------
+# 15. Utilize More Specific Data Classes
+#    (All fields typed; optional methods added)
+# ---------------------------------------------
 
 @dataclass
 class CodeAssigned:
     code_name: str
     code_justification: str
+
+    def is_valid(self) -> bool:
+        return bool(self.code_name and self.code_justification)
+
 
 @dataclass
 class SpeakingTurn:
@@ -58,12 +62,13 @@ class SpeakingTurn:
             "metadata": metadata
         }
 
+
 @dataclass
 class MeaningUnit:
     meaning_unit_id: int
     meaning_unit_string: str
     assigned_code_list: List[CodeAssigned] = field(default_factory=list)
-    speaking_turn: SpeakingTurn = None  # Link to associated SpeakingTurn
+    speaking_turn: Optional[SpeakingTurn] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -73,52 +78,91 @@ class MeaningUnit:
             "speaking_turn": self.speaking_turn.to_dict() if self.speaking_turn else None
         }
 
-# -------------------------------
-# Pydantic Models for GPT Output Format
-# -------------------------------
+# ---------------------------------------------
+# 18. Use Pydantic for Response Validation
+#    (Pydantic models to ensure response schema)
+# ---------------------------------------------
 
 class ParseFormat(BaseModel):
-    source_id: str  # Ensure source_id is string
+    source_id: str
     quote: str
 
 class ParseResponse(BaseModel):
     parse_list: List[ParseFormat]
 
+class CodeAssignedModel(BaseModel):
+    code_name: str
+    code_justification: str
+
 class CodeAssignmentResponse(BaseModel):
     meaning_unit_id: int
-    codeList: List[CodeAssigned]
+    codeList: List[CodeAssignedModel]
 
 class CodeResponse(BaseModel):
     assignments: List[CodeAssignmentResponse]
 
-# -------------------------------
+# ---------------------------------------------
+# 16. Enhance completion_with_backoff Function
+#    (Accepts client as parameter, handles API errors)
+# ---------------------------------------------
+openai_client = get_openai_client()
+
+@retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(6))
+def completion_with_backoff(
+    client: OpenAI = openai_client,
+    **kwargs
+):
+    """
+    Performs a chat completion request with exponential backoff and optional
+    custom OpenAI client. Also handles specific API exceptions to improve
+    robustness.
+    """
+    if client is None:
+        client = get_openai_client()
+
+    try:
+        return client.beta.chat.completions.parse(**kwargs)
+    except openai.error.RateLimitError as e:
+        logger.error("OpenAI API rate limit exceeded: %s", e)
+        raise
+    except openai.error.APIError as e:
+        logger.error("OpenAI API error: %s", e)
+        raise
+    except openai.error.Timeout as e:
+        logger.error("OpenAI API request timed out: %s", e)
+        raise
+    except openai.error.InvalidRequestError as e:
+        logger.error("OpenAI API invalid request: %s", e)
+        raise
+    except Exception as e:
+        logger.error("Unexpected error from OpenAI API: %s", e)
+        raise
+
+# ---------------------------------------------
 # Core Functions
-# -------------------------------
+# ---------------------------------------------
 
 def parse_transcript(
     speaking_turns: List[Dict[str, Any]],
     prompt: str,
-    completion_model: str
+    completion_model: str,
+    openai_client: Optional[OpenAI] = None
 ) -> List[Tuple[str, str]]:
     """
-    Breaks up multiple speaking turns into smaller meaning units based on criteria in the LLM prompt.
-    Returns a list of tuples containing source_id and the meaning unit string.
-
-    Args:
-        speaking_turns (List[Dict[str, Any]]): A list of speaking turns with metadata, including source_id.
-        prompt (str): The prompt instructions for parsing.
-        completion_model (str): The language model to use.
-
-    Returns:
-        List[Tuple[str, str]]: A list of tuples (source_id, meaning unit string).
+    Breaks up multiple speaking turns into smaller meaning units based on 
+    criteria in the LLM prompt. Returns a list of tuples containing (source_id, meaning unit string).
     """
     try:
         response = completion_with_backoff(
+            client=openai_client,
             model=completion_model,
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a qualitative research assistant that breaks down multiple speaking turns into smaller meaning units based on given instructions."
+                    "content": (
+                        "You are a qualitative research assistant that breaks down multiple speaking "
+                        "turns into smaller meaning units based on given instructions."
+                    )
                 },
                 {
                     "role": "user",
@@ -143,15 +187,11 @@ def parse_transcript(
             logger.error("Parsed output is empty.")
             return []
 
-        if not isinstance(parsed_output, ParseResponse):
-            logger.error("Parsed output is not an instance of ParseResponse.")
-            return []
+        # Validate with pydantic
+        parse_response = ParseResponse.parse_obj(parsed_output.dict())
 
         meaning_units = []
-        for unit in parsed_output.parse_list:
-            if not isinstance(unit, ParseFormat):
-                logger.warning(f"Unit is not of type ParseFormat: {unit}")
-                continue
+        for unit in parse_response.parse_list:
             meaning_units.append((unit.source_id, unit.quote))
 
         logger.debug(f"Parsed Meaning Units: {meaning_units}")
@@ -167,6 +207,11 @@ def parse_transcript(
         logger.error(f"An unexpected error occurred while parsing transcript into meaning units: {e}")
         return []
 
+# ---------------------------------------------
+# 17. Optimize assign_codes_to_meaning_units
+#    (Batching, precompute prompt parts)
+# ---------------------------------------------
+
 def assign_codes_to_meaning_units(
     meaning_unit_list: List[MeaningUnit],
     coding_instructions: str,
@@ -177,14 +222,16 @@ def assign_codes_to_meaning_units(
     meaning_units_per_assignment_prompt: int = 1,
     speaker_field: Optional[str] = None,
     content_field: str = 'content',
-    full_speaking_turns: Optional[List[Dict[str, Any]]] = None
+    full_speaking_turns: Optional[List[Dict[str, Any]]] = None,
+    openai_client: Optional[OpenAI] = None
 ) -> List[MeaningUnit]:
     """
-    Assigns codes to each MeaningUnit object, including contextual information from speaking turns.
-    Processes multiple meaning units per prompt based on configuration.
+    Assigns codes to each MeaningUnit object, including contextual information
+    from speaking turns. Processes multiple meaning units per prompt 
+    based on configuration.
 
     Args:
-        meaning_unit_list (List[MeaningUnit]): List of meaning units to process.
+        meaning_unit_list (List[MeaningUnit]]): List of meaning units to process.
         coding_instructions (str): Coding instructions prompt.
         processed_codes (Optional[List[Dict[str, Any]]]): Full codebase for deductive coding.
         codebase (Optional[List[Dict[str, Any]]]): Same as processed_codes, included for clarity.
@@ -194,6 +241,7 @@ def assign_codes_to_meaning_units(
         speaker_field (Optional[str]): The field name for speaker information.
         content_field (str): The field name for the text content in speaking turns.
         full_speaking_turns (Optional[List[Dict[str, Any]]]): List of the original speaking turns for context.
+        openai_client (Optional[OpenAI]): Pass a custom initialized OpenAI client.
 
     Returns:
         List[MeaningUnit]: Updated list with assigned codes.
@@ -206,28 +254,27 @@ def assign_codes_to_meaning_units(
         # Create a mapping from source_id to index in full_speaking_turns
         source_id_to_index = {str(d.get('source_id')): idx for idx, d in enumerate(full_speaking_turns)}
 
-        total_units = len(meaning_unit_list)
-        for i in range(0, total_units, meaning_units_per_assignment_prompt):
-            batch = meaning_unit_list[i:i + meaning_units_per_assignment_prompt]
+        # Precompute constant parts of the prompt that do not change per meaning unit/batch
+        # For deductive coding with a known codebase
+        if processed_codes:
+            codes_to_include = codebase if codebase else processed_codes
+            # Collect unique codes in a stable JSON representation
+            unique_codes_strs = set(json.dumps(code, indent=2, sort_keys=True) for code in codes_to_include)
+            code_heading = "Full Codebase (all codes with details):"
+            codes_block = f"{code_heading}\n{chr(10).join(unique_codes_strs)}\n\n"
+        else:
+            code_heading = "Guidelines for Inductive Coding:"
+            codes_block = f"{code_heading}\nNo predefined codes. Please generate codes based on the following guidelines.\n\n"
 
-            # For deductive coding with a known codebase
-            codes_to_include = codebase if processed_codes else None
+        def process_batch(start_idx: int) -> None:
+            batch = meaning_unit_list[start_idx:start_idx + meaning_units_per_assignment_prompt]
+            if not batch:
+                return
 
-            # Prepare the prompt
-            full_prompt = f"{coding_instructions}\n\n"
+            # Build the prompt incrementally
+            full_prompt = f"{coding_instructions}\n\n{codes_block}"
 
-            if codes_to_include is not None:
-                # Collect unique codes
-                unique_codes_set = set(json.dumps(code, indent=2) for code in codes_to_include)
-                codes_str = "\n\n".join(unique_codes_set)
-                code_heading = "Full Codebase (all codes with details):"
-                full_prompt += f"{code_heading}\n{codes_str}\n\n"
-            else:
-                codes_str = "No predefined codes. Please generate codes based on the following guidelines."
-                code_heading = "Guidelines for Inductive Coding:"
-                full_prompt += f"{code_heading}\n{codes_str}\n\n"
-
-            # Prepare context and excerpts for each meaning unit in the batch
+            # For each meaning unit in the batch, add context and excerpt
             for unit in batch:
                 unit_context = ""
                 source_id = unit.speaking_turn.source_id
@@ -260,7 +307,7 @@ def assign_codes_to_meaning_units(
                     f"{current_unit_excerpt}"
                 )
 
-            if codes_to_include is not None:
+            if processed_codes:
                 full_prompt += (
                     "**Apply codes exclusively to the current excerpt(s) provided above. "
                     "Do not assign codes to the contextual excerpts.**\n\n"
@@ -270,10 +317,11 @@ def assign_codes_to_meaning_units(
                     "**Generate codes based on the current excerpt(s) provided above using the guidelines.**\n\n"
                 )
 
-            logger.debug(f"Full Prompt for Batch starting at index {i}:\n{full_prompt}")
+            logger.debug(f"Full Prompt for Batch starting at index {start_idx}:\n{full_prompt}")
 
             try:
                 response = completion_with_backoff(
+                    client=openai_client,
                     model=completion_model,
                     messages=[
                         {
@@ -296,38 +344,40 @@ def assign_codes_to_meaning_units(
                 )
 
                 if not response.choices:
-                    logger.error(f"No choices returned for batch starting at index {i}.")
-                    continue
+                    logger.error(f"No choices returned for batch starting at index {start_idx}.")
+                    return
 
                 code_output = response.choices[0].message.parsed
 
-                if not isinstance(code_output, CodeResponse):
-                    logger.error(f"Response for batch starting at index {i} is not of type CodeResponse.")
-                    continue
+                # Validate with pydantic
+                code_response = CodeResponse.parse_obj(code_output.dict())
 
-                for assignment in code_output.assignments:
+                for assignment in code_response.assignments:
                     matching_units = [mu for mu in batch if mu.meaning_unit_id == assignment.meaning_unit_id]
                     if not matching_units:
                         logger.warning(f"No matching meaning unit found for meaning_unit_id {assignment.meaning_unit_id}.")
                         continue
-                    meaning_unit = matching_units[0]
 
+                    meaning_unit = matching_units[0]
+                    # Convert CodeAssignedModel => CodeAssigned
                     for code_item in assignment.codeList:
-                        code_name = getattr(code_item, 'code_name', 'Unknown Code')
-                        code_justification = getattr(code_item, 'code_justification', 'No justification provided')
                         meaning_unit.assigned_code_list.append(
-                            CodeAssigned(code_name=code_name, code_justification=code_justification)
+                            CodeAssigned(
+                                code_name=code_item.code_name,
+                                code_justification=code_item.code_justification
+                            )
                         )
 
             except ValidationError as ve:
-                logger.error(f"Validation error while assigning codes for batch starting at index {i}: {ve}")
-                continue
+                logger.error(f"Validation error while assigning codes for batch starting at index {start_idx}: {ve}")
             except (OSError, json.JSONDecodeError) as e:
-                logger.error(f"File or JSON error while assigning codes for batch starting at index {i}: {e}")
-                continue
+                logger.error(f"File or JSON error while assigning codes for batch starting at index {start_idx}: {e}")
             except Exception as e:
-                logger.error(f"An unexpected error occurred while assigning codes for batch starting at index {i}: {e}")
-                continue
+                logger.error(f"An unexpected error occurred while assigning codes for batch starting at index {start_idx}: {e}")
+
+        # Process batches sequentially
+        for i in range(0, len(meaning_unit_list), meaning_units_per_assignment_prompt):
+            process_batch(i)
 
     except ValueError as ve:
         logger.error(f"Validation or value error while assigning codes: {ve}")
