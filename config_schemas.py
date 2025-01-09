@@ -1,3 +1,5 @@
+# config_schemas.py
+
 from typing import Optional, Dict, Any, List
 from enum import Enum
 from pydantic import BaseModel, field_validator, model_validator, RootModel
@@ -93,7 +95,8 @@ class ConfigModel(BaseModel):
     log_to_file: bool
     log_file_path: str
 
-    # Removed the validators since Enums handle validation
+    # NEW FIELD: specify how many threads (concurrent requests) to use
+    thread_count: int = 1
 
     @field_validator('data_format')
     def validate_data_format(cls, v):
@@ -101,8 +104,6 @@ class ConfigModel(BaseModel):
         if v not in allowed_formats:
             raise ValueError(f"'data_format' must be one of {allowed_formats}, got '{v}'")
         return v
-
-    # Optionally, you can add more validators if needed for other fields
 
 # Example Usage
 if __name__ == "__main__":
@@ -131,7 +132,8 @@ if __name__ == "__main__":
             enable_logging=True,
             logging_level="INFO",
             log_to_file=True,
-            log_file_path="/path/to/logfile.log"
+            log_file_path="/path/to/logfile.log",
+            thread_count=4  # Example: 4 concurrent requests
         )
         print("Configuration loaded successfully.")
     except Exception as e:

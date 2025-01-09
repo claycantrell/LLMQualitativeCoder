@@ -26,9 +26,6 @@ from validator import run_validation, replace_nan_with_null
 def main(config: ConfigModel):
     """
     Main function to execute the qualitative coding pipeline.
-    
-    Args:
-        config (ConfigModel): Validated configuration object loaded from config.json.
     """
     # --- Access config fields directly from Pydantic model ---
     coding_mode = config.coding_mode
@@ -39,6 +36,9 @@ def main(config: ConfigModel):
     speaking_turns_per_prompt = config.speaking_turns_per_prompt
     meaning_units_per_assignment_prompt = config.meaning_units_per_assignment_prompt
     context_size = config.context_size
+
+    # NEW: retrieve thread_count
+    thread_count = config.thread_count
 
     # Paths
     prompts_folder = config.paths.prompts_folder
@@ -92,7 +92,7 @@ def main(config: ConfigModel):
     try:
         data_format_config: DataFormatConfig = load_data_format_config(str(data_format_config_path))
         logger.debug("Data format configuration loaded and validated.")
-    except (FileNotFoundError, json.JSONDecodeError, OSError, ValueError, ValidationError) as e:
+    except Exception as e:
         logger.error(f"Failed to load data format configuration: {e}")
         return
 
@@ -127,16 +127,18 @@ def main(config: ConfigModel):
             content_field=content_field,
             speaker_field=speaker_field,
             list_field=list_field,
-            filter_rules=[rule.model_dump() for rule in filter_rules],  # Convert Pydantic model to dict
+            filter_rules=[rule.model_dump() for rule in filter_rules],
             use_parsing=use_parsing,
             source_id_field=source_id_field,
-            speaking_turns_per_prompt=speaking_turns_per_prompt
+            speaking_turns_per_prompt=speaking_turns_per_prompt,
+            # Pass down the thread_count to enable concurrent parsing
+            thread_count=thread_count
         )
         data_df = data_handler.load_data()
         logger.debug(f"Loaded data with shape {data_df.shape}.")
         meaning_unit_object_list = data_handler.transform_data(data_df)
         logger.debug(f"Transformed data into {len(meaning_unit_object_list)} meaning units.")
-    except (FileNotFoundError, ValueError, OSError, json.JSONDecodeError) as e:
+    except Exception as e:
         logger.error(f"Data loading and transformation failed: {e}")
         return
 
@@ -157,7 +159,7 @@ def main(config: ConfigModel):
                 deductive_prompt_file=deductive_coding_prompt_file
             )
             logger.debug(f"Initialized deductive resources with {len(processed_codes)} processed codes.")
-        except (FileNotFoundError, ValueError, OSError, json.JSONDecodeError) as e:
+        except Exception as e:
             logger.error(f"Failed to initialize deductive resources: {e}")
             return
 
@@ -165,19 +167,21 @@ def main(config: ConfigModel):
             logger.warning("No processed codes available for deductive coding. Exiting.")
             return
 
-        # Assign codes to meaning units in deductive mode (include full codebase in the prompt)
+        # Assign codes to meaning units in deductive mode
         try:
             coded_meaning_unit_list = assign_codes_to_meaning_units(
                 meaning_unit_list=meaning_unit_object_list,
                 coding_instructions=coding_instructions,
-                processed_codes=processed_codes,  # Not partial retrieval; full codebase
-                codebase=processed_codes,         # Always add entire codebase in the prompt
+                processed_codes=processed_codes,
+                codebase=processed_codes,
                 completion_model=assign_model,
                 context_size=context_size,
                 meaning_units_per_assignment_prompt=meaning_units_per_assignment_prompt,
                 speaker_field=speaker_field,
                 content_field=content_field,
-                full_speaking_turns=data_handler.full_data.to_dict(orient='records')
+                full_speaking_turns=data_handler.full_data.to_dict(orient='records'),
+                # Pass thread_count for concurrent LLM calls
+                thread_count=thread_count
             )
             logger.debug("Assigned codes using deductive mode with full codebase in the prompt.")
         except Exception as e:
@@ -190,7 +194,7 @@ def main(config: ConfigModel):
             inductive_coding_prompt = load_prompt_file(prompts_folder, inductive_coding_prompt_file, description='inductive coding prompt')
             logger.debug("Inductive coding prompt loaded.")
 
-            # Assign codes to meaning units in inductive mode (no predefined codebase)
+            # Assign codes in inductive mode (no predefined codebase)
             coded_meaning_unit_list = assign_codes_to_meaning_units(
                 meaning_unit_list=meaning_unit_object_list,
                 coding_instructions=inductive_coding_prompt,
@@ -201,15 +205,13 @@ def main(config: ConfigModel):
                 meaning_units_per_assignment_prompt=meaning_units_per_assignment_prompt,
                 speaker_field=speaker_field,
                 content_field=content_field,
-                full_speaking_turns=data_handler.full_data.to_dict(orient='records')
+                full_speaking_turns=data_handler.full_data.to_dict(orient='records'),
+                # Pass thread_count for concurrent LLM calls
+                thread_count=thread_count
             )
             logger.debug("Assigned codes using inductive mode.")
-        except (FileNotFoundError, ValueError, OSError, json.JSONDecodeError) as e:
-            logger.error(f"Failed to assign codes in inductive mode: {e}")
-            return
         except Exception as e:
-            # If there's some unexpected error from the model or similar
-            logger.error(f"Unexpected error in inductive coding: {e}")
+            logger.error(f"Failed to assign codes in inductive mode: {e}")
             return
 
     # ----------------------
@@ -225,7 +227,7 @@ def main(config: ConfigModel):
     document_metadata = data_handler.document_metadata
 
     try:
-        # Prepare the output data with document-level metadata at the top
+        # Prepare the output data
         output_data = {
             "document_metadata": document_metadata,
             "meaning_units": [unit.to_dict() for unit in coded_meaning_unit_list]
@@ -237,11 +239,11 @@ def main(config: ConfigModel):
         with output_file_path.open('w', encoding='utf-8') as outfile:
             json.dump(output_data, outfile, indent=2)
         logger.info(f"Coded meaning units saved to '{output_file_path}'.")
-    except (OSError, TypeError, ValueError) as e:
+    except Exception as e:
         logger.error(f"Failed to save output: {e}")
         return
 
-    # Update master log file with output file name and config
+    # Update master log file
     try:
         master_log_file_obj = Path('logs') / 'master_log.jsonl'
         master_log_file_obj.parent.mkdir(parents=True, exist_ok=True)
@@ -249,7 +251,7 @@ def main(config: ConfigModel):
             log_entry = {
                 'timestamp': timestamp,
                 'output_file': str(output_file_path),
-                'config': config.model_dump()  # Use model_dump in Pydantic v2.x
+                'config': config.model_dump()
             }
             log_file.write(json.dumps(log_entry) + '\n')
         logger.info(f"Master log updated at '{master_log_file_obj}'.")
@@ -261,10 +263,9 @@ def main(config: ConfigModel):
     # -------------------------
     try:
         logger.info("Starting validation process.")
-        
         validation_report_filename = f"{output_file_basename}_validation_report.json"
         validation_report_path = Path(output_folder) / validation_report_filename
-        
+
         run_validation(
             input_file=str(Path(json_folder) / selected_json_file),
             output_file=str(output_file_path),
@@ -277,25 +278,17 @@ def main(config: ConfigModel):
             source_id_field=source_id_field
         )
         logger.info(f"Validation process completed. Report saved to '{validation_report_path}'.")
-    except (FileNotFoundError, ValueError, OSError, json.JSONDecodeError) as e:
+    except Exception as e:
         logger.error(f"Validation process failed: {e}")
         return
-    except Exception as e:
-        logger.error(f"Unexpected error during validation: {e}")
-        return
-
 
 if __name__ == "__main__":
-    """
-    Entry point for the application.
-    """
-    config_file_path = 'configs/config.json'  # Adjust the path if needed
+    config_file_path = 'configs/config.json'
     try:
         # Load and validate config
         config: ConfigModel = load_config(config_file_path)
-    except (FileNotFoundError, ValueError, OSError, json.JSONDecodeError, ValidationError) as e:
+    except Exception as e:
         print(f"Failed to load configuration: {e}")
         exit(1)
 
-    # Pass the validated Pydantic model to main
     main(config)
