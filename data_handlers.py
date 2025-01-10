@@ -1,8 +1,10 @@
+# data_handlers.py
+
 import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -19,12 +21,14 @@ logger = logging.getLogger(__name__)
 from pydantic import BaseModel, ValidationError
 from typing import List
 
+
 class ParseUnit(BaseModel):
     """
     Represents a single meaning unit (smaller chunk) after parsing.
     """
     source_id: str
     quote: str
+
 
 class FullParseResponse(BaseModel):
     """
@@ -40,7 +44,8 @@ class FlexibleDataHandler:
         parse_instructions: str,
         completion_model: str,
         content_field: str,
-        speaker_field: Optional[str],
+        # CHANGED: replaced speaker_field with context_fields
+        context_fields: Optional[List[str]] = None,  # CHANGED
         list_field: Optional[str] = None,
         source_id_field: Optional[str] = None,
         filter_rules: Optional[List[Dict[str, Any]]] = None,
@@ -52,7 +57,7 @@ class FlexibleDataHandler:
         self.parse_instructions = parse_instructions
         self.completion_model = completion_model
         self.content_field = content_field
-        self.speaker_field = speaker_field
+        self.context_fields = context_fields  # CHANGED
         self.list_field = list_field
         self.source_id_field = source_id_field
         self.filter_rules = filter_rules
@@ -165,9 +170,6 @@ class FlexibleDataHandler:
 
         return data
 
-    # ------------------------------------------------------------------
-    # NEW: Helper function to call the LLM and parse a chunk of speaking turns
-    # ------------------------------------------------------------------
     def _run_langchain_parse_chunk(
         self,
         speaking_turns: List[Dict[str, Any]],
@@ -188,8 +190,6 @@ class FlexibleDataHandler:
             "into smaller meaning units based on given instructions."
         )
 
-        # We create a single textual prompt containing both 'system' + 'user' roles
-        # because our simplified `structured_generate` signature expects one string.
         combined_prompt = f"""
 System instructions:
 {system_content}
@@ -202,7 +202,6 @@ Speaking Turns (JSON):
         """
 
         try:
-            # Use the schema-based approach to get structured JSON
             parsed_response: FullParseResponse = self.llm.structured_generate(
                 combined_prompt,
                 FullParseResponse
@@ -218,7 +217,6 @@ Speaking Turns (JSON):
 
             results = []
             for unit in parsed_response.parse_list:
-                # For each 'ParseUnit', rename 'quote' -> 'parsed_text'
                 results.append({
                     "source_id": unit.source_id,
                     "parsed_text": unit.quote
@@ -237,10 +235,11 @@ Speaking Turns (JSON):
         self,
         chunk_data: pd.DataFrame,
         parse_instructions: str,
-    ) -> List[Dict[str, str]]:
+        batch_index: int
+    ) -> Tuple[int, List[Dict[str, str]]]:
         """
-        Helper method for parsing a chunk of data. Replaces the old dummy parse_transcript
-        with a new call to the LLM using `_run_langchain_parse_chunk()`.
+        Helper method for parsing a chunk of data.
+        Returns a tuple of (batch_index, parsed_units).
         """
         speaking_turns_dicts = []
         for _, record in chunk_data.iterrows():
@@ -250,15 +249,12 @@ Speaking Turns (JSON):
                 "metadata": record.drop(labels=[self.content_field], errors='ignore').to_dict()
             })
 
-        # ------------------------------------------------------------------
-        # REPLACED: old dummy parse_transcript() with the new LLM-based approach
-        # ------------------------------------------------------------------
         parsed_units = self._run_langchain_parse_chunk(
             speaking_turns=speaking_turns_dicts,
             prompt=parse_instructions
         )
 
-        return parsed_units
+        return (batch_index, parsed_units)
 
     def transform_data(self, data: pd.DataFrame) -> List[MeaningUnit]:
         """
@@ -298,56 +294,43 @@ Speaking Turns (JSON):
             for i in range(0, len(data), self.speaking_turns_per_prompt)
         ]
 
-        all_parsed_results = []
-        # Use concurrency for parsing if thread_count > 1
+        all_parsed_results: List[Tuple[int, List[Dict[str, str]]]] = []
         with ThreadPoolExecutor(max_workers=self.thread_count) as executor:
             futures = {}
             for idx, chunk in enumerate(chunked_data):
                 future = executor.submit(
                     self._parse_chunk_of_data,
                     chunk_data=chunk,
-                    parse_instructions=self.parse_instructions
+                    parse_instructions=self.parse_instructions,
+                    batch_index=idx
                 )
                 futures[future] = idx
 
             for future in as_completed(futures):
-                idx = futures[future]
-                try:
-                    parsed_list = future.result()
-                except Exception as e:
-                    logger.error(f"Error parsing chunk {idx}: {e}")
-                    parsed_list = []
+                batch_index, parsed_list = future.result()
+                all_parsed_results.append((batch_index, parsed_list))
 
-                # Build a map of source_id -> SpeakingTurn
-                source_id_map = {}
-                for _, row in chunked_data[idx].iterrows():
-                    sid = str(row['source_id'])
-                    st = SpeakingTurn(
-                        source_id=sid,
-                        content=row.get(self.content_field, ""),
-                        metadata=row.drop(labels=[self.content_field], errors='ignore').to_dict()
-                    )
-                    source_id_map[sid] = st
+        # Sort the results based on batch_index to maintain order
+        all_parsed_results.sort(key=lambda x: x[0])
 
-                for item in parsed_list:
-                    sid = item["source_id"]
-                    parsed_text = item["parsed_text"]
-                    speaking_turn = source_id_map.get(sid)
-                    if not speaking_turn:
-                        logger.warning(f"SpeakingTurn not found for source_id {sid}")
-                        continue
-                    all_parsed_results.append((speaking_turn, parsed_text))
-
-        # Now create MeaningUnit objects
         meaning_unit_id_counter = 1
-        for (speaking_turn, parsed_text) in all_parsed_results:
-            mu = MeaningUnit(
-                meaning_unit_id=meaning_unit_id_counter,
-                meaning_unit_string=parsed_text,
-                speaking_turn=speaking_turn
-            )
-            meaning_units.append(mu)
-            meaning_unit_id_counter += 1
+        for _, parsed_list in all_parsed_results:
+            for item in parsed_list:
+                sid = item["source_id"]
+                parsed_text = item["parsed_text"]
+                record = data[data['source_id'] == sid].iloc[0]
+                speaking_turn = SpeakingTurn(
+                    source_id=sid,
+                    content=record.get(self.content_field, ""),
+                    metadata=record.drop(labels=[self.content_field], errors='ignore').to_dict()
+                )
+                mu = MeaningUnit(
+                    meaning_unit_id=meaning_unit_id_counter,
+                    meaning_unit_string=parsed_text,
+                    speaking_turn=speaking_turn
+                )
+                meaning_units.append(mu)
+                meaning_unit_id_counter += 1
 
         logger.debug(f"Transformed data (with parsing) into {len(meaning_units)} meaning units.")
         return meaning_units

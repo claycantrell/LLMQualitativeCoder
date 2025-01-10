@@ -181,7 +181,7 @@ def run_validation(
     text_field: str = 'text',
     source_id_field: Optional[str] = None,
     filter_rules: Optional[List[Dict[str, Any]]] = None,  # Ensure filter_rules can be passed
-    speaker_field: Optional[str] = None,
+    context_fields: Optional[List[str]] = None,
     use_parsing: bool = True,
     parse_instructions: str = '',
     completion_model: str = 'gpt-4o-mini',
@@ -216,7 +216,7 @@ def run_validation(
             parse_instructions=parse_instructions,
             completion_model=completion_model,
             content_field=text_field,
-            speaker_field=speaker_field,
+            context_fields=context_fields,
             list_field=input_list_field,
             filter_rules=filter_rules,  # Pass the filter_rules here
             use_parsing=False,  # We don't need to parse again

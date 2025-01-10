@@ -52,18 +52,24 @@ class FilterRule(BaseModel):
     value: str
 
 class DataFormatConfigItem(BaseModel):
+    """
+    Replaces the old 'speaker_field' with 'context_fields', allowing multiple fields
+    from the JSON to be injected as context per speaking turn.
+    """
     content_field: str
-    speaker_field: Optional[str] = None
+    context_fields: Optional[List[str]] = None  # CHANGED
     list_field: Optional[str] = None
     source_id_field: Optional[str] = None
     filter_rules: List[FilterRule] = []
 
     @model_validator(mode='after')
     def check_required_fields(cls, values):
-        data_format = values.content_field  # Access attributes directly
-        if data_format == 'transcript' and not values.speaker_field:
-            raise ValueError("speaker_field is required for transcript data_format")
-        if data_format == 'movie_script' and not values.list_field:
+        """
+        We only keep a check for 'movie_script' requiring 'list_field'.
+        The old requirement for speaker_field is removed.
+        """
+        # Corrected attribute access using dot notation
+        if values.content_field == 'movie_script' and not values.list_field:
             raise ValueError("list_field is required for movie_script data_format")
         return values
 

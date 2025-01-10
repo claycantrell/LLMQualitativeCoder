@@ -24,7 +24,6 @@ def main(config: ConfigModel):
     """
     Main function to execute the qualitative coding pipeline.
     """
-    # Setup logging
     setup_logging(
         enable_logging=config.enable_logging,
         logging_level_str=config.logging_level,
@@ -37,13 +36,11 @@ def main(config: ConfigModel):
 
     # Stage 1: Environment Setup
     env_vars = load_environment_variables()
-    # If needed, you can override the LLM API key from environment
     if not config.parse_llm_config.api_key and env_vars.get("OPENAI_API_KEY"):
         config.parse_llm_config.api_key = env_vars["OPENAI_API_KEY"]
     if not config.assign_llm_config.api_key and env_vars.get("HUGGINGFACE_API_KEY"):
         config.assign_llm_config.api_key = env_vars["HUGGINGFACE_API_KEY"]
 
-    # Load parse instructions if parsing is enabled
     parse_instructions = ""
     if config.use_parsing:
         parse_instructions = load_prompt_file(
@@ -69,12 +66,13 @@ def main(config: ConfigModel):
         raise FileNotFoundError(f"Data file '{file_path}' not found.")
 
     # Stage 2: Data Loading & Transform
+    # CHANGED: pass context_fields instead of speaker_field
     data_handler = FlexibleDataHandler(
         file_path=str(file_path),
         parse_instructions=parse_instructions,
         completion_model=config.parse_llm_config.model_name,  # Use parse LLM config
         content_field=format_config.content_field,
-        speaker_field=format_config.speaker_field,
+        context_fields=format_config.context_fields,  # CHANGED
         list_field=format_config.list_field,
         source_id_field=format_config.source_id_field,
         filter_rules=[rule.model_dump() for rule in format_config.filter_rules],
@@ -91,13 +89,11 @@ def main(config: ConfigModel):
 
     # Stage 3: Code Assignment
     if config.coding_mode == "deductive":
-        # Load deductive prompt
         coding_instructions = load_prompt_file(
             config.paths.prompts_folder,
             config.deductive_coding_prompt_file,
             description='deductive coding prompt'
         )
-        # Load a codebase file (list_of_codes)
         codebase_file = Path(config.paths.codebase_folder) / config.selected_codebase
         if not codebase_file.exists():
             logger.error(f"List of codes file '{codebase_file}' not found.")
@@ -106,32 +102,28 @@ def main(config: ConfigModel):
         with codebase_file.open('r', encoding='utf-8') as file:
             processed_codes = [json.loads(line) for line in file if line.strip()]
 
-        # Instantiate LangChainLLM for assigning
         assign_llm = LangChainLLM(config.assign_llm_config)
 
-        # Deductive coding: pass processed_codes
         coded_meaning_unit_list = assign_codes_to_meaning_units(
             meaning_unit_list=meaning_unit_object_list,
             coding_instructions=coding_instructions,
             processed_codes=processed_codes,
-            codebase=processed_codes,  # same in your example
+            codebase=processed_codes,
             completion_model=config.assign_llm_config.model_name,
             context_size=config.context_size,
             meaning_units_per_assignment_prompt=config.meaning_units_per_assignment_prompt,
-            speaker_field=format_config.speaker_field,
+            context_fields=format_config.context_fields,  # CHANGED
             content_field=format_config.content_field,
             full_speaking_turns=data_handler.full_data.to_dict(orient='records'),
             thread_count=config.thread_count,
             llm_config=config.assign_llm_config
         )
     else:  # inductive
-        # Load inductive prompt
         inductive_coding_prompt = load_prompt_file(
             config.paths.prompts_folder,
             config.inductive_coding_prompt_file,
             description='inductive coding prompt'
         )
-        # Instantiate LangChainLLM for assigning
         assign_llm = LangChainLLM(config.assign_llm_config)
 
         coded_meaning_unit_list = assign_codes_to_meaning_units(
@@ -142,7 +134,7 @@ def main(config: ConfigModel):
             completion_model=config.assign_llm_config.model_name,
             context_size=config.context_size,
             meaning_units_per_assignment_prompt=config.meaning_units_per_assignment_prompt,
-            speaker_field=format_config.speaker_field,
+            context_fields=format_config.context_fields,  # CHANGED
             content_field=format_config.content_field,
             full_speaking_turns=data_handler.full_data.to_dict(orient='records'),
             thread_count=config.thread_count,

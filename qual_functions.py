@@ -74,10 +74,10 @@ def assign_codes_to_meaning_units(
     completion_model: str = "gpt-4",
     context_size: int = 2,
     meaning_units_per_assignment_prompt: int = 1,
-    speaker_field: Optional[str] = None,
+    # CHANGED: remove speaker_field, add context_fields
+    context_fields: Optional[List[str]] = None,  # CHANGED
     content_field: str = 'content',
     full_speaking_turns: Optional[List[Dict[str, Any]]] = None,
-    # Instead of openai_client, we pass an LLM config or instance
     thread_count: int = 1,
     llm_config: Optional[LLMConfig] = None
 ) -> List[MeaningUnit]:
@@ -90,7 +90,6 @@ def assign_codes_to_meaning_units(
         logger.error("No LLMConfig provided.")
         return meaning_unit_list
 
-    # Build a single instance of LangChainLLM to reuse across concurrency
     llm = LangChainLLM(llm_config)
 
     if full_speaking_turns is None:
@@ -133,26 +132,42 @@ def assign_codes_to_meaning_units(
             source_id = unit.speaking_turn.source_id
             unit_idx = source_id_to_index.get(source_id)
 
+            # Retrieve context_speaking_turns up to `context_size` 
             if unit_idx is not None:
                 start_context_idx = max(0, unit_idx - (context_size - 1))
                 end_context_idx = unit_idx + 1
                 context_speaking_turns = full_speaking_turns[start_context_idx:end_context_idx]
                 for st in context_speaking_turns:
                     st_source_id = str(st.get('source_id'))
-                    speaker = st.get(speaker_field, "Unknown Speaker") if speaker_field else "Unknown Speaker"
-                    content = st.get(content_field, "")
-                    unit_context += f"ID: {st_source_id}\nSpeaker: {speaker}\n{content}\n\n"
+                    # CHANGED: Instead of a single speaker_field, loop through context_fields
+                    context_info_lines = []
+                    if context_fields:
+                        for fld in context_fields:
+                            val = st.get(fld, "Unknown")
+                            context_info_lines.append(f"{fld}: {val}")
+                    else:
+                        # fallback if no context fields
+                        context_info_lines.append("No context fields defined.")
 
-            speaker = (
-                unit.speaking_turn.metadata.get(speaker_field, "Unknown Speaker") 
-                if speaker_field else "Unknown Speaker"
-            )
+                    # The main textual content
+                    content_val = st.get(content_field, "")
+                    context_block = f"ID: {st_source_id}\n" + "\n".join(context_info_lines) + f"\n{content_val}\n\n"
+                    unit_context += context_block
+
+            # For the current excerpt, also gather context from the meaning unit's speaking turn
+            current_context_lines = []
+            if context_fields and unit.speaking_turn:
+                for fld in context_fields:
+                    val = unit.speaking_turn.metadata.get(fld, "Unknown")
+                    current_context_lines.append(f"{fld}: {val}")
+
             current_unit_excerpt = f"Quote: {unit.meaning_unit_string}\n\n"
 
             full_prompt += (
                 f"Contextual Excerpts for Meaning Unit ID {unit.meaning_unit_id}:\n{unit_context}\n"
-                f"Current Excerpt For Coding (Meaning Unit ID {unit.meaning_unit_id}) Speaker: {speaker}:\n"
-                f"{current_unit_excerpt}"
+                f"Current Excerpt For Coding (Meaning Unit ID {unit.meaning_unit_id}):\n"
+                + "\n".join(current_context_lines) + "\n"
+                + f"{current_unit_excerpt}"
             )
 
         if processed_codes:
@@ -160,17 +175,13 @@ def assign_codes_to_meaning_units(
         else:
             full_prompt += "**Generate codes based on the excerpt(s) provided above using the guidelines.**\n\n"
 
-        # -----------------------------
-        # NEW: Use structured_generate
-        # -----------------------------
+        # Attempt structured generation
         try:
             code_response = llm.structured_generate(full_prompt, CodeResponse)
         except Exception as e:
-            # If something goes wrong with structured output, fallback to empty
             logger.warning(f"Structured generation failed for batch {start_idx}, using fallback empty assignment. Error: {e}")
             code_response = CodeResponse(assignments=[])
 
-        # Merge results
         for assignment in code_response.assignments:
             assigned_codes_list: List[CodeAssigned] = []
             for code_item in assignment.codeList:
@@ -182,7 +193,6 @@ def assign_codes_to_meaning_units(
 
         return local_result
 
-    # Distribute the workload across threads
     from math import ceil
     total_batches = ceil(len(meaning_unit_list) / meaning_units_per_assignment_prompt)
 
@@ -193,7 +203,6 @@ def assign_codes_to_meaning_units(
 
         for future in as_completed(futures):
             batch_dict = future.result()
-            # Merge results
             for mu_id, code_list in batch_dict.items():
                 batch_results_map[mu_id] = code_list
 
