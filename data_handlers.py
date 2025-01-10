@@ -1,16 +1,37 @@
-# data_handlers.py
-
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 import pandas as pd
-
-from qual_functions import parse_transcript, MeaningUnit, SpeakingTurn
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from qual_functions import MeaningUnit, SpeakingTurn
+from config_schemas import ProviderEnum, LLMConfig
+from langchain_llm import LangChainLLM
+
 logger = logging.getLogger(__name__)
+
+# ------------------------------------------------------------------
+# NEW: Pydantic models for structured parse responses
+# ------------------------------------------------------------------
+from pydantic import BaseModel, ValidationError
+from typing import List
+
+class ParseUnit(BaseModel):
+    """
+    Represents a single meaning unit (smaller chunk) after parsing.
+    """
+    source_id: str
+    quote: str
+
+class FullParseResponse(BaseModel):
+    """
+    Represents the entire structured output from the parsing step.
+    """
+    parse_list: List[ParseUnit]
+
 
 class FlexibleDataHandler:
     def __init__(
@@ -25,7 +46,6 @@ class FlexibleDataHandler:
         filter_rules: Optional[List[Dict[str, Any]]] = None,
         use_parsing: bool = True,
         speaking_turns_per_prompt: int = 1,
-        # NEW: thread_count for concurrency
         thread_count: int = 1
     ):
         self.file_path = file_path
@@ -38,10 +58,31 @@ class FlexibleDataHandler:
         self.filter_rules = filter_rules
         self.use_parsing = use_parsing
         self.speaking_turns_per_prompt = speaking_turns_per_prompt
-        self.thread_count = thread_count  # store it
+        self.thread_count = thread_count
         self.document_metadata = {}  # Store document-level metadata
         self.full_data = None
         self.filtered_out_source_ids: Set[str] = set()
+
+        # ------------------------------------------------------------------
+        # NEW: Initialize LangChainLLM for parsing (if needed)
+        # ------------------------------------------------------------------
+        self.llm = None
+        if self.use_parsing:
+            try:
+                # Build an LLMConfig (example: defaulting to OpenAI with a 0.2 temperature)
+                self.llm_config = LLMConfig(
+                    provider=ProviderEnum.OPENAI,
+                    model_name=self.completion_model,
+                    temperature=0.2,
+                    max_tokens=16000,
+                    api_key=os.getenv('OPENAI_API_KEY', '')  # or however you manage API keys
+                )
+                self.llm = LangChainLLM(self.llm_config)
+            except Exception as e:
+                logger.warning(
+                    f"Could not initialize LangChainLLM with model={self.completion_model}: {e}"
+                )
+                self.llm = None
 
     def load_data(self) -> pd.DataFrame:
         """
@@ -93,7 +134,7 @@ class FlexibleDataHandler:
         self.full_data = data.copy()
         all_source_ids = set(data['source_id'])
 
-        # Apply filter rules
+        # Apply filter rules if any
         if self.filter_rules:
             mask = pd.Series(True, index=data.index)
             for rule in self.filter_rules:
@@ -124,15 +165,82 @@ class FlexibleDataHandler:
 
         return data
 
+    # ------------------------------------------------------------------
+    # NEW: Helper function to call the LLM and parse a chunk of speaking turns
+    # ------------------------------------------------------------------
+    def _run_langchain_parse_chunk(
+        self,
+        speaking_turns: List[Dict[str, Any]],
+        prompt: str
+    ) -> List[Dict[str, str]]:
+        """
+        Uses LangChainLLM.structured_generate() to parse a chunk of speaking_turns into smaller meaning units.
+        Returns a list of dicts with keys "source_id" and "parsed_text".
+        """
+
+        if not self.llm:
+            logger.error("LLM was not initialized; cannot parse.")
+            return []
+
+        # Build the combined prompt (system role + user instructions + data)
+        system_content = (
+            "You are a qualitative research assistant that breaks down multiple speaking turns "
+            "into smaller meaning units based on given instructions."
+        )
+
+        # We create a single textual prompt containing both 'system' + 'user' roles
+        # because our simplified `structured_generate` signature expects one string.
+        combined_prompt = f"""
+System instructions:
+{system_content}
+
+User instructions:
+{prompt}
+
+Speaking Turns (JSON):
+{json.dumps(speaking_turns, indent=2)}
+        """
+
+        try:
+            # Use the schema-based approach to get structured JSON
+            parsed_response: FullParseResponse = self.llm.structured_generate(
+                combined_prompt,
+                FullParseResponse
+            )
+
+            if not parsed_response or not isinstance(parsed_response, FullParseResponse):
+                logger.error("Parsed output is not an instance of FullParseResponse.")
+                return []
+
+            if not parsed_response.parse_list:
+                logger.error("Parsed output is empty or missing 'parse_list'.")
+                return []
+
+            results = []
+            for unit in parsed_response.parse_list:
+                # For each 'ParseUnit', rename 'quote' -> 'parsed_text'
+                results.append({
+                    "source_id": unit.source_id,
+                    "parsed_text": unit.quote
+                })
+
+            return results
+
+        except ValidationError as ve:
+            logger.error(f"Validation error while parsing chunk: {ve}")
+            return []
+        except Exception as e:
+            logger.error(f"An error occurred while parsing chunk: {e}")
+            return []
+
     def _parse_chunk_of_data(
         self,
         chunk_data: pd.DataFrame,
         parse_instructions: str,
-        completion_model: str
-    ) -> List[Dict[str, Any]]:
+    ) -> List[Dict[str, str]]:
         """
-        Helper method for parsing a chunk of data.
-        Returns a list of dicts: [{"source_id": <str>, "parsed_text": <str>}, ...]
+        Helper method for parsing a chunk of data. Replaces the old dummy parse_transcript
+        with a new call to the LLM using `_run_langchain_parse_chunk()`.
         """
         speaking_turns_dicts = []
         for _, record in chunk_data.iterrows():
@@ -142,23 +250,21 @@ class FlexibleDataHandler:
                 "metadata": record.drop(labels=[self.content_field], errors='ignore').to_dict()
             })
 
-        # parse_transcript returns List[Tuple[source_id, parsed_text]]
-        parsed_units = parse_transcript(
+        # ------------------------------------------------------------------
+        # REPLACED: old dummy parse_transcript() with the new LLM-based approach
+        # ------------------------------------------------------------------
+        parsed_units = self._run_langchain_parse_chunk(
             speaking_turns=speaking_turns_dicts,
-            prompt=parse_instructions,
-            completion_model=completion_model
+            prompt=parse_instructions
         )
 
-        results = []
-        for source_id, parsed_text in parsed_units:
-            results.append({"source_id": source_id, "parsed_text": parsed_text})
-        return results
+        return parsed_units
 
     def transform_data(self, data: pd.DataFrame) -> List[MeaningUnit]:
         """
         Transforms data into MeaningUnit objects, optionally using LLM-based parsing.
-        If parsing is off, treat each row as a single meaning unit. Otherwise, parse in batches,
-        potentially using threads to speed up LLM calls.
+        If parsing is off, treat each row as a single meaning unit.
+        Otherwise, parse in batches using concurrency.
         """
         meaning_units: List[MeaningUnit] = []
 
@@ -195,24 +301,24 @@ class FlexibleDataHandler:
         all_parsed_results = []
         # Use concurrency for parsing if thread_count > 1
         with ThreadPoolExecutor(max_workers=self.thread_count) as executor:
-            future_to_index = {}
+            futures = {}
             for idx, chunk in enumerate(chunked_data):
                 future = executor.submit(
                     self._parse_chunk_of_data,
                     chunk_data=chunk,
-                    parse_instructions=self.parse_instructions,
-                    completion_model=self.completion_model
+                    parse_instructions=self.parse_instructions
                 )
-                future_to_index[future] = idx
+                futures[future] = idx
 
-            for future in as_completed(future_to_index):
-                idx = future_to_index[future]
+            for future in as_completed(futures):
+                idx = futures[future]
                 try:
                     parsed_list = future.result()
                 except Exception as e:
                     logger.error(f"Error parsing chunk {idx}: {e}")
                     parsed_list = []
 
+                # Build a map of source_id -> SpeakingTurn
                 source_id_map = {}
                 for _, row in chunked_data[idx].iterrows():
                     sid = str(row['source_id'])

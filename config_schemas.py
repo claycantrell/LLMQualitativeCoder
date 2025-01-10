@@ -28,6 +28,21 @@ class LoggingLevelEnum(str, Enum):
     CRITICAL = "CRITICAL"
 
 # ---------------------------
+# New Enums & Models for LLM Configuration
+# ---------------------------
+
+class ProviderEnum(str, Enum):
+    OPENAI = "openai"
+    HUGGINGFACE = "huggingface"
+
+class LLMConfig(BaseModel):
+    provider: ProviderEnum
+    model_name: str
+    temperature: float = 0.7
+    max_tokens: int = 2000
+    api_key: Optional[str] = None
+
+# ---------------------------
 # Data Format Config Models
 # ---------------------------
 
@@ -80,8 +95,6 @@ class ConfigModel(BaseModel):
     speaking_turns_per_prompt: int
     meaning_units_per_assignment_prompt: int
     context_size: int
-    parse_model: str
-    assign_model: str
     data_format: str
     paths: PathsModel
     selected_codebase: str
@@ -97,6 +110,10 @@ class ConfigModel(BaseModel):
 
     # NEW FIELD: specify how many threads (concurrent requests) to use
     thread_count: int = 1
+
+    # NEW FIELDS: Separate LLM configurations for parse and assign tasks
+    parse_llm_config: LLMConfig
+    assign_llm_config: LLMConfig
 
     @field_validator('data_format')
     def validate_data_format(cls, v):
@@ -114,8 +131,6 @@ if __name__ == "__main__":
             speaking_turns_per_prompt=5,
             meaning_units_per_assignment_prompt=10,
             context_size=2048,
-            parse_model="parse-model-v1",
-            assign_model="assign-model-v1",
             data_format="transcript",
             paths={
                 "prompts_folder": "/path/to/prompts",
@@ -133,7 +148,21 @@ if __name__ == "__main__":
             logging_level="INFO",
             log_to_file=True,
             log_file_path="/path/to/logfile.log",
-            thread_count=4  # Example: 4 concurrent requests
+            thread_count=4,  # Example: 4 concurrent requests
+            parse_llm_config={
+                "provider": "openai",
+                "model_name": "gpt-4",
+                "temperature": 0.7,
+                "max_tokens": 2000,
+                "api_key": "YOUR_OPENAI_API_KEY_FOR_PARSE"
+            },
+            assign_llm_config={
+                "provider": "huggingface",
+                "model_name": "gpt2",
+                "temperature": 0.6,
+                "max_tokens": 1500,
+                "api_key": "YOUR_HUGGINGFACE_API_KEY_IF_NEEDED"
+            }
         )
         print("Configuration loaded successfully.")
     except Exception as e:
