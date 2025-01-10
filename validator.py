@@ -60,7 +60,7 @@ def compare_texts(original: str, concatenated: str) -> Tuple[bool, str]:
     Returns whether they are identical and the diff.
 
     Args:
-        original (str): Original speaking turn text.
+        original (str): Original preliminary segment text.
         concatenated (str): Concatenated meaning units text.
 
     Returns:
@@ -79,7 +79,7 @@ def compare_texts(original: str, concatenated: str) -> Tuple[bool, str]:
         diff = difflib.unified_diff(
             original_lines,
             concatenated_lines,
-            fromfile='Original Speaking Turn',
+            fromfile='Original Preliminary Segment',
             tofile='Concatenated Meaning Units',
             lineterm=''
         )
@@ -88,7 +88,7 @@ def compare_texts(original: str, concatenated: str) -> Tuple[bool, str]:
 
 
 def generate_report(
-    speaking_turns: Dict[str, Dict[str, Any]],
+    preliminary_segments: Dict[str, Dict[str, Any]],
     meaning_units: Dict[str, List[Dict[str, Any]]],
     similarity_threshold: float = 1.0,
     report_file: str = 'validation_report.json',
@@ -100,38 +100,38 @@ def generate_report(
     Generates a report of inconsistencies and missing meaning units.
 
     Args:
-        speaking_turns (Dict[str, Dict[str, Any]]): Mapping from source_id to speaking turn data.
+        preliminary_segments (Dict[str, Dict[str, Any]]): Mapping from source_id to preliminary segment data.
         meaning_units (Dict[str, List[Dict[str, Any]]]): Mapping from source_id to list of meaning units.
         similarity_threshold (float, optional): Threshold for similarity. Defaults to 1.0 for exact match.
         report_file (str, optional): Path to save the validation report JSON file. Defaults to 'validation_report.json'.
-        text_field (str, optional): The field name that contains the speaking turn text.
+        text_field (str, optional): The field name that contains the preliminary segment text.
         source_id_field (Optional[str], optional): The field name that contains the source_id.
         filtered_source_ids (Optional[Set[str]], optional): Set of source_ids that were filtered out.
 
     Returns:
-        Dict[str, Any]: Report containing skipped and inconsistent speaking turns.
+        Dict[str, Any]: Report containing skipped and inconsistent preliminary segments.
     """
-    total_speaking_turns = len(speaking_turns)
+    total_preliminary_segments = len(preliminary_segments)
     total_meaning_units = sum(len(units) for units in meaning_units.values())
-    logger.info(f"Total speaking turns: {total_speaking_turns}")
+    logger.info(f"Total preliminary segments: {total_preliminary_segments}")
     logger.info(f"Total meaning units: {total_meaning_units}")
 
-    skipped_speaking_turns = []
-    inconsistent_speaking_turns = []
+    skipped_preliminary_segments = []
+    inconsistent_preliminary_segments = []
 
-    for source_id, turn in speaking_turns.items():
-        # Skip if the speaking turn was filtered out
+    for source_id, segment in preliminary_segments.items():
+        # Skip if the preliminary segment was filtered out
         if filtered_source_ids and source_id in filtered_source_ids:
             continue
 
-        original_text = turn.get(text_field, '').strip()
+        original_text = segment.get(text_field, '').strip()
         units = meaning_units.get(source_id, [])
 
         if not units:
-            skipped_speaking_turns.append({
+            skipped_preliminary_segments.append({
                 'source_id': source_id,
-                'speaking_turn_text': original_text,
-                'metadata': {k: v for k, v in turn.items() if k != text_field}
+                'preliminary_segment_text': original_text,
+                'metadata': {k: v for k, v in segment.items() if k != text_field}
             })
             continue
 
@@ -141,18 +141,18 @@ def generate_report(
         is_identical, diff = compare_texts(original_text, concatenated_text)
 
         if not is_identical:
-            inconsistent_speaking_turns.append({
+            inconsistent_preliminary_segments.append({
                 'source_id': source_id,
-                'speaking_turn_text': original_text,
+                'preliminary_segment_text': original_text,
                 'concatenated_meaning_units_text': concatenated_text,
                 'diff': diff,
-                'metadata': {k: v for k, v in turn.items() if k != text_field}
+                'metadata': {k: v for k, v in segment.items() if k != text_field}
             })
 
     # Prepare the report
     report = {
-        'skipped_speaking_turns': skipped_speaking_turns,
-        'inconsistent_speaking_turns': inconsistent_speaking_turns
+        'skipped_preliminary_segments': skipped_preliminary_segments,
+        'inconsistent_preliminary_segments': inconsistent_preliminary_segments
     }
 
     # Replace NaN values with null
@@ -185,26 +185,26 @@ def run_validation(
     use_parsing: bool = True,
     parse_instructions: str = '',
     completion_model: str = 'gpt-4o-mini',
-    speaking_turns_per_prompt: int = 1
+    preliminary_segments_per_prompt: int = 1  # Renamed from speaking_turns_per_prompt
 ) -> Dict[str, Any]:
     """
     Runs the validation process.
 
     Args:
-        input_file (str): Path to the input JSON file containing speaking turns.
+        input_file (str): Path to the input JSON file containing preliminary segments.
         output_file (str): Path to the output JSON file containing meaning units.
         report_file (str, optional): Path to save the validation report JSON file. Defaults to 'validation_report.json'.
         similarity_threshold (float, optional): Threshold for similarity. Defaults to 1.0 for exact match.
         input_list_field (Optional[str], optional): Dot-separated path to the list of items within the input JSON. Defaults to None.
         output_list_field (Optional[str], optional): Dot-separated path to the list of items within the output JSON.
-        text_field (str, optional): The field name that contains the speaking turn text.
+        text_field (str, optional): The field name that contains the preliminary segment text.
         source_id_field (Optional[str], optional): The field name that contains the source_id.
         filter_rules (Optional[List[Dict[str, Any]]], optional): List of filter rules to apply.
-        speaker_field (Optional[str], optional): The field name that contains the speaker.
+        context_fields (Optional[List[str]], optional): List of fields to include as context.
         use_parsing (bool, optional): Whether parsing was used in the main processing.
         parse_instructions (str, optional): Parse instructions used in the main processing.
         completion_model (str, optional): Completion model used for parsing.
-        speaking_turns_per_prompt (int, optional): Number of speaking turns per parsing prompt.
+        preliminary_segments_per_prompt (int, optional): Number of preliminary segments per parsing prompt.
 
     Returns:
         Dict[str, Any]: The validation report.
@@ -221,7 +221,7 @@ def run_validation(
             filter_rules=filter_rules,  # Pass the filter_rules here
             use_parsing=False,  # We don't need to parse again
             source_id_field=source_id_field,
-            speaking_turns_per_prompt=speaking_turns_per_prompt
+            preliminary_segments_per_prompt=preliminary_segments_per_prompt  # Renamed
         )
         data_df = data_handler.load_data()
         logger.debug(f"Loaded data with shape {data_df.shape}.")
@@ -230,21 +230,21 @@ def run_validation(
         logger.error(f"Data loading failed: {e}")
         raise e
 
-    # Use the full_data to include all speaking_turns in the report
-    speaking_turns = data_handler.full_data.set_index('source_id').to_dict(orient='index')
+    # Use the full_data to include all preliminary_segments in the report
+    preliminary_segments = data_handler.full_data.set_index('source_id').to_dict(orient='index')
 
     # Load meaning units from output file
     meaning_units = load_output_file(output_file, list_field=output_list_field)
 
     # Generate report
     report = generate_report(
-        speaking_turns,
+        preliminary_segments,
         meaning_units,
         similarity_threshold=similarity_threshold,
         report_file=report_file,
         text_field=text_field,
         source_id_field=source_id_field,
-        filtered_source_ids=filtered_out_source_ids  # Pass filtered source_ids
+        filtered_source_ids=filtered_source_ids  # Pass filtered source_ids
     )
 
     return report
@@ -264,7 +264,7 @@ def load_output_file(
     Returns:
         Dict[str, List[Dict[str, Any]]]: Mapping from source_id to list of meaning units.
     """
-    data = load_json_file(output_file_path, list_field)
+    data = load_json_file(output_file_path, list_field=list_field)
 
     # If no list_field is provided, assume the list is directly under a key (e.g., "meaning_units")
     if not list_field and isinstance(data, dict):
@@ -272,10 +272,10 @@ def load_output_file(
 
     meaning_units = {}
     for unit in data:
-        speaking_turn = unit.get('speaking_turn', {})
-        source_id = speaking_turn.get('source_id')
+        preliminary_segment = unit.get('preliminary_segment', {})
+        source_id = preliminary_segment.get('source_id')
         if source_id is None:
-            logger.warning(f"Skipping meaning unit without 'source_id' in speaking_turn: {unit}")
+            logger.warning(f"Skipping meaning unit without 'source_id' in preliminary_segment: {unit}")
             continue
         if source_id not in meaning_units:
             meaning_units[source_id] = []

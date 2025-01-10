@@ -77,7 +77,7 @@ def main(config: ConfigModel):
         source_id_field=format_config.source_id_field,
         filter_rules=[rule.model_dump() for rule in format_config.filter_rules],
         use_parsing=config.use_parsing,
-        speaking_turns_per_prompt=config.speaking_turns_per_prompt,
+        preliminary_segments_per_prompt=config.preliminary_segments_per_prompt,  # Renamed
         thread_count=config.thread_count
     )
     data_df = data_handler.load_data()
@@ -114,7 +114,7 @@ def main(config: ConfigModel):
             meaning_units_per_assignment_prompt=config.meaning_units_per_assignment_prompt,
             context_fields=format_config.context_fields,  # CHANGED
             content_field=format_config.content_field,
-            full_speaking_turns=data_handler.full_data.to_dict(orient='records'),
+            full_preliminary_segments=data_handler.full_data.to_dict(orient='records'),  # Renamed
             thread_count=config.thread_count,
             llm_config=config.assign_llm_config
         )
@@ -136,7 +136,7 @@ def main(config: ConfigModel):
             meaning_units_per_assignment_prompt=config.meaning_units_per_assignment_prompt,
             context_fields=format_config.context_fields,  # CHANGED
             content_field=format_config.content_field,
-            full_speaking_turns=data_handler.full_data.to_dict(orient='records'),
+            full_preliminary_segments=data_handler.full_data.to_dict(orient='records'),  # Renamed
             thread_count=config.thread_count,
             llm_config=config.assign_llm_config
         )

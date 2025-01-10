@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from qual_functions import MeaningUnit, SpeakingTurn
+from qual_functions import MeaningUnit, PreliminarySegment
 from config_schemas import ProviderEnum, LLMConfig
 from langchain_llm import LangChainLLM
 
@@ -44,25 +44,24 @@ class FlexibleDataHandler:
         parse_instructions: str,
         completion_model: str,
         content_field: str,
-        # CHANGED: replaced speaker_field with context_fields
         context_fields: Optional[List[str]] = None,  # CHANGED
         list_field: Optional[str] = None,
         source_id_field: Optional[str] = None,
         filter_rules: Optional[List[Dict[str, Any]]] = None,
         use_parsing: bool = True,
-        speaking_turns_per_prompt: int = 1,
+        preliminary_segments_per_prompt: int = 1,  # Renamed
         thread_count: int = 1
     ):
         self.file_path = file_path
         self.parse_instructions = parse_instructions
         self.completion_model = completion_model
         self.content_field = content_field
-        self.context_fields = context_fields  # CHANGED
+        self.context_fields = context_fields
         self.list_field = list_field
         self.source_id_field = source_id_field
         self.filter_rules = filter_rules
         self.use_parsing = use_parsing
-        self.speaking_turns_per_prompt = speaking_turns_per_prompt
+        self.preliminary_segments_per_prompt = preliminary_segments_per_prompt
         self.thread_count = thread_count
         self.document_metadata = {}  # Store document-level metadata
         self.full_data = None
@@ -80,7 +79,7 @@ class FlexibleDataHandler:
                     model_name=self.completion_model,
                     temperature=0.2,
                     max_tokens=16000,
-                    api_key=os.getenv('OPENAI_API_KEY', '')  # or however you manage API keys
+                    api_key=os.getenv('OPENAI_API_KEY', '')
                 )
                 self.llm = LangChainLLM(self.llm_config)
             except Exception as e:
@@ -172,11 +171,11 @@ class FlexibleDataHandler:
 
     def _run_langchain_parse_chunk(
         self,
-        speaking_turns: List[Dict[str, Any]],
+        preliminary_segments: List[Dict[str, Any]],
         prompt: str
     ) -> List[Dict[str, str]]:
         """
-        Uses LangChainLLM.structured_generate() to parse a chunk of speaking_turns into smaller meaning units.
+        Uses LangChainLLM.structured_generate() to parse a chunk of preliminary_segments into smaller meaning units.
         Returns a list of dicts with keys "source_id" and "parsed_text".
         """
 
@@ -186,7 +185,7 @@ class FlexibleDataHandler:
 
         # Build the combined prompt (system role + user instructions + data)
         system_content = (
-            "You are a qualitative research assistant that breaks down multiple speaking turns "
+            "You are a qualitative research assistant that breaks down multiple preliminary segments "
             "into smaller meaning units based on given instructions."
         )
 
@@ -197,8 +196,8 @@ System instructions:
 User instructions:
 {prompt}
 
-Speaking Turns (JSON):
-{json.dumps(speaking_turns, indent=2)}
+Preliminary Segments (JSON):
+{json.dumps(preliminary_segments, indent=2)}
         """
 
         try:
@@ -241,16 +240,16 @@ Speaking Turns (JSON):
         Helper method for parsing a chunk of data.
         Returns a tuple of (batch_index, parsed_units).
         """
-        speaking_turns_dicts = []
+        preliminary_segments_dicts = []
         for _, record in chunk_data.iterrows():
-            speaking_turns_dicts.append({
+            preliminary_segments_dicts.append({
                 "source_id": str(record['source_id']),
                 "content": record.get(self.content_field, ""),
                 "metadata": record.drop(labels=[self.content_field], errors='ignore').to_dict()
             })
 
         parsed_units = self._run_langchain_parse_chunk(
-            speaking_turns=speaking_turns_dicts,
+            preliminary_segments=preliminary_segments_dicts,
             prompt=parse_instructions
         )
 
@@ -272,7 +271,7 @@ Speaking Turns (JSON):
                 metadata = record.drop(labels=[self.content_field], errors='ignore').to_dict()
                 source_id = str(record['source_id'])
 
-                speaking_turn = SpeakingTurn(
+                preliminary_segment = PreliminarySegment(
                     source_id=source_id,
                     content=content,
                     metadata=metadata
@@ -280,7 +279,7 @@ Speaking Turns (JSON):
                 mu = MeaningUnit(
                     meaning_unit_id=meaning_unit_id_counter,
                     meaning_unit_string=content,
-                    speaking_turn=speaking_turn
+                    preliminary_segment=preliminary_segment
                 )
                 meaning_units.append(mu)
                 meaning_unit_id_counter += 1
@@ -290,8 +289,8 @@ Speaking Turns (JSON):
 
         # PARSING is ON
         chunked_data = [
-            data.iloc[i: i + self.speaking_turns_per_prompt]
-            for i in range(0, len(data), self.speaking_turns_per_prompt)
+            data.iloc[i: i + self.preliminary_segments_per_prompt]
+            for i in range(0, len(data), self.preliminary_segments_per_prompt)
         ]
 
         all_parsed_results: List[Tuple[int, List[Dict[str, str]]]] = []
@@ -319,7 +318,7 @@ Speaking Turns (JSON):
                 sid = item["source_id"]
                 parsed_text = item["parsed_text"]
                 record = data[data['source_id'] == sid].iloc[0]
-                speaking_turn = SpeakingTurn(
+                preliminary_segment = PreliminarySegment(
                     source_id=sid,
                     content=record.get(self.content_field, ""),
                     metadata=record.drop(labels=[self.content_field], errors='ignore').to_dict()
@@ -327,7 +326,7 @@ Speaking Turns (JSON):
                 mu = MeaningUnit(
                     meaning_unit_id=meaning_unit_id_counter,
                     meaning_unit_string=parsed_text,
-                    speaking_turn=speaking_turn
+                    preliminary_segment=preliminary_segment
                 )
                 meaning_units.append(mu)
                 meaning_unit_id_counter += 1

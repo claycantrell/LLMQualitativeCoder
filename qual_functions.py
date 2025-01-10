@@ -22,7 +22,7 @@ class CodeAssigned:
         return bool(self.code_name and self.code_justification)
 
 @dataclass
-class SpeakingTurn:
+class PreliminarySegment:
     source_id: str
     content: str
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -41,14 +41,14 @@ class MeaningUnit:
     meaning_unit_id: int
     meaning_unit_string: str
     assigned_code_list: List[CodeAssigned] = field(default_factory=list)
-    speaking_turn: Optional[SpeakingTurn] = None
+    preliminary_segment: Optional[PreliminarySegment] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "meaning_unit_id": self.meaning_unit_id,
             "meaning_unit_string": self.meaning_unit_string,
             "assigned_code_list": [code.__dict__ for code in self.assigned_code_list],
-            "speaking_turn": self.speaking_turn.to_dict() if self.speaking_turn else None
+            "preliminary_segment": self.preliminary_segment.to_dict() if self.preliminary_segment else None
         }
 
 # -----------------------
@@ -74,15 +74,14 @@ def assign_codes_to_meaning_units(
     completion_model: str = "gpt-4",
     context_size: int = 2,
     meaning_units_per_assignment_prompt: int = 1,
-    # CHANGED: remove speaker_field, add context_fields
     context_fields: Optional[List[str]] = None,  # CHANGED
     content_field: str = 'content',
-    full_speaking_turns: Optional[List[Dict[str, Any]]] = None,
+    full_preliminary_segments: Optional[List[Dict[str, Any]]] = None,  # Renamed
     thread_count: int = 1,
     llm_config: Optional[LLMConfig] = None
 ) -> List[MeaningUnit]:
     """
-    Assigns codes to each MeaningUnit, including context. 
+    Assigns codes to each MeaningUnit, including context.
     Uses concurrency to parallelize LLM calls.
     """
 
@@ -92,12 +91,12 @@ def assign_codes_to_meaning_units(
 
     llm = LangChainLLM(llm_config)
 
-    if full_speaking_turns is None:
-        logger.error("full_speaking_turns must be provided for context.")
+    if full_preliminary_segments is None:
+        logger.error("full_preliminary_segments must be provided for context.")
         return meaning_unit_list
 
     # Create a mapping from source_id to index for context retrieval
-    source_id_to_index = {str(d.get('source_id')): idx for idx, d in enumerate(full_speaking_turns)}
+    source_id_to_index = {str(d.get('source_id')): idx for idx, d in enumerate(full_preliminary_segments)}
 
     # Prepare the codebase block
     if processed_codes:
@@ -129,17 +128,16 @@ def assign_codes_to_meaning_units(
 
         for unit in batch:
             unit_context = ""
-            source_id = unit.speaking_turn.source_id
+            source_id = unit.preliminary_segment.source_id
             unit_idx = source_id_to_index.get(source_id)
 
-            # Retrieve context_speaking_turns up to `context_size` 
+            # Retrieve context_preliminary_segments up to `context_size`
             if unit_idx is not None:
                 start_context_idx = max(0, unit_idx - (context_size - 1))
                 end_context_idx = unit_idx + 1
-                context_speaking_turns = full_speaking_turns[start_context_idx:end_context_idx]
-                for st in context_speaking_turns:
+                context_preliminary_segments = full_preliminary_segments[start_context_idx:end_context_idx]
+                for st in context_preliminary_segments:
                     st_source_id = str(st.get('source_id'))
-                    # CHANGED: Instead of a single speaker_field, loop through context_fields
                     context_info_lines = []
                     if context_fields:
                         for fld in context_fields:
@@ -149,16 +147,15 @@ def assign_codes_to_meaning_units(
                         # fallback if no context fields
                         context_info_lines.append("No context fields defined.")
 
-                    # The main textual content
                     content_val = st.get(content_field, "")
                     context_block = f"ID: {st_source_id}\n" + "\n".join(context_info_lines) + f"\n{content_val}\n\n"
                     unit_context += context_block
 
-            # For the current excerpt, also gather context from the meaning unit's speaking turn
+            # For the current excerpt, also gather context from the meaning unit's preliminary segment
             current_context_lines = []
-            if context_fields and unit.speaking_turn:
+            if context_fields and unit.preliminary_segment:
                 for fld in context_fields:
-                    val = unit.speaking_turn.metadata.get(fld, "Unknown")
+                    val = unit.preliminary_segment.metadata.get(fld, "Unknown")
                     current_context_lines.append(f"{fld}: {val}")
 
             current_unit_excerpt = f"Quote: {unit.meaning_unit_string}\n\n"

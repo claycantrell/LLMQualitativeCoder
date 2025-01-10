@@ -54,7 +54,7 @@ class FilterRule(BaseModel):
 class DataFormatConfigItem(BaseModel):
     """
     Replaces the old 'speaker_field' with 'context_fields', allowing multiple fields
-    from the JSON to be injected as context per speaking turn.
+    from the JSON to be injected as context per preliminary segment.
     """
     content_field: str
     context_fields: Optional[List[str]] = None  # CHANGED
@@ -68,14 +68,13 @@ class DataFormatConfigItem(BaseModel):
         We only keep a check for 'movie_script' requiring 'list_field'.
         The old requirement for speaker_field is removed.
         """
-        # Corrected attribute access using dot notation
         if values.content_field == 'movie_script' and not values.list_field:
             raise ValueError("list_field is required for movie_script data_format")
         return values
 
 class DataFormatConfig(RootModel[Dict[str, DataFormatConfigItem]]):
     """
-    A RootModel where each top-level key (e.g. "transcript", "movie_script") 
+    A RootModel where each top-level key (e.g. "transcript", "movie_script")
     maps to a DataFormatConfigItem.
     """
 
@@ -98,7 +97,7 @@ class PathsModel(BaseModel):
 class ConfigModel(BaseModel):
     coding_mode: CodingModeEnum
     use_parsing: bool
-    speaking_turns_per_prompt: int
+    preliminary_segments_per_prompt: int  # Renamed from speaking_turns_per_prompt
     meaning_units_per_assignment_prompt: int
     context_size: int
     data_format: str
@@ -134,7 +133,7 @@ if __name__ == "__main__":
         config = ConfigModel(
             coding_mode="deductive",
             use_parsing=True,
-            speaking_turns_per_prompt=5,
+            preliminary_segments_per_prompt=5,  # Updated field name
             meaning_units_per_assignment_prompt=10,
             context_size=2048,
             data_format="transcript",

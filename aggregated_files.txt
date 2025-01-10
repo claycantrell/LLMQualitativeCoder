@@ -1,1240 +1,867 @@
 
 
-===== requirements.txt =====
+===== config_schemas.py =====
 
-faiss_cpu==1.9.0
-numpy==2.1.3
-openai==1.54.4
-pydantic==2.9.2
+# config_schemas.py
 
+from typing import Optional, Dict, Any, List
+from enum import Enum
+from pydantic import BaseModel, field_validator, model_validator, RootModel
 
-===== README.md =====
+# ---------------------------
+# Enums
+# ---------------------------
 
-= Qualitative Coding Application
+class OperatorEnum(str, Enum):
+    EQUALS = "equals"
+    NOT_EQUALS = "not_equals"
+    GREATER_THAN = "greater_than"
+    LESS_THAN = "less_than"
+    CONTAINS = "contains"
+    # Add other operators as needed
 
-The *Qualitative Coding Application* is a tool designed to assist in analyzing qualitative data. Leveraging LLMs, this application automates the process of breaking down textual data into smaller units for analysis and assigning qualitative codes.
+class CodingModeEnum(str, Enum):
+    DEDUCTIVE = "deductive"
+    INDUCTIVE = "inductive"
 
-== Features
+class LoggingLevelEnum(str, Enum):
+    DEBUG = "DEBUG"
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+    CRITICAL = "CRITICAL"
 
-* *Dynamic Configuration*: Driven by a `config.json` file, allowing customization without modifying the codebase.
-* *Deductive and Inductive Coding*: You can select between *Deductive* and *Inductive* coding modes by modifying the `"coding_mode"` parameter in the `config.json` file.
+# ---------------------------
+# New Enums & Models for LLM Configuration
+# ---------------------------
 
-- *Deductive*: Predefined codes are assigned from the codebase.
-- *Inductive*: Codes are generated during the analysis based on instructions outlined in your inductive coding prompt
+class ProviderEnum(str, Enum):
+    OPENAI = "openai"
+    HUGGINGFACE = "huggingface"
 
-* *Parsing Transcripts*: Breaks down speaking turns into smaller meaning units based on customizable prompts.
-* *Code Retrieval with FAISS*: Utilizes FAISS for efficient retrieval of relevant codes, reducing token usage and possibly increasing performance with larger codebases.
-* *Flexible Output Formats*: Exports coded data in JSON or CSV formats.
-* *Comprehensive Logging*: Detailed logging with options to log to console and/or files.
+class LLMConfig(BaseModel):
+    provider: ProviderEnum
+    model_name: str
+    temperature: float = 0.7
+    max_tokens: int = 2000
+    api_key: Optional[str] = None
 
-== Architecture
+# ---------------------------
+# Data Format Config Models
+# ---------------------------
 
-* *`main.py`*: Orchestrates the entire workflow.
-* *`utils.py`*: Contains utility functions for loading configurations, prompts, and initializing resources.
-* *`data_handlers.py`*: Handles data loading, validation, and transformation of data into units for analysis.
-* *`qual_functions.py`*: Implements core functionalities such as parsing transcripts and assigning codes to meaning units.
+class FilterRule(BaseModel):
+    field: str
+    operator: OperatorEnum
+    value: str
 
-== Installation
+class DataFormatConfigItem(BaseModel):
+    """
+    Replaces the old 'speaker_field' with 'context_fields', allowing multiple fields
+    from the JSON to be injected as context per speaking turn.
+    """
+    content_field: str
+    context_fields: Optional[List[str]] = None  # CHANGED
+    list_field: Optional[str] = None
+    source_id_field: Optional[str] = None
+    filter_rules: List[FilterRule] = []
 
-=== Prerequisites
+    @model_validator(mode='after')
+    def check_required_fields(cls, values):
+        """
+        We only keep a check for 'movie_script' requiring 'list_field'.
+        The old requirement for speaker_field is removed.
+        """
+        # Corrected attribute access using dot notation
+        if values.content_field == 'movie_script' and not values.list_field:
+            raise ValueError("list_field is required for movie_script data_format")
+        return values
 
-- Python 3.8 or above
-- `pip` (Python package manager)
-- An API key for OpenAI (set as an environment variable)
+class DataFormatConfig(RootModel[Dict[str, DataFormatConfigItem]]):
+    """
+    A RootModel where each top-level key (e.g. "transcript", "movie_script") 
+    maps to a DataFormatConfigItem.
+    """
 
-=== Steps
+    def __getitem__(self, item: str) -> DataFormatConfigItem:
+        return self.root[item]
 
-*Set Up Environment Variables*
+    def __contains__(self, item: str) -> bool:
+        return item in self.root
 
-Ensure you have your OpenAI API key available as an environment variable:
+# ---------------------------
+# Main Config Models
+# ---------------------------
 
-export OPENAI_API_KEY='your_openai_api_key_here'
+class PathsModel(BaseModel):
+    prompts_folder: str
+    codebase_folder: str
+    json_folder: str
+    config_folder: str
 
-== Configuration
+class ConfigModel(BaseModel):
+    coding_mode: CodingModeEnum
+    use_parsing: bool
+    speaking_turns_per_prompt: int
+    meaning_units_per_assignment_prompt: int
+    context_size: int
+    data_format: str
+    paths: PathsModel
+    selected_codebase: str
+    selected_json_file: str
+    parse_prompt_file: str
+    inductive_coding_prompt_file: str
+    deductive_coding_prompt_file: str
+    output_folder: str
+    enable_logging: bool
+    logging_level: LoggingLevelEnum
+    log_to_file: bool
+    log_file_path: str
 
-The application relies on a `config.json` file for all configurable settings. 
+    # NEW FIELD: specify how many threads (concurrent requests) to use
+    thread_count: int = 1
 
-=== Configuration Parameters
+    # NEW FIELDS: Separate LLM configurations for parse and assign tasks
+    parse_llm_config: LLMConfig
+    assign_llm_config: LLMConfig
 
-* *coding_mode*: `"deductive"` or `"inductive"` depending on the approach you want to use (open or closed coding).
-* *use_parsing*: Boolean to enable or disable parsing of texual data into smaller units.
-* *use_rag*: Boolean to use Retrieval-Augmented Generation (RAG) for storage and retrieval of codebase (limits the size of context window in prompts, reducing token usage with larger codebases. It could also improve performance with larger codebases but I have not tested this).
-* Below are the default models used for this tool, better performance can be achived with larger and more advanced models.
-* *parse_model*: The model to use for parsing transcripts (e.g., `gpt-4o-mini`).
-* *assign_model*: The model used for assigning codes (e.g., `gpt-4o-mini`).
-* *initialize_embedding_model*: Model used for embedding (e.g., `text-embedding-3-small`).
-* *retrieve_embedding_model*: Model used for code retrieval embeddings.
-* *data_format*: Defines the format of the input data (e.g., `interview`).
-* new data formats must be defined in (`data_format_config.json`) Here you will assign your `content_field` to the JSON value associated with your textual data for analysis. You will also list all other fields in your JSON file. Use the existing data formats and .json data files to get a better understanding of how to format this config file for new data types.
-* This program does not currently support JSON data files which have nesting or use dictonaries.
-* *paths*: Specifies folder and file paths to be used during the process.
-** *prompts_folder*: Path to the folder containing prompt files.
-** *codebase_folder*: Path to the folder containing the qualitative codebase files.
-** *json_folder*: Path to the folder with JSON transcripts.
-** *config_folder*: Path where configuration files are located.
-** *parse_prompt_file*: File containing the prompt for parsing.
-** *deductive_coding_prompt_file*: File for deductive coding prompts.
-** *inductive_coding_prompt_file*: File for inductive coding prompts.
-** *codebase_file*: JSONL file with the codebase definitions.
-** *data_file*: JSON file to be processed.
+    @field_validator('data_format')
+    def validate_data_format(cls, v):
+        allowed_formats = ['transcript', 'movie_script', 'other_format']  # Update as needed
+        if v not in allowed_formats:
+            raise ValueError(f"'data_format' must be one of {allowed_formats}, got '{v}'")
+        return v
 
-== Usage
+# Example Usage
+if __name__ == "__main__":
+    try:
+        config = ConfigModel(
+            coding_mode="deductive",
+            use_parsing=True,
+            speaking_turns_per_prompt=5,
+            meaning_units_per_assignment_prompt=10,
+            context_size=2048,
+            data_format="transcript",
+            paths={
+                "prompts_folder": "/path/to/prompts",
+                "codebase_folder": "/path/to/codebase",
+                "json_folder": "/path/to/json",
+                "config_folder": "/path/to/config"
+            },
+            selected_codebase="default",
+            selected_json_file="data.json",
+            parse_prompt_file="parse_prompt.txt",
+            inductive_coding_prompt_file="inductive_prompt.txt",
+            deductive_coding_prompt_file="deductive_prompt.txt",
+            output_folder="/path/to/output",
+            enable_logging=True,
+            logging_level="INFO",
+            log_to_file=True,
+            log_file_path="/path/to/logfile.log",
+            thread_count=4,  # Example: 4 concurrent requests
+            parse_llm_config={
+                "provider": "openai",
+                "model_name": "gpt-4",
+                "temperature": 0.7,
+                "max_tokens": 2000,
+                "api_key": "YOUR_OPENAI_API_KEY_FOR_PARSE"
+            },
+            assign_llm_config={
+                "provider": "huggingface",
+                "model_name": "gpt2",
+                "temperature": 0.6,
+                "max_tokens": 1500,
+                "api_key": "YOUR_HUGGINGFACE_API_KEY_IF_NEEDED"
+            }
+        )
+        print("Configuration loaded successfully.")
+    except Exception as e:
+        print(f"Error loading configuration: {e}")
 
-=== Running the Main Pipeline
-
-To run the main pipeline, execute the `main.py` script:
-
-== Logging
-
-The application generates logs to aid in debugging and understanding the workflow. Logging is configured with different levels (INFO, DEBUG, ERROR) to capture varying degrees of detail. 
-
-Logs are printed to the console by default. You can configure log files or use different logging handlers as needed.
-
-===== .gitignore =====
-
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
-# C extensions
-*.so
-
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-cover/
-
-# Translations
-*.mo
-*.pot
-
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
-
-# Sphinx documentation
-docs/_build/
-
-# PyBuilder
-.pybuilder/
-target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IPython
-profile_default/
-ipython_config.py
-
-# pyenv
-#   For a library or package, you might want to ignore these files since the code is
-#   intended to run in multiple environments; otherwise, check them in:
-# .python-version
-
-# pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having no cross-platform support, pipenv may install dependencies that don't work, or not
-#   install all needed dependencies.
-#Pipfile.lock
-
-# poetry
-#   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
-#   This is especially recommended for binary packages to ensure reproducibility, and is more
-#   commonly ignored for libraries.
-#   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
-#poetry.lock
-
-# pdm
-#   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
-#pdm.lock
-#   pdm stores project-wide configurations in .pdm.toml, but it is recommended to not include it
-#   in version control.
-#   https://pdm.fming.dev/latest/usage/project/#working-with-version-control
-.pdm.toml
-.pdm-python
-.pdm-build/
-
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
-__pypackages__/
-
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
-
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# pytype static type analyzer
-.pytype/
-
-# Cython debug symbols
-cython_debug/
-
-# PyCharm
-#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
-#  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
-#  and can be added to the global gitignore or merged into this file.  For a more nuclear
-#  option (not recommended) you can uncomment the following to ignore the entire idea folder.
-#.idea/
 
 ===== utils.py =====
 
-#utils.py
+# utils.py
+
 import os
 import json
 import logging
-from typing import Dict, Any, Tuple, List, Type, Optional
-from qual_functions import (
-    initialize_faiss_index_from_formatted_file
-)
-from pydantic import create_model, BaseModel, ConfigDict
+from pathlib import Path
+from typing import Dict, Any
+from pydantic import ValidationError
 
-# Configure logging for utils module
+from langchain.output_parsers import PydanticOutputParser
+from pydantic import BaseModel, Field
+
+from config_schemas import ConfigModel, DataFormatConfig
+from langchain_llm import LangChainLLM
+
 logger = logging.getLogger(__name__)
 
-def load_environment_variables() -> None:
+class ParseResponse(BaseModel):
+    source_id: str
+    quote: str
+
+# Instantiate a Pydantic parser for structured outputs
+parser = PydanticOutputParser(pydantic_object=ParseResponse)
+
+def load_environment_variables() -> Dict[str, str]:
     """
-    Loads and validates required environment variables.
+    Loads and validates required environment variables, returning them in a dictionary.
+    For example, you could load your provider API keys here if not given in config.
     """
-    openai_api_key = os.getenv('OPENAI_API_KEY')
-    if not openai_api_key:
-        logger.error("OPENAI_API_KEY environment variable is not set.")
-        raise ValueError("Set the OPENAI_API_KEY environment variable.")
-
-def load_config(config_file_path: str) -> Dict[str, Any]:
-    """
-    Loads the configuration from a JSON file.
-
-    Args:
-        config_file_path (str): Path to the configuration file.
-
-    Returns:
-        Dict[str, Any]: Configuration dictionary.
-    """
-    if not os.path.exists(config_file_path):
-        logger.error(f"Configuration file '{config_file_path}' not found.")
-        raise FileNotFoundError(f"Configuration file '{config_file_path}' not found.")
-
-    try:
-        with open(config_file_path, 'r', encoding='utf-8') as file:
-            config = json.load(file)
-        logger.debug(f"Configuration loaded from '{config_file_path}'.")
-        return config
-    except json.JSONDecodeError as e:
-        logger.error(f"Error decoding JSON from '{config_file_path}': {e}")
-        raise
-    except Exception as e:
-        logger.error(f"Error loading configuration: {e}")
-        raise
-
-def load_coding_instructions(prompts_folder: str, prompt_file: str) -> str:
-    """
-    Loads coding instructions from a specified prompt file.
-
-    Args:
-        prompts_folder (str): Directory where prompt files are stored.
-        prompt_file (str): Name of the prompt file.
-
-    Returns:
-        str: Coding instructions as a string.
-    """
-    coding_instructions_file = os.path.join(prompts_folder, prompt_file)
-    if not os.path.exists(coding_instructions_file):
-        logger.error(f"Coding instructions file '{coding_instructions_file}' not found.")
-        raise FileNotFoundError(f"Coding instructions file '{coding_instructions_file}' not found.")
-
-    try:
-        with open(coding_instructions_file, 'r', encoding='utf-8') as file:
-            coding_instructions = file.read().strip()
-        if not coding_instructions:
-            logger.error("Coding instructions file is empty.")
-            raise ValueError("Coding instructions file is empty.")
-    except Exception as e:
-        logger.error(f"Error reading coding instructions file '{coding_instructions_file}': {e}")
-        raise
-
-    return coding_instructions
-
-def load_parse_instructions(prompts_folder: str, parse_prompt_file: str) -> str:
-    """
-    Loads parse instructions from a specified prompt file for breaking down speaking turns into meaning units.
-
-    Args:
-        prompts_folder (str): Directory where prompt files are stored.
-        parse_prompt_file (str): Name of the parse prompt file.
-
-    Returns:
-        str: Parse instructions as a string.
-    """
-    parse_prompt_path = os.path.join(prompts_folder, parse_prompt_file)
-    if not os.path.exists(parse_prompt_path):
-        logger.error(f"Parse instructions file '{parse_prompt_path}' not found.")
-        raise FileNotFoundError(f"Parse instructions file '{parse_prompt_path}' not found.")
-
-    try:
-        with open(parse_prompt_path, 'r', encoding='utf-8') as file:
-            parse_instructions = file.read().strip()
-    except Exception as e:
-        logger.error(f"Error reading parse instructions file '{parse_prompt_path}': {e}")
-        raise
-
-    if not parse_instructions:
-        logger.error("Parse instructions file is empty.")
-        raise ValueError("Parse instructions file is empty.")
-
-    return parse_instructions
-
-def load_inductive_coding_prompt(prompts_folder: str, inductive_prompt_file: str) -> str:
-    """
-    Loads the inductive coding prompt from a specified file.
-
-    Args:
-        prompts_folder (str): Directory where prompt files are stored.
-        inductive_prompt_file (str): Name of the inductive coding prompt file.
-
-    Returns:
-        str: Inductive coding prompt as a string.
-    """
-    inductive_coding_prompt_path = os.path.join(prompts_folder, inductive_prompt_file)
-    if not os.path.exists(inductive_coding_prompt_path):
-        logger.error(f"Inductive coding prompt file '{inductive_coding_prompt_path}' not found.")
-        raise FileNotFoundError(f"Inductive coding prompt file '{inductive_coding_prompt_path}' not found.")
-
-    try:
-        with open(inductive_coding_prompt_path, 'r', encoding='utf-8') as file:
-            inductive_coding_prompt = file.read().strip()
-    except Exception as e:
-        logger.error(f"Error reading inductive coding prompt file '{inductive_coding_prompt_path}': {e}")
-        raise
-
-    if not inductive_coding_prompt:
-        logger.error("Inductive coding prompt file is empty.")
-        raise ValueError("Inductive coding prompt file is empty.")
-
-    return inductive_coding_prompt
-
-def load_deductive_coding_prompt(prompts_folder: str, deductive_prompt_file: str) -> str:
-    """
-    Loads the deductive coding prompt from a specified file.
-
-    Args:
-        prompts_folder (str): Directory where prompt files are stored.
-        deductive_prompt_file (str): Name of the deductive coding prompt file.
-
-    Returns:
-        str: Deductive coding prompt as a string.
-    """
-    deductive_coding_prompt_path = os.path.join(prompts_folder, deductive_prompt_file)
-    if not os.path.exists(deductive_coding_prompt_path):
-        logger.error(f"Deductive coding prompt file '{deductive_coding_prompt_path}' not found.")
-        raise FileNotFoundError(f"Deductive coding prompt file '{deductive_coding_prompt_path}' not found.")
-
-    try:
-        with open(deductive_coding_prompt_path, 'r', encoding='utf-8') as file:
-            deductive_coding_prompt = file.read().strip()
-    except Exception as e:
-        logger.error(f"Error reading deductive coding prompt file '{deductive_coding_prompt_path}': {e}")
-        raise
-
-    if not deductive_coding_prompt:
-        logger.error("Deductive coding prompt file is empty.")
-        raise ValueError("Deductive coding prompt file is empty.")
-
-    return deductive_coding_prompt
-
-def initialize_deductive_resources(
-    codebase_folder: str,
-    prompts_folder: str,
-    initialize_embedding_model: str,
-    use_rag: bool,
-    selected_codebase: str,
-    deductive_prompt_file: str
-) -> Tuple[List[Dict[str, Any]], Optional[Any], str]:
-    """
-    Initializes resources needed for deductive coding: loads code instructions, codebase, and builds a FAISS index if use_rag is True.
-    Returns processed_codes, faiss_index (or None), and coding_instructions.
-
-    Args:
-        codebase_folder (str): Directory where the codebase files are stored.
-        prompts_folder (str): Directory where prompt files are stored.
-        initialize_embedding_model (str): Embedding model to use for FAISS.
-        use_rag (bool): Whether to use Retrieval-Augmented Generation.
-        selected_codebase (str): Specific codebase file to use.
-        deductive_prompt_file (str): Name of the deductive coding prompt file.
-
-    Returns:
-        Tuple[List[Dict[str, Any]], Optional[Any], str]: Processed codes, FAISS index, and coding instructions.
-    """
-    # Load coding instructions for deductive coding
-    try:
-        coding_instructions = load_coding_instructions(prompts_folder, deductive_prompt_file)
-        logger.debug("Coding instructions loaded for deductive coding.")
-    except Exception as e:
-        logger.error(f"Failed to load coding instructions: {e}")
-        raise
-
-    # Load processed codes from specified codebase file
-    list_of_codes_file = os.path.join(codebase_folder, selected_codebase)
-    if not os.path.exists(list_of_codes_file):
-        logger.error(f"List of codes file '{list_of_codes_file}' not found.")
-        raise FileNotFoundError(f"List of codes file '{list_of_codes_file}' not found.")
-
-    try:
-        with open(list_of_codes_file, 'r', encoding='utf-8') as file:
-            processed_codes = [json.loads(line) for line in file if line.strip()]
-        logger.debug(f"Loaded {len(processed_codes)} codes from '{list_of_codes_file}'.")
-    except Exception as e:
-        logger.error(f"An error occurred while loading codes from '{list_of_codes_file}': {e}")
-        raise
-
-    # Initialize FAISS index if use_rag is True
-    if use_rag:
-        try:
-            faiss_index, _ = initialize_faiss_index_from_formatted_file(
-                codes_list_file=list_of_codes_file,
-                embedding_model=initialize_embedding_model
-            )
-            logger.debug("FAISS index initialized with processed codes.")
-        except Exception as e:
-            logger.error(f"Failed to initialize FAISS index: {e}")
-            raise
-    else:
-        faiss_index = None  # FAISS index is not needed
-
-    return processed_codes, faiss_index, coding_instructions
-
-def load_schema_config(config_path: str) -> Dict[str, Dict[str, Any]]:
-    """
-    Loads schema configuration from the given JSON file path.
-
-    Args:
-        config_path (str): Path to the schema configuration file.
-
-    Returns:
-        Dict[str, Dict[str, Any]]: Schema configuration dictionary.
-    """
-    if not os.path.exists(config_path):
-        logger.error(f"Schema configuration file '{config_path}' not found.")
-        raise FileNotFoundError(f"Schema configuration file '{config_path}' not found.")
-
-    try:
-        with open(config_path, 'r', encoding='utf-8') as file:
-            config_data = json.load(file)
-        logger.debug(f"Schema configuration loaded from '{config_path}'.")
-        return config_data
-    except json.JSONDecodeError as e:
-        logger.error(f"Error decoding JSON from '{config_path}': {e}")
-        raise
-    except Exception as e:
-        logger.error(f"Error loading schema configuration: {e}")
-        raise
-
-def create_dynamic_model_for_format(data_format: str, schema_config: Dict[str, Dict[str, Any]]) -> Tuple[Type[BaseModel], str]:
-    """
-    Creates a dynamic Pydantic model for the given data format based on the provided schema configuration.
-
-    Args:
-        data_format (str): The format of the data (e.g., "interview").
-        schema_config (Dict[str, Dict[str, Any]]): Schema configuration for different data formats.
-
-    Returns:
-        Tuple[Type[BaseModel], str]: The dynamic Pydantic model and the content field name.
-    """
-    if data_format not in schema_config:
-        raise ValueError(f"No schema configuration found for data format '{data_format}'")
-
-    format_config = schema_config[data_format]
-    if 'fields' not in format_config or 'content_field' not in format_config:
-        raise ValueError(f"Configuration for data format '{data_format}' must include 'fields' and 'content_field'.")
-
-    fields = format_config["fields"]
-    content_field = format_config["content_field"]
-
-    type_map = {
-        "str": str,
-        "int": int,
-        "float": float,
-        "list": list,
-        "dict": dict,
-        "bool": bool,
-        # Additional mappings as needed
+    openai_api_key = os.getenv('OPENAI_API_KEY', '')
+    # You might also have HF API keys or other environment variables
+    return {
+        "OPENAI_API_KEY": openai_api_key
     }
 
-    dynamic_fields = {}
-    for field_name, field_type_str in fields.items():
-        py_type = type_map.get(field_type_str, Any)  # Default to Any if not found
-        dynamic_fields[field_name] = (py_type, ...)  # Required field by default
-
-    # Use Pydantic v2's configuration for handling extra fields
-    model_config = ConfigDict(extra='allow')
+def _load_json_file(file_path: str) -> Any:
+    """
+    Internal helper function to load JSON content from a file.
+    """
+    path = Path(file_path)
+    if not path.exists():
+        logger.error(f"File '{file_path}' not found.")
+        raise FileNotFoundError(f"File '{file_path}' not found.")
 
     try:
-        dynamic_model = create_model(
-            f"{data_format.capitalize()}DataModel",
-            __base__=BaseModel,
-            **dynamic_fields,
-            model_config=model_config  # For Pydantic v2, to allow extra fields
-        )
-        logger.debug(f"Dynamic Pydantic model '{data_format.capitalize()}DataModel' created with content_field '{content_field}'.")
-    except Exception as e:
-        logger.error(f"Failed to create dynamic Pydantic model for '{data_format}': {type(e).__name__}: {e}")
+        with path.open('r', encoding='utf-8') as file:
+            data = json.load(file)
+        return data
+    except json.JSONDecodeError as e:
+        logger.error(f"Error decoding JSON from '{file_path}': {e}")
+        raise
+    except IOError as e:
+        logger.error(f"I/O error loading file '{file_path}': {e}")
         raise
 
-    return dynamic_model, content_field
+def _load_text_file(file_path: str, description: str = 'file') -> str:
+    """
+    Internal helper function to load raw text content from a file.
+    """
+    path = Path(file_path)
+    if not path.exists():
+        logger.error(f"{description.capitalize()} file '{file_path}' not found.")
+        raise FileNotFoundError(f"{description.capitalize()} file '{file_path}' not found.")
+
+    try:
+        with path.open('r', encoding='utf-8') as file:
+            content = file.read().strip()
+    except OSError as e:
+        logger.error(f"Error reading {description} file '{file_path}': {e}")
+        raise
+
+    if not content:
+        logger.error(f"{description.capitalize()} file '{file_path}' is empty.")
+        raise ValueError(f"{description.capitalize()} file '{file_path}' is empty.")
+
+    return content
+
+def load_prompt_file(prompts_folder: str, prompt_file: str, description: str = 'prompt') -> str:
+    """
+    Loads a prompt from a specified file.
+    """
+    prompt_path = str(Path(prompts_folder) / prompt_file)
+    return _load_text_file(prompt_path, description=description)
+
+def load_config(config_file_path: str) -> ConfigModel:
+    """
+    Loads and validates the main configuration from a JSON file using Pydantic.
+    """
+    raw_config = _load_json_file(config_file_path)
+    return ConfigModel.model_validate(raw_config)
+
+def load_data_format_config(config_file_path: str) -> DataFormatConfig:
+    """
+    Loads and validates the data format configuration from a JSON file using Pydantic.
+    """
+    raw_config = _load_json_file(config_file_path)
+    return DataFormatConfig.model_validate(raw_config)
+
+def generate_structured_response(llm: LangChainLLM, prompt: str) -> Dict[str, Any]:
+    """
+    Example function that uses an LLM to produce structured data validated by Pydantic.
+    """
+    raw_text = llm.generate(prompt)
+    try:
+        parsed_obj = parser.parse(raw_text)
+        return parsed_obj.dict()
+    except ValidationError as ve:
+        logger.error(f"Failed to parse structured output: {ve}")
+        return {}
 
 
 ===== main.py =====
 
 # main.py
-import os
+
 import json
 import logging
-from typing import List, Dict, Optional, Any, Tuple, Type
-from data_handlers import FlexibleDataHandler
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+from logging_config import setup_logging  # If you have a custom logging config
+from config_schemas import ConfigModel, DataFormatConfig
 from utils import (
     load_environment_variables,
-    load_parse_instructions,
-    load_deductive_coding_prompt,
-    load_inductive_coding_prompt,
-    initialize_deductive_resources,
-    create_dynamic_model_for_format,
-    load_schema_config,
-    load_config
+    load_config,
+    load_data_format_config,
+    load_prompt_file
 )
-from qual_functions import (
-    MeaningUnit,
-    assign_codes_to_meaning_units
-)
+from data_handlers import FlexibleDataHandler
+from qual_functions import assign_codes_to_meaning_units
+from validator import run_validation, replace_nan_with_null  # If you have a validator module
 
-def main(config: Dict[str, Any]):
-    # Load configurations
-    coding_mode = config.get('coding_mode', 'deductive')
-    use_parsing = config.get('use_parsing', True)
-    use_rag = config.get('use_rag', True)
-    parse_model = config.get('parse_model', 'gpt-4o-mini')
-    assign_model = config.get('assign_model', 'gpt-4o-mini')
-    initialize_embedding_model = config.get('initialize_embedding_model', 'text-embedding-3-small')
-    retrieve_embedding_model = config.get('retrieve_embedding_model', 'text-embedding-3-small')
-    data_format = config.get('data_format', 'interview')
+from langchain_llm import LangChainLLM
 
-    # Paths configuration
-    paths = config.get('paths', {})
-    prompts_folder = paths.get('prompts_folder', 'prompts')
-    codebase_folder = paths.get('codebase_folder', 'qual_codebase')
-    json_folder = paths.get('json_folder', 'json_transcripts')
-    config_folder = paths.get('config_folder', 'configs')
-
-    # Selected files
-    selected_codebase = config.get('selected_codebase', 'new_schema.jsonl')
-    selected_json_file = config.get('selected_json_file', 'output_cues.json')
-    parse_prompt_file = config.get('parse_prompt_file', 'parse_prompt.txt')
-    inductive_coding_prompt_file = config.get('inductive_coding_prompt_file', 'inductive_prompt.txt')
-    deductive_coding_prompt_file = config.get('deductive_coding_prompt_file', 'deductive_prompt.txt')
-
-    # Output configuration
-    output_folder = config.get('output_folder', 'outputs')
-    output_format = config.get('output_format', 'json')
-    output_file_name = config.get('output_file_name', 'coded_meaning_units')
-
-    # Logging configuration
-    enable_logging = config.get('enable_logging', True)
-    logging_level_str = config.get('logging_level', 'DEBUG')
-    logging_level = getattr(logging, logging_level_str.upper(), logging.DEBUG)
-    log_to_file = config.get('log_to_file', True)
-    log_file_path = config.get('log_file_path', 'logs/application.log')
-
-    # Configure logging
-    if enable_logging:
-        handlers = [logging.StreamHandler()]
-        if log_to_file:
-            os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
-            handlers.append(logging.FileHandler(log_file_path))
-        logging.basicConfig(
-            level=logging_level,
-            format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-            handlers=handlers
-        )
-    else:
-        logging.basicConfig(level=logging.CRITICAL)
+def main(config: ConfigModel):
+    """
+    Main function to execute the qualitative coding pipeline.
+    """
+    setup_logging(
+        enable_logging=config.enable_logging,
+        logging_level_str=config.logging_level,
+        log_to_file=config.log_to_file,
+        log_file_path=config.log_file_path
+    )
     logger = logging.getLogger(__name__)
 
     logger.info("Starting the main pipeline.")
 
     # Stage 1: Environment Setup
-    try:
-        load_environment_variables()
-        logger.debug("Environment variables loaded and validated.")
-    except Exception as e:
-        logger.error(f"Failed to load environment variables: {e}")
-        return
+    env_vars = load_environment_variables()
+    if not config.parse_llm_config.api_key and env_vars.get("OPENAI_API_KEY"):
+        config.parse_llm_config.api_key = env_vars["OPENAI_API_KEY"]
+    if not config.assign_llm_config.api_key and env_vars.get("HUGGINGFACE_API_KEY"):
+        config.assign_llm_config.api_key = env_vars["HUGGINGFACE_API_KEY"]
 
-    # Load parse instructions if parsing is enabled
     parse_instructions = ""
-    if use_parsing:
-        try:
-            parse_instructions = load_parse_instructions(prompts_folder, parse_prompt_file)
-            logger.debug("Parse instructions loaded.")
-        except Exception as e:
-            logger.error(f"Failed to load parse instructions: {e}")
-            return
+    if config.use_parsing:
+        parse_instructions = load_prompt_file(
+            config.paths.prompts_folder,
+            config.parse_prompt_file,
+            description='parse instructions'
+        )
 
-    # Load schema mapping configuration for dynamic model creation
-    schema_config_path = os.path.join(config_folder, 'data_format_config.json')
-    try:
-        schema_config = load_schema_config(schema_config_path)
-        logger.debug("Schema configuration loaded.")
-    except Exception as e:
-        logger.error(f"Failed to load schema configuration: {e}")
-        return
+    # Load data format configuration
+    data_format_config_path = Path(config.paths.config_folder) / 'data_format_config.json'
+    data_format_config: DataFormatConfig = load_data_format_config(str(data_format_config_path))
 
-    if data_format not in schema_config:
-        logger.error(f"No schema configuration found for data format: {data_format}")
-        raise ValueError(f"No schema configuration found for data format: {data_format}")
+    if config.data_format not in data_format_config:
+        logger.error(f"No configuration found for data format: {config.data_format}")
+        raise ValueError(f"No configuration found for data format: {config.data_format}")
 
-    # Create a dynamic Pydantic model for the specified data format
-    try:
-        dynamic_data_model, content_field = create_dynamic_model_for_format(data_format, schema_config)
-        logger.debug(f"Dynamic data model for '{data_format}' created.")
-    except Exception as e:
-        logger.error(f"Failed to create dynamic data model: {e}")
-        return
+    format_config = data_format_config[config.data_format]
 
-    # Determine the data file to load based on selected_json_file
-    data_file = selected_json_file
-    file_path = os.path.join(json_folder, data_file)
-    if not os.path.exists(file_path):
+    # Determine the data file to load
+    file_path = Path(config.paths.json_folder) / config.selected_json_file
+    if not file_path.exists():
         logger.error(f"Data file '{file_path}' not found.")
         raise FileNotFoundError(f"Data file '{file_path}' not found.")
 
-    # Stage 2: Data Loading and Validation Using FlexibleDataHandler
-    try:
-        data_handler = FlexibleDataHandler(
-            file_path=file_path,
-            parse_instructions=parse_instructions,
-            completion_model=parse_model,
-            model_class=dynamic_data_model,
-            content_field=content_field,
-            use_parsing=use_parsing
-        )
-        validated_data = data_handler.load_data()
-        logger.debug(f"Loaded {len(validated_data)} validated data items.")
-        meaning_unit_object_list = data_handler.transform_data(validated_data)
-        logger.debug(f"Transformed data into {len(meaning_unit_object_list)} meaning units.")
-    except Exception as e:
-        logger.error(f"Data loading and transformation failed: {e}")
-        return
+    # Stage 2: Data Loading & Transform
+    # CHANGED: pass context_fields instead of speaker_field
+    data_handler = FlexibleDataHandler(
+        file_path=str(file_path),
+        parse_instructions=parse_instructions,
+        completion_model=config.parse_llm_config.model_name,  # Use parse LLM config
+        content_field=format_config.content_field,
+        context_fields=format_config.context_fields,  # CHANGED
+        list_field=format_config.list_field,
+        source_id_field=format_config.source_id_field,
+        filter_rules=[rule.model_dump() for rule in format_config.filter_rules],
+        use_parsing=config.use_parsing,
+        speaking_turns_per_prompt=config.speaking_turns_per_prompt,
+        thread_count=config.thread_count
+    )
+    data_df = data_handler.load_data()
+    meaning_unit_object_list = data_handler.transform_data(data_df)
 
     if not meaning_unit_object_list:
         logger.warning("No meaning units to process. Exiting.")
         return
 
     # Stage 3: Code Assignment
-    if coding_mode == "deductive":
-        try:
-            # Initialize deductive resources with conditional FAISS initialization
-            processed_codes, faiss_index, coding_instructions = initialize_deductive_resources(
-                codebase_folder=codebase_folder,
-                prompts_folder=prompts_folder,
-                initialize_embedding_model=initialize_embedding_model,
-                use_rag=use_rag,
-                selected_codebase=selected_codebase,
-                deductive_prompt_file=deductive_coding_prompt_file  # Pass the prompt file from config
-            )
-            logger.debug(f"Initialized deductive resources with {len(processed_codes)} processed codes.")
-        except Exception as e:
-            logger.error(f"Failed to initialize deductive resources: {e}")
-            return
+    if config.coding_mode == "deductive":
+        coding_instructions = load_prompt_file(
+            config.paths.prompts_folder,
+            config.deductive_coding_prompt_file,
+            description='deductive coding prompt'
+        )
+        codebase_file = Path(config.paths.codebase_folder) / config.selected_codebase
+        if not codebase_file.exists():
+            logger.error(f"List of codes file '{codebase_file}' not found.")
+            raise FileNotFoundError(f"List of codes file '{codebase_file}' not found.")
 
-        if not processed_codes:
-            logger.warning("No processed codes available for deductive coding. Exiting.")
-            return
+        with codebase_file.open('r', encoding='utf-8') as file:
+            processed_codes = [json.loads(line) for line in file if line.strip()]
 
-        # Assign codes to meaning units in deductive mode
-        try:
-            coded_meaning_unit_list = assign_codes_to_meaning_units(
-                meaning_unit_list=meaning_unit_object_list,
-                coding_instructions=coding_instructions,
-                processed_codes=processed_codes,
-                index=faiss_index if use_rag else None,
-                top_k=config.get('top_k', 5),
-                context_size=config.get('context_size', 5),
-                use_rag=use_rag,
-                codebase=processed_codes if not use_rag else None,
-                completion_model=assign_model,
-                embedding_model=retrieve_embedding_model if use_rag else None
-            )
-            logger.debug(f"Assigned codes using deductive mode with {'RAG' if use_rag else 'full codebase'}.")
-        except Exception as e:
-            logger.error(f"Failed to assign codes in deductive mode: {e}")
-            return
+        assign_llm = LangChainLLM(config.assign_llm_config)
 
-    else:  # Inductive coding
-        try:
-            # Load inductive coding prompt
-            inductive_coding_prompt = load_inductive_coding_prompt(prompts_folder, inductive_coding_prompt_file)
-            logger.debug("Inductive coding prompt loaded.")
+        coded_meaning_unit_list = assign_codes_to_meaning_units(
+            meaning_unit_list=meaning_unit_object_list,
+            coding_instructions=coding_instructions,
+            processed_codes=processed_codes,
+            codebase=processed_codes,
+            completion_model=config.assign_llm_config.model_name,
+            context_size=config.context_size,
+            meaning_units_per_assignment_prompt=config.meaning_units_per_assignment_prompt,
+            context_fields=format_config.context_fields,  # CHANGED
+            content_field=format_config.content_field,
+            full_speaking_turns=data_handler.full_data.to_dict(orient='records'),
+            thread_count=config.thread_count,
+            llm_config=config.assign_llm_config
+        )
+    else:  # inductive
+        inductive_coding_prompt = load_prompt_file(
+            config.paths.prompts_folder,
+            config.inductive_coding_prompt_file,
+            description='inductive coding prompt'
+        )
+        assign_llm = LangChainLLM(config.assign_llm_config)
 
-            # Assign codes to meaning units in inductive mode
-            coded_meaning_unit_list = assign_codes_to_meaning_units(
-                meaning_unit_list=meaning_unit_object_list,
-                coding_instructions=inductive_coding_prompt,
-                processed_codes=None,
-                index=None,
-                top_k=None,
-                context_size=config.get('context_size', 5),
-                use_rag=False,
-                codebase=None,
-                completion_model=assign_model,
-                embedding_model=None
-            )
-            logger.debug("Assigned codes using inductive mode.")
-        except Exception as e:
-            logger.error(f"Failed to assign codes in inductive mode: {e}")
-            return
+        coded_meaning_unit_list = assign_codes_to_meaning_units(
+            meaning_unit_list=meaning_unit_object_list,
+            coding_instructions=inductive_coding_prompt,
+            processed_codes=None,
+            codebase=None,
+            completion_model=config.assign_llm_config.model_name,
+            context_size=config.context_size,
+            meaning_units_per_assignment_prompt=config.meaning_units_per_assignment_prompt,
+            context_fields=format_config.context_fields,  # CHANGED
+            content_field=format_config.content_field,
+            full_speaking_turns=data_handler.full_data.to_dict(orient='records'),
+            thread_count=config.thread_count,
+            llm_config=config.assign_llm_config
+        )
 
     # Stage 4: Output Results
-    os.makedirs(output_folder, exist_ok=True)
-    output_file_path = os.path.join(output_folder, f"{output_file_name}.{output_format}")
+    output_folder = Path(config.output_folder)
+    output_folder.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_file_basename = Path(config.selected_json_file).stem
+    output_file_path = output_folder / f"{output_file_basename}_output_{timestamp}.json"
 
-    try:
-        if output_format == 'json':
-            with open(output_file_path, 'w', encoding='utf-8') as outfile:
-                json.dump([unit.to_dict() for unit in coded_meaning_unit_list], outfile, indent=2)
-            logger.info(f"Coded meaning units saved to '{output_file_path}'.")
-        elif output_format == 'csv':
-            import csv
+    document_metadata = data_handler.document_metadata
 
-            with open(output_file_path, 'w', encoding='utf-8', newline='') as csvfile:
-                fieldnames = ['unique_id', 'meaning_unit_string', 'metadata', 'assigned_codes']
-                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                writer.writeheader()
-                for unit in coded_meaning_unit_list:
-                    writer.writerow({
-                        'unique_id': unit.unique_id,
-                        'meaning_unit_string': unit.meaning_unit_string,
-                        'metadata': json.dumps(unit.metadata),
-                        'assigned_codes': json.dumps([code.__dict__ for code in unit.assigned_code_list])
-                    })
-            logger.info(f"Coded meaning units saved to '{output_file_path}'.")
-        else:
-            logger.error(f"Unsupported output format: {output_format}")
-    except Exception as e:
-        logger.error(f"Failed to save output: {e}")
+    output_data = {
+        "document_metadata": document_metadata,
+        "meaning_units": [unit.to_dict() for unit in coded_meaning_unit_list]
+    }
+    output_data = replace_nan_with_null(output_data)
+
+    with output_file_path.open('w', encoding='utf-8') as outfile:
+        json.dump(output_data, outfile, indent=2)
+
+    logger.info(f"Coded meaning units saved to '{output_file_path}'.")
+
+    # Stage 5: Validation
+    validation_report_filename = f"{output_file_basename}_validation_report.json"
+    validation_report_path = output_folder / validation_report_filename
+
+    run_validation(
+        input_file=str(file_path),
+        output_file=str(output_file_path),
+        report_file=str(validation_report_path),
+        similarity_threshold=1.0,
+        filter_rules=[rule.model_dump() for rule in format_config.filter_rules],
+        input_list_field=format_config.list_field,
+        output_list_field='meaning_units',
+        text_field=format_config.content_field,
+        source_id_field=format_config.source_id_field
+    )
+    logger.info(f"Validation completed. Report saved to '{validation_report_path}'.")
 
 if __name__ == "__main__":
-    # Load configurations from config.json
-    config_file_path = 'configs/config.json'  # Adjust the path if needed
+    config_file_path = 'configs/config.json'
     try:
-        config = load_config(config_file_path)
+        config: ConfigModel = load_config(config_file_path)
     except Exception as e:
         print(f"Failed to load configuration: {e}")
         exit(1)
 
-    # Run the main function with loaded configurations
     main(config)
 
 
 ===== qual_functions.py =====
 
-#qual_functions.py
+# qual_functions.py
+
 import logging
-from openai import OpenAI
-from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, Tuple
-import faiss
 import json
-import numpy as np
-import os
-from pydantic import BaseModel
+from dataclasses import dataclass, field
+from typing import List, Dict, Any, Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# Initialize OpenAI client
-try:
-    openai_api_key = os.getenv('OPENAI_API_KEY')
-    if not openai_api_key:
-        raise ValueError("OPENAI_API_KEY environment variable is not set.")
-    client = OpenAI(api_key=openai_api_key)
-    logger = logging.getLogger(__name__)
-except Exception as e:
-    logging.getLogger(__name__).error(f"Failed to initialize OpenAI client: {e}")
-    raise
+from pydantic import BaseModel, ValidationError
 
-# -------------------------------
-# Data Classes
-# -------------------------------
+from langchain_llm import LangChainLLM
+from config_schemas import LLMConfig
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class CodeAssigned:
     code_name: str
     code_justification: str
 
+    def is_valid(self) -> bool:
+        return bool(self.code_name and self.code_justification)
+
 @dataclass
-class MeaningUnit:
-    unique_id: int
-    meaning_unit_string: str
-    assigned_code_list: List[CodeAssigned] = field(default_factory=list)
+class SpeakingTurn:
+    source_id: str
+    content: str
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
+        metadata = self.metadata.copy()
+        metadata.pop('source_id', None)
         return {
-            "unique_id": self.unique_id,
-            "meaning_unit_string": self.meaning_unit_string,
-            "assigned_code_list": [code.__dict__ for code in self.assigned_code_list],
-            "metadata": self.metadata
+            "source_id": self.source_id,
+            "content": self.content,
+            "metadata": metadata
         }
 
-# -------------------------------
-# Pydantic Models for Parsing
-# -------------------------------
+@dataclass
+class MeaningUnit:
+    meaning_unit_id: int
+    meaning_unit_string: str
+    assigned_code_list: List[CodeAssigned] = field(default_factory=list)
+    speaking_turn: Optional[SpeakingTurn] = None
 
-class ParseFormat(BaseModel):
-    meaning_unit_string_list: List[str]
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "meaning_unit_id": self.meaning_unit_id,
+            "meaning_unit_string": self.meaning_unit_string,
+            "assigned_code_list": [code.__dict__ for code in self.assigned_code_list],
+            "speaking_turn": self.speaking_turn.to_dict() if self.speaking_turn else None
+        }
 
-class CodeFormat(BaseModel):
-    codeList: List[CodeAssigned]
+# -----------------------
+# MODELS FOR STRUCTURED OUTPUT
+# -----------------------
+class CodeAssignedModel(BaseModel):
+    code_name: str
+    code_justification: str
 
-# -------------------------------
-# Core Functions
-# -------------------------------
+class CodeAssignmentResponse(BaseModel):
+    meaning_unit_id: int
+    codeList: List[CodeAssignedModel]
 
-def parse_transcript(
-    speaking_turn_string: str, 
-    prompt: str, 
-    completion_model: str, 
-    metadata: Dict[str, Any] = None
-) -> List[str]:
-    """
-    Breaks up a speaking turn into smaller meaning units based on criteria in the LLM prompt.
+class CodeResponse(BaseModel):
+    assignments: List[CodeAssignmentResponse]
 
-    Args:
-        speaking_turn_string (str): The speaking turn text.
-        prompt (str): The prompt instructions for parsing.
-        completion_model (str): The language model to use.
-        metadata (Dict[str, Any], optional): Additional metadata.
-
-    Returns:
-        List[str]: A list of meaning units extracted from the speaking turn.
-    """
-    metadata_section = f"Metadata:\n{json.dumps(metadata, indent=2)}\n\n" if metadata else ""
-    try:
-        response = client.beta.chat.completions.parse(
-            model=completion_model,
-            messages=[
-                {
-                    "role": "system", 
-                    "content": "You are a qualitative research assistant that breaks down speaking turns into smaller meaning units based on given instructions."
-                },
-                {
-                    "role": "user",
-                    "content": (
-                        f"{prompt}\n\n"
-                        f"{metadata_section}"
-                        f"Speaking Turn:\n{speaking_turn_string}\n\n"
-                    )
-                }
-            ],
-            response_format=ParseFormat,
-            temperature=0.2,
-            max_tokens=1500,
-        )
-        
-        if not response.choices:
-            logger.error("No choices returned in the response from OpenAI API.")
-            return []
-        
-        parsed_output = response.choices[0].message.parsed
-
-        if not parsed_output:
-            logger.error("Parsed output is empty.")
-            return []
-
-        # Validate the structure of parsed_output
-        if not hasattr(parsed_output, 'meaning_unit_string_list'):
-            logger.error("Parsed output does not contain required field 'meaning_unit_string_list'.")
-            return []
-
-        meaningunit_stringlist_parsed = parsed_output.meaning_unit_string_list
-
-        if not isinstance(meaningunit_stringlist_parsed, list):
-            logger.error("'meaning_unit_string_list' is not a list.")
-            return []
-
-        # Log the parsed meaning units
-        logger.debug(f"Parsed Meaning Units: {meaningunit_stringlist_parsed}")
-
-        return meaningunit_stringlist_parsed
-
-    except Exception as e:
-        logger.error(f"An error occurred while parsing transcript into meaning units: {e}")
-        return []
-
-def initialize_faiss_index_from_formatted_file(
-    codes_list_file: str, 
-    embedding_model: str = "text-embedding-3-small", 
-    batch_size: int = 32
-) -> Tuple[faiss.IndexFlatL2, List[Dict[str, Any]]]:
-    """
-    Reads a JSONL-formatted file, processes code data, and initializes a FAISS index directly using batch embedding.
-    Returns the FAISS index and the processed codes as dictionaries.
-
-    Args:
-        codes_list_file (str): Path to the JSONL codebase file.
-        embedding_model (str, optional): Embedding model to use.
-        batch_size (int, optional): Number of items to process in each batch.
-
-    Returns:
-        Tuple[faiss.IndexFlatL2, List[Dict[str, Any]]]: FAISS index and processed codes.
-    """
-    embeddings = []
-    processed_codes = []
-    combined_texts = []  # For batch processing
-
-    try:
-        with open(codes_list_file, 'r', encoding='utf-8') as file:
-            for line in file:
-                line = line.strip()
-                if not line:
-                    continue  # Skip empty lines
-
-                # Parse each JSONL line
-                data = json.loads(line)
-                text = data.get("text", "")
-                metadata = data.get("metadata", {})
-                
-                processed_code = {
-                    'text': text,
-                    'metadata': metadata
-                }
-                processed_codes.append(processed_code)
-
-                # Combine `text` and metadata elements for embedding
-                combined_text = f"{text} Metadata: {metadata}"
-                combined_texts.append(combined_text)
-
-                # If batch size is reached, process the batch
-                if len(combined_texts) == batch_size:
-                    response = client.embeddings.create(
-                        input=combined_texts,
-                        model=embedding_model
-                    )
-                    batch_embeddings = [res.embedding for res in response.data]
-                    embeddings.extend(batch_embeddings)
-
-                    # Reset for the next batch
-                    combined_texts = []
-
-            # Process any remaining texts in the last batch
-            if combined_texts:
-                response = client.embeddings.create(
-                    input=combined_texts,
-                    model=embedding_model
-                )
-                batch_embeddings = [res.embedding for res in response.data]
-                embeddings.extend(batch_embeddings)
-
-        # Convert embeddings to numpy array
-        embeddings = np.array(embeddings).astype('float32')
-
-        # Initialize FAISS index
-        if embeddings.size > 0:
-            dimension = len(embeddings[0])
-            index = faiss.IndexFlatL2(dimension)
-            index.add(embeddings)
-        else:
-            raise ValueError("No valid embeddings found. Check the content of your JSONL file.")
-
-        logger.info(f"Initialized FAISS index with {len(processed_codes)} codes from file '{codes_list_file}'.")
-        return index, processed_codes
-
-    except Exception as e:
-        logger.error(f"An error occurred while processing the file '{codes_list_file}' and initializing FAISS index: {e}")
-        raise e
-
-def retrieve_relevant_codes(
-    meaning_unit: MeaningUnit, 
-    index: faiss.IndexFlatL2, 
-    processed_codes: List[Dict[str, Any]], 
-    top_k: int = 5, 
-    embedding_model: str = "text-embedding-3-small"
-) -> List[Dict[str, Any]]:
-    """
-    Retrieves the top_k most relevant codes for a given meaning_unit_string using FAISS.
-    Returns a list of code dictionaries with relevant information.
-
-    Args:
-        meaning_unit (MeaningUnit): The meaning unit object.
-        index (faiss.IndexFlatL2): The FAISS index.
-        processed_codes (List[Dict[str, Any]]): List of processed codes.
-        top_k (int, optional): Number of top similar codes to retrieve.
-        embedding_model (str, optional): Embedding model to use.
-
-    Returns:
-        List[Dict[str, Any]]: List of relevant code dictionaries.
-    """
-    try:
-        # Combine metadata and meaning unit string for embedding
-        meaning_unit_string_with_metadata = f"Metadata:\n{json.dumps(meaning_unit.metadata)}\nUnit: {meaning_unit.meaning_unit_string}"
-
-        response = client.embeddings.create(
-            input=[meaning_unit_string_with_metadata],
-            model=embedding_model
-        )
-        if not response.data:
-            logger.error("No embedding data returned from OpenAI API.")
-            return []
-        meaning_unit_embedding = np.array([response.data[0].embedding]).astype('float32')
-
-        distances, indices = index.search(meaning_unit_embedding, top_k)
-        relevant_codes = [processed_codes[idx] for idx in indices[0] if idx < len(processed_codes)]
-
-        code_names = [code.get('text', 'Unnamed Code') for code in relevant_codes]
-        logger.debug(f"Retrieved top {top_k} relevant codes for meaning unit ID {meaning_unit.unique_id}: {code_names}")
-        return relevant_codes
-
-    except Exception as e:
-        logger.error(f"An error occurred while retrieving relevant codes: {e}")
-        return []
 
 def assign_codes_to_meaning_units(
-    meaning_unit_list: List[MeaningUnit], 
-    coding_instructions: str, 
-    processed_codes: Optional[List[Dict[str, Any]]] = None, 
-    index: Optional[faiss.IndexFlatL2] = None, 
-    top_k: Optional[int] = 5,
-    context_size: int = 5,
-    use_rag: bool = True,
+    meaning_unit_list: List[MeaningUnit],
+    coding_instructions: str,
+    processed_codes: Optional[List[Dict[str, Any]]] = None,
     codebase: Optional[List[Dict[str, Any]]] = None,
-    completion_model: Optional[str] = "gpt-4o-mini",
-    embedding_model: Optional[str] = "text-embedding-3-small"
+    completion_model: str = "gpt-4",
+    context_size: int = 2,
+    meaning_units_per_assignment_prompt: int = 1,
+    # CHANGED: remove speaker_field, add context_fields
+    context_fields: Optional[List[str]] = None,  # CHANGED
+    content_field: str = 'content',
+    full_speaking_turns: Optional[List[Dict[str, Any]]] = None,
+    thread_count: int = 1,
+    llm_config: Optional[LLMConfig] = None
 ) -> List[MeaningUnit]:
     """
-    Assigns codes to each MeaningUnit object, including contextual information from surrounding units.
-    Returns an updated list of MeaningUnit objects with assigned codes.
-
-    Args:
-        meaning_unit_list (List[MeaningUnit]): List of meaning units to process.
-        coding_instructions (str): Coding instructions prompt.
-        processed_codes (Optional[List[Dict[str, Any]]], optional): List of processed codes for deductive coding.
-        index (Optional[faiss.IndexFlatL2], optional): FAISS index for RAG.
-        top_k (Optional[int], optional): Number of top similar codes to retrieve.
-        context_size (int, optional): Number of surrounding meaning units to include as context.
-        use_rag (bool, optional): Whether to use RAG for code retrieval.
-        codebase (Optional[List[Dict[str, Any]]], optional): Entire codebase for deductive coding without RAG.
-        completion_model (Optional[str], optional): Language model to use for code assignment.
-        embedding_model (Optional[str], optional): Embedding model to use for code retrieval.
-
-    Returns:
-        List[MeaningUnit]: Updated list with assigned codes.
+    Assigns codes to each MeaningUnit, including context. 
+    Uses concurrency to parallelize LLM calls.
     """
-    try:
-        total_units = len(meaning_unit_list)
-        for idx, meaning_unit_object in enumerate(meaning_unit_list):
-            # Determine coding approach
-            is_deductive = processed_codes is not None
 
-            if is_deductive and use_rag and index is not None:
-                # Retrieve relevant codes using FAISS and the specified embedding model
-                relevant_codes = retrieve_relevant_codes(
-                    meaning_unit_object, 
-                    index, 
-                    processed_codes, 
-                    top_k=top_k,
-                    embedding_model=embedding_model
-                )
-                codes_to_include = relevant_codes
-            elif is_deductive and not use_rag and codebase:
-                # Deductive coding without RAG, using entire codebase
-                codes_to_include = codebase
-            else:
-                # Inductive coding: No predefined codes
-                codes_to_include = None
+    if not llm_config:
+        logger.error("No LLMConfig provided.")
+        return meaning_unit_list
 
-            # Format codes or guidelines as a string
-            if codes_to_include is not None:
-                # Deductive coding: format codes as a string
-                codes_str = "\n\n".join([json.dumps(code, indent=2) for code in codes_to_include])
-            else:
-                # Inductive coding: Provide only the guidelines
-                codes_str = "No predefined codes. Please generate codes based on the following guidelines."
+    llm = LangChainLLM(llm_config)
 
-            # Retrieve context for the current meaning unit
-            context_excerpt = ""
+    if full_speaking_turns is None:
+        logger.error("full_speaking_turns must be provided for context.")
+        return meaning_unit_list
 
-            # Collect previous units for context
-            if context_size > 0 and idx > 0:
-                prev_units = meaning_unit_list[max(0, idx - context_size):idx]
-                for unit in prev_units:
-                    context_excerpt += (
-                        f"Quote: {unit.meaning_unit_string}\n\n"
-                    )
+    # Create a mapping from source_id to index for context retrieval
+    source_id_to_index = {str(d.get('source_id')): idx for idx, d in enumerate(full_speaking_turns)}
 
-            # Add current excerpt to context
-            current_unit_excerpt = (
-                f"Quote: {meaning_unit_object.meaning_unit_string}\n\n"
+    # Prepare the codebase block
+    if processed_codes:
+        codes_to_include = codebase if codebase else processed_codes
+        unique_codes_strs = set(json.dumps(code, indent=2, sort_keys=True) for code in codes_to_include)
+        code_heading = "Full Codebase (all codes with details):"
+        codes_block = f"{code_heading}\n{chr(10).join(unique_codes_strs)}\n\n"
+    else:
+        code_heading = "Guidelines for Inductive Coding:"
+        codes_block = (
+            f"{code_heading}\nNo predefined codes. Please generate codes based on the following guidelines.\n\n"
+        )
+
+    # We store results from each batch in a dict to avoid collisions
+    batch_results_map: Dict[int, List[CodeAssigned]] = {}
+
+    def process_batch(start_idx: int) -> Dict[int, List[CodeAssigned]]:
+        """
+        Process a batch of meaning units, returning a dict so we can safely
+        merge results after threads finish.
+        """
+        local_result: Dict[int, List[CodeAssigned]] = {}
+        batch = meaning_unit_list[start_idx:start_idx + meaning_units_per_assignment_prompt]
+        if not batch:
+            return local_result
+
+        # Build a combined prompt for this batch
+        full_prompt = f"{coding_instructions}\n\n{codes_block}"
+
+        for unit in batch:
+            unit_context = ""
+            source_id = unit.speaking_turn.source_id
+            unit_idx = source_id_to_index.get(source_id)
+
+            # Retrieve context_speaking_turns up to `context_size` 
+            if unit_idx is not None:
+                start_context_idx = max(0, unit_idx - (context_size - 1))
+                end_context_idx = unit_idx + 1
+                context_speaking_turns = full_speaking_turns[start_context_idx:end_context_idx]
+                for st in context_speaking_turns:
+                    st_source_id = str(st.get('source_id'))
+                    # CHANGED: Instead of a single speaker_field, loop through context_fields
+                    context_info_lines = []
+                    if context_fields:
+                        for fld in context_fields:
+                            val = st.get(fld, "Unknown")
+                            context_info_lines.append(f"{fld}: {val}")
+                    else:
+                        # fallback if no context fields
+                        context_info_lines.append("No context fields defined.")
+
+                    # The main textual content
+                    content_val = st.get(content_field, "")
+                    context_block = f"ID: {st_source_id}\n" + "\n".join(context_info_lines) + f"\n{content_val}\n\n"
+                    unit_context += context_block
+
+            # For the current excerpt, also gather context from the meaning unit's speaking turn
+            current_context_lines = []
+            if context_fields and unit.speaking_turn:
+                for fld in context_fields:
+                    val = unit.speaking_turn.metadata.get(fld, "Unknown")
+                    current_context_lines.append(f"{fld}: {val}")
+
+            current_unit_excerpt = f"Quote: {unit.meaning_unit_string}\n\n"
+
+            full_prompt += (
+                f"Contextual Excerpts for Meaning Unit ID {unit.meaning_unit_id}:\n{unit_context}\n"
+                f"Current Excerpt For Coding (Meaning Unit ID {unit.meaning_unit_id}):\n"
+                + "\n".join(current_context_lines) + "\n"
+                + f"{current_unit_excerpt}"
             )
 
-            context_excerpt += current_unit_excerpt
+        if processed_codes:
+            full_prompt += "**Apply codes exclusively to the excerpt(s) provided above.**\n\n"
+        else:
+            full_prompt += "**Generate codes based on the excerpt(s) provided above using the guidelines.**\n\n"
 
-            # Collect following units for context
-            if context_size > 0 and idx < total_units - 1:
-                next_units = meaning_unit_list[idx + 1: idx + 1 + context_size]
-                for unit in next_units:
-                    context_excerpt += (
-                        f"Quote: {unit.meaning_unit_string}\n\n"
-                    )
+        # Attempt structured generation
+        try:
+            code_response = llm.structured_generate(full_prompt, CodeResponse)
+        except Exception as e:
+            logger.warning(f"Structured generation failed for batch {start_idx}, using fallback empty assignment. Error: {e}")
+            code_response = CodeResponse(assignments=[])
 
-            # Construct the full prompt
-            if codes_to_include is not None:
-                code_heading = "Relevant Codes (full details):" if use_rag else "Full Codebase (all codes with details):"
-            else:
-                code_heading = "Guidelines for Inductive Coding:"
+        for assignment in code_response.assignments:
+            assigned_codes_list: List[CodeAssigned] = []
+            for code_item in assignment.codeList:
+                assigned_codes_list.append(CodeAssigned(
+                    code_name=code_item.code_name,
+                    code_justification=code_item.code_justification
+                ))
+            local_result[assignment.meaning_unit_id] = assigned_codes_list
 
-            full_prompt = (
-                f"{coding_instructions}\n\n"
-                f"{code_heading}\n{codes_str}\n\n"
-                f"Contextual Excerpts:\n{context_excerpt}"
-                f"**Important:** Please use the provided contextual excerpts **only** as background information to understand the current excerpt better. "
-                f"Current Excerpt For Coding:\n{current_unit_excerpt}"
-                f"{'**Apply codes exclusively to the current excerpt provided above. Do not assign codes to the contextual excerpts.**' if codes_to_include is not None else '**Generate codes based on the current excerpt provided above using the guidelines.**'}\n\n"
-                f"Please provide the assigned codes in the following JSON format:\n"
-                f"{{\n  \"codeList\": [\n    {{\"code_name\": \"<Name of the code>\", \"code_justification\": \"<Justification for the code>\"}},\n    ...\n  ]\n}}"
-            )
+        return local_result
 
-            logger.debug(f"Full Prompt for Unique ID {meaning_unit_object.unique_id}:\n{full_prompt}")
+    from math import ceil
+    total_batches = ceil(len(meaning_unit_list) / meaning_units_per_assignment_prompt)
 
-            try:
-                response = client.beta.chat.completions.parse(
-                    model=completion_model,
-                    messages=[
-                        {
-                            "role": "system", 
-                            "content": (
-                                "You are tasked with applying qualitative codes to excerpts from a transcript or articles. "
-                                "The purpose of this task is to identify all codes that best describe each excerpt based on the provided instructions."
-                            )
-                        },
-                        {
-                            "role": "user",
-                            "content": full_prompt
-                        }
-                    ],
-                    response_format=CodeFormat,
-                    temperature=0.2,
-                    max_tokens=1500,
-                )
+    with ThreadPoolExecutor(max_workers=thread_count) as executor:
+        futures = []
+        for i in range(0, len(meaning_unit_list), meaning_units_per_assignment_prompt):
+            futures.append(executor.submit(process_batch, i))
 
-                if not response.choices:
-                    logger.error(f"No choices returned for Unique ID {meaning_unit_object.unique_id}.")
-                    continue
+        for future in as_completed(futures):
+            batch_dict = future.result()
+            for mu_id, code_list in batch_dict.items():
+                batch_results_map[mu_id] = code_list
 
-                code_output = response.choices[0].message.parsed
-                logger.debug(f"LLM Code Assignment Output for ID {meaning_unit_object.unique_id}:\n{code_output.codeList}")
-
-                # Append each code_name and code_justification to the meaning_unit_object
-                for code_item in code_output.codeList:
-                    code_name = getattr(code_item, 'code_name', 'Unknown Code')
-                    code_justification = getattr(code_item, 'code_justification', 'No justification provided')
-                    meaning_unit_object.assigned_code_list.append(
-                        CodeAssigned(code_name=code_name, code_justification=code_justification)
-                    )
-
-            except Exception as e:
-                logger.error(f"An error occurred while retrieving code assignments for Unique ID {meaning_unit_object.unique_id}: {e}")
-
-    except Exception as e:
-        logger.error(f"An error occurred while assigning codes: {e}")
+    # Update meaning_unit_list with assigned codes
+    for mu in meaning_unit_list:
+        if mu.meaning_unit_id in batch_results_map:
+            mu.assigned_code_list = batch_results_map[mu.meaning_unit_id]
 
     return meaning_unit_list
+
+
+===== langchain_llm.py =====
+
+# langchain_llm.py
+
+from typing import Any, Type, Union, Dict
+from langchain_openai import ChatOpenAI
+from huggingface_hub import InferenceClient
+from pydantic import BaseModel
+from config_schemas import LLMConfig, ProviderEnum
+
+"""
+CHANGES:
+1) Added a `structured_generate` method that attempts to call `with_structured_output(...)`
+   if using an OpenAI model that supports it. Otherwise, it falls back to a manual JSON approach.
+"""
+
+class LangChainLLM:
+    """
+    A simple wrapper around LangChain LLMs to abstract provider details (OpenAI / Hugging Face).
+    """
+    def __init__(self, config: LLMConfig):
+        self.config = config
+        self.provider = config.provider
+        self.client = self._initialize_client(config)
+
+    def _initialize_client(self, config: LLMConfig) -> Any:
+        if self.provider == ProviderEnum.OPENAI:
+            # ChatOpenAI from langchain_openai, passing in OpenAI API key
+            return ChatOpenAI(
+                model_name=config.model_name,
+                temperature=config.temperature,
+                max_tokens=config.max_tokens,
+                openai_api_key=config.api_key
+            )
+        elif self.provider == ProviderEnum.HUGGINGFACE:
+            # Hugging Face Serverless Inference API
+            if not config.api_key:
+                raise ValueError("Hugging Face API key is required for serverless inference.")
+            return InferenceClient(
+                model=config.model_name,
+                token=config.api_key
+            )
+        else:
+            raise ValueError(f"Unsupported provider: {self.provider}")
+
+    def generate(self, prompt: str) -> str:
+        """
+        Generate text completion from the underlying client.
+        """
+        try:
+            if self.provider == ProviderEnum.OPENAI:
+                # Generate using ChatOpenAI
+                response = self.client.generate([prompt])
+                return response.generations[0][0].text
+            elif self.provider == ProviderEnum.HUGGINGFACE:
+                # Generate using Hugging Face InferenceClient
+                response = self.client.chat.completions.create(prompt)
+                return response.choices[0].message
+            else:
+                raise ValueError(f"Unsupported provider: {self.provider}")
+        except Exception as e:
+            # Handle exceptions and provide meaningful error messages
+            raise RuntimeError(f"An error occurred during text generation: {e}")
+
+    # ---------------------------------------------------------------
+    # NEW: structured_generate method using with_structured_output
+    # ---------------------------------------------------------------
+    def structured_generate(self, prompt: str, schema: Type[BaseModel]) -> BaseModel:
+        """
+        Attempt to generate structured data from the model, adhering to the given Pydantic schema.
+        - If using OpenAI with a model that supports tool/function calling or JSON Mode, 
+          we leverage .with_structured_output().
+        - Otherwise, we fallback to manual JSON parsing of the LLM output.
+        """
+        if self.provider in {ProviderEnum.OPENAI, ProviderEnum.HUGGINGFACE}:
+            # Attempt structured output
+            # NOTE: Not all OpenAI models support .with_structured_output(). 
+            #       This example assumes your chosen model does.
+            try:
+                structured_llm = self.client.with_structured_output(schema)
+                result = structured_llm.invoke(prompt)
+                return result  # result is an instance of `schema`
+            except AttributeError:
+                # Fallback to manual
+                raw_text = self.generate(prompt)
+                return self._manual_parse(raw_text, schema)
+        else:
+            # prompt for JSON and parse
+            raw_text = self.generate(prompt)
+            return self._manual_parse(raw_text, schema)
+
+    def _manual_parse(self, raw_text: str, schema: Type[BaseModel]) -> BaseModel:
+        """
+        Parse the raw text as JSON and validate against the given schema.
+        If parsing fails, return an empty instance of the schema.
+        """
+        try:
+            data = self._extract_first_json(raw_text)
+            return schema.model_validate(data)
+        except Exception:
+            # In case of failure, return an empty instance
+            return schema()  # type: ignore
+
+    def _extract_first_json(self, text: str) -> Dict[str, Any]:
+        """
+        Very naive approach to extract the first valid JSON block from text.
+        """
+        import json, re
+        pattern = r"\{(?:[^{}]|(?R))*\}"
+        matches = re.findall(pattern, text)
+        for match in matches:
+            try:
+                return json.loads(match)
+            except json.JSONDecodeError:
+                continue
+        # If no match or all fail
+        return {}
 
 
 ===== data_handlers.py =====
 
 # data_handlers.py
-import os
+
 import json
 import logging
-from typing import Any, Dict, List
-from pydantic import BaseModel
-from qual_functions import parse_transcript, MeaningUnit
+import os
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set, Tuple
+
+import pandas as pd
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+from qual_functions import MeaningUnit, SpeakingTurn
+from config_schemas import ProviderEnum, LLMConfig
+from langchain_llm import LangChainLLM
 
 logger = logging.getLogger(__name__)
+
+# ------------------------------------------------------------------
+# NEW: Pydantic models for structured parse responses
+# ------------------------------------------------------------------
+from pydantic import BaseModel, ValidationError
+from typing import List
+
+
+class ParseUnit(BaseModel):
+    """
+    Represents a single meaning unit (smaller chunk) after parsing.
+    """
+    source_id: str
+    quote: str
+
+
+class FullParseResponse(BaseModel):
+    """
+    Represents the entire structured output from the parsing step.
+    """
+    parse_list: List[ParseUnit]
+
 
 class FlexibleDataHandler:
     def __init__(
@@ -1242,83 +869,294 @@ class FlexibleDataHandler:
         file_path: str,
         parse_instructions: str,
         completion_model: str,
-        model_class: Any,
         content_field: str,
-        use_parsing: bool = True
+        # CHANGED: replaced speaker_field with context_fields
+        context_fields: Optional[List[str]] = None,  # CHANGED
+        list_field: Optional[str] = None,
+        source_id_field: Optional[str] = None,
+        filter_rules: Optional[List[Dict[str, Any]]] = None,
+        use_parsing: bool = True,
+        speaking_turns_per_prompt: int = 1,
+        thread_count: int = 1
     ):
         self.file_path = file_path
         self.parse_instructions = parse_instructions
         self.completion_model = completion_model
-        self.model_class = model_class
         self.content_field = content_field
+        self.context_fields = context_fields  # CHANGED
+        self.list_field = list_field
+        self.source_id_field = source_id_field
+        self.filter_rules = filter_rules
         self.use_parsing = use_parsing
+        self.speaking_turns_per_prompt = speaking_turns_per_prompt
+        self.thread_count = thread_count
+        self.document_metadata = {}  # Store document-level metadata
+        self.full_data = None
+        self.filtered_out_source_ids: Set[str] = set()
 
-    def load_data(self) -> List[Dict[str, Any]]:
+        # ------------------------------------------------------------------
+        # NEW: Initialize LangChainLLM for parsing (if needed)
+        # ------------------------------------------------------------------
+        self.llm = None
+        if self.use_parsing:
+            try:
+                # Build an LLMConfig (example: defaulting to OpenAI with a 0.2 temperature)
+                self.llm_config = LLMConfig(
+                    provider=ProviderEnum.OPENAI,
+                    model_name=self.completion_model,
+                    temperature=0.2,
+                    max_tokens=16000,
+                    api_key=os.getenv('OPENAI_API_KEY', '')  # or however you manage API keys
+                )
+                self.llm = LangChainLLM(self.llm_config)
+            except Exception as e:
+                logger.warning(
+                    f"Could not initialize LangChainLLM with model={self.completion_model}: {e}"
+                )
+                self.llm = None
+
+    def load_data(self) -> pd.DataFrame:
         """
-        Loads data from the JSON file and validates it against the dynamic Pydantic model.
-
-        Returns:
-            List[Dict[str, Any]]: List of validated data records.
+        Loads data from the JSON file into a DataFrame and applies filter rules if any.
         """
         try:
-            with open(self.file_path, 'r', encoding='utf-8') as file:
-                data = json.load(file)
-            logger.debug(f"Loaded {len(data)} records from '{self.file_path}'.")
-        except Exception as e:
-            logger.error(f"Failed to load data from '{self.file_path}': {e}")
+            with Path(self.file_path).open('r', encoding='utf-8') as file:
+                raw_data = json.load(file)
+            logger.debug(f"Loaded data from '{self.file_path}'.")
+        except (OSError, json.JSONDecodeError) as e:
+            logger.error(f"Failed to load or parse data from '{self.file_path}': {e}")
             raise
 
-        validated_data = []
-        for record in data:
-            try:
-                validated_record = self.model_class(**record)
-                validated_data.append(validated_record.model_dump())
-            except Exception as e:
-                logger.warning(f"Validation failed for record {record.get('id', 'unknown')}: {e}")
-                continue
-
-        logger.debug(f"Validated {len(validated_data)} records.")
-        return validated_data
-
-    def transform_data(self, validated_data: List[Dict[str, Any]]) -> List[MeaningUnit]:
-        """
-        Transforms validated data into MeaningUnit objects.
-
-        Args:
-            validated_data (List[Dict[str, Any]]): List of validated data records.
-
-        Returns:
-            List[MeaningUnit]: List of MeaningUnit objects.
-        """
-        meaning_units = []
-        unique_id_counter = 1  # Initialize a unique ID counter
-
-        for record in validated_data:
-            content = record.get(self.content_field, "")
-            metadata = {k: v for k, v in record.items() if k != self.content_field}
-            if self.use_parsing:
-                parsed_units = parse_transcript(
-                    speaking_turn_string=content,
-                    prompt=self.parse_instructions,
-                    completion_model=self.completion_model,
-                    metadata=metadata
-                )
-                for pu in parsed_units:
-                    meaning_unit = MeaningUnit(
-                        unique_id=unique_id_counter,  # Assign unique ID
-                        meaning_unit_string=pu,
-                        metadata=metadata
-                    )
-                    meaning_units.append(meaning_unit)
-                    unique_id_counter += 1  # Increment the counter for the next unit
+        # Determine how the data is structured
+        if isinstance(raw_data, list):
+            self.document_metadata = {}
+            content_list = raw_data
+        elif isinstance(raw_data, dict):
+            if self.list_field:
+                self.document_metadata = {
+                    k: v for k, v in raw_data.items() if k != self.list_field
+                }
+                content_list = raw_data.get(self.list_field, [])
+                if not content_list:
+                    logger.error(f"No content found under the list_field '{self.list_field}'.")
+                    raise ValueError(f"No content found under the list_field '{self.list_field}'.")
             else:
-                meaning_unit = MeaningUnit(
-                    unique_id=unique_id_counter,  # Assign unique ID
-                    meaning_unit_string=content,
+                self.document_metadata = {
+                    k: v for k, v in raw_data.items() if not isinstance(v, list)
+                }
+                content_list = [v for v in raw_data.values() if isinstance(v, list)]
+                if content_list:
+                    content_list = content_list[0]
+                else:
+                    logger.error("No list of content items found in the data.")
+                    raise ValueError("No list of content items found in the data.")
+        else:
+            logger.error(f"Unexpected data format in '{self.file_path}'. Expected dict or list.")
+            raise ValueError(f"Unexpected data format in '{self.file_path}'.")
+
+        data = pd.DataFrame(content_list)
+
+        # Ensure we have a source_id
+        if self.source_id_field and self.source_id_field in data.columns:
+            data['source_id'] = data[self.source_id_field].astype(str)
+        else:
+            data['source_id'] = [f"auto_{i}" for i in range(len(data))]
+
+        self.full_data = data.copy()
+        all_source_ids = set(data['source_id'])
+
+        # Apply filter rules if any
+        if self.filter_rules:
+            mask = pd.Series(True, index=data.index)
+            for rule in self.filter_rules:
+                field = rule.get('field')
+                operator = rule.get('operator', 'equals')
+                value = rule.get('value')
+
+                if field not in data.columns:
+                    logger.warning(f"Field '{field}' not found in data. Skipping filter rule.")
+                    continue
+
+                if operator == 'equals':
+                    mask &= (data[field] == value)
+                elif operator == 'not_equals':
+                    mask &= (data[field] != value)
+                elif operator == 'contains':
+                    mask &= data[field].astype(str).str.contains(str(value), na=False, regex=False)
+                else:
+                    logger.warning(f"Operator '{operator}' is not supported. Skipping this filter rule.")
+
+            data = data[mask]
+            logger.debug(f"Data shape after applying filter rules: {data.shape}")
+
+        # Identify filtered out source_ids
+        filtered_source_ids = all_source_ids - set(data['source_id'])
+        self.filtered_out_source_ids = filtered_source_ids
+        logger.debug(f"Data shape after loading: {data.shape}")
+
+        return data
+
+    def _run_langchain_parse_chunk(
+        self,
+        speaking_turns: List[Dict[str, Any]],
+        prompt: str
+    ) -> List[Dict[str, str]]:
+        """
+        Uses LangChainLLM.structured_generate() to parse a chunk of speaking_turns into smaller meaning units.
+        Returns a list of dicts with keys "source_id" and "parsed_text".
+        """
+
+        if not self.llm:
+            logger.error("LLM was not initialized; cannot parse.")
+            return []
+
+        # Build the combined prompt (system role + user instructions + data)
+        system_content = (
+            "You are a qualitative research assistant that breaks down multiple speaking turns "
+            "into smaller meaning units based on given instructions."
+        )
+
+        combined_prompt = f"""
+System instructions:
+{system_content}
+
+User instructions:
+{prompt}
+
+Speaking Turns (JSON):
+{json.dumps(speaking_turns, indent=2)}
+        """
+
+        try:
+            parsed_response: FullParseResponse = self.llm.structured_generate(
+                combined_prompt,
+                FullParseResponse
+            )
+
+            if not parsed_response or not isinstance(parsed_response, FullParseResponse):
+                logger.error("Parsed output is not an instance of FullParseResponse.")
+                return []
+
+            if not parsed_response.parse_list:
+                logger.error("Parsed output is empty or missing 'parse_list'.")
+                return []
+
+            results = []
+            for unit in parsed_response.parse_list:
+                results.append({
+                    "source_id": unit.source_id,
+                    "parsed_text": unit.quote
+                })
+
+            return results
+
+        except ValidationError as ve:
+            logger.error(f"Validation error while parsing chunk: {ve}")
+            return []
+        except Exception as e:
+            logger.error(f"An error occurred while parsing chunk: {e}")
+            return []
+
+    def _parse_chunk_of_data(
+        self,
+        chunk_data: pd.DataFrame,
+        parse_instructions: str,
+        batch_index: int
+    ) -> Tuple[int, List[Dict[str, str]]]:
+        """
+        Helper method for parsing a chunk of data.
+        Returns a tuple of (batch_index, parsed_units).
+        """
+        speaking_turns_dicts = []
+        for _, record in chunk_data.iterrows():
+            speaking_turns_dicts.append({
+                "source_id": str(record['source_id']),
+                "content": record.get(self.content_field, ""),
+                "metadata": record.drop(labels=[self.content_field], errors='ignore').to_dict()
+            })
+
+        parsed_units = self._run_langchain_parse_chunk(
+            speaking_turns=speaking_turns_dicts,
+            prompt=parse_instructions
+        )
+
+        return (batch_index, parsed_units)
+
+    def transform_data(self, data: pd.DataFrame) -> List[MeaningUnit]:
+        """
+        Transforms data into MeaningUnit objects, optionally using LLM-based parsing.
+        If parsing is off, treat each row as a single meaning unit.
+        Otherwise, parse in batches using concurrency.
+        """
+        meaning_units: List[MeaningUnit] = []
+
+        if not self.use_parsing:
+            # No parsing needed
+            meaning_unit_id_counter = 1
+            for _, record in data.iterrows():
+                content = record.get(self.content_field, "")
+                metadata = record.drop(labels=[self.content_field], errors='ignore').to_dict()
+                source_id = str(record['source_id'])
+
+                speaking_turn = SpeakingTurn(
+                    source_id=source_id,
+                    content=content,
                     metadata=metadata
                 )
-                meaning_units.append(meaning_unit)
-                unique_id_counter += 1  # Increment the counter for the next unit
+                mu = MeaningUnit(
+                    meaning_unit_id=meaning_unit_id_counter,
+                    meaning_unit_string=content,
+                    speaking_turn=speaking_turn
+                )
+                meaning_units.append(mu)
+                meaning_unit_id_counter += 1
 
-        logger.debug(f"Transformed data into {len(meaning_units)} meaning units.")
+            logger.debug(f"Transformed data (no parsing) into {len(meaning_units)} meaning units.")
+            return meaning_units
+
+        # PARSING is ON
+        chunked_data = [
+            data.iloc[i: i + self.speaking_turns_per_prompt]
+            for i in range(0, len(data), self.speaking_turns_per_prompt)
+        ]
+
+        all_parsed_results: List[Tuple[int, List[Dict[str, str]]]] = []
+        with ThreadPoolExecutor(max_workers=self.thread_count) as executor:
+            futures = {}
+            for idx, chunk in enumerate(chunked_data):
+                future = executor.submit(
+                    self._parse_chunk_of_data,
+                    chunk_data=chunk,
+                    parse_instructions=self.parse_instructions,
+                    batch_index=idx
+                )
+                futures[future] = idx
+
+            for future in as_completed(futures):
+                batch_index, parsed_list = future.result()
+                all_parsed_results.append((batch_index, parsed_list))
+
+        # Sort the results based on batch_index to maintain order
+        all_parsed_results.sort(key=lambda x: x[0])
+
+        meaning_unit_id_counter = 1
+        for _, parsed_list in all_parsed_results:
+            for item in parsed_list:
+                sid = item["source_id"]
+                parsed_text = item["parsed_text"]
+                record = data[data['source_id'] == sid].iloc[0]
+                speaking_turn = SpeakingTurn(
+                    source_id=sid,
+                    content=record.get(self.content_field, ""),
+                    metadata=record.drop(labels=[self.content_field], errors='ignore').to_dict()
+                )
+                mu = MeaningUnit(
+                    meaning_unit_id=meaning_unit_id_counter,
+                    meaning_unit_string=parsed_text,
+                    speaking_turn=speaking_turn
+                )
+                meaning_units.append(mu)
+                meaning_unit_id_counter += 1
+
+        logger.debug(f"Transformed data (with parsing) into {len(meaning_units)} meaning units.")
         return meaning_units

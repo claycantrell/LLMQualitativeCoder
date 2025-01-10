@@ -71,9 +71,6 @@ class LangChainLLM:
         - Otherwise, we fallback to manual JSON parsing of the LLM output.
         """
         if self.provider in {ProviderEnum.OPENAI, ProviderEnum.HUGGINGFACE}:
-            # Attempt structured output
-            # NOTE: Not all OpenAI models support .with_structured_output(). 
-            #       This example assumes your chosen model does.
             try:
                 structured_llm = self.client.with_structured_output(schema)
                 result = structured_llm.invoke(prompt)
