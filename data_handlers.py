@@ -137,7 +137,6 @@ class FlexibleDataHandler:
         if self.source_id_field and self.source_id_field in data.columns:
             data['source_id'] = data[self.source_id_field].astype(str)
             # Optionally, ensure uniqueness if necessary
-            # If duplicates are possible, consider appending UUIDs or handling accordingly
         else:
             # Generate unique UUIDs for source_id
             data['source_id'] = [str(uuid.uuid4()) for _ in range(len(data))]
@@ -277,7 +276,7 @@ Preliminary Segments (JSON):
                 metadata = record.drop(labels=[self.content_field], errors='ignore').to_dict()
                 source_id = str(record['source_id'])
 
-                # Generate UUID for meaning_unit_id
+                # Generate UUID for meaning_unit_uuid
                 meaning_unit_uuid = str(uuid.uuid4())
 
                 preliminary_segment = PreliminarySegment(
@@ -287,7 +286,8 @@ Preliminary Segments (JSON):
                 )
                 mu = MeaningUnit(
                     meaning_unit_id=self.meaning_unit_counter,
-                    meaning_unit_uuid=meaning_unit_uuid,  # NEW: Assign UUID
+                    meaning_unit_uuid=meaning_unit_uuid,
+                    source_id=source_id,  # NEW: Link meaning unit to the same source_id
                     meaning_unit_string=content,
                     assigned_code_list=[],
                     preliminary_segment=preliminary_segment
@@ -341,12 +341,13 @@ Preliminary Segments (JSON):
                     metadata=metadata
                 )
 
-                # Generate UUID for meaning_unit_id
+                # Generate UUID for meaning_unit_uuid
                 meaning_unit_uuid = str(uuid.uuid4())
 
                 mu = MeaningUnit(
                     meaning_unit_id=self.meaning_unit_counter,
-                    meaning_unit_uuid=meaning_unit_uuid,  # NEW: Assign UUID
+                    meaning_unit_uuid=meaning_unit_uuid,
+                    source_id=sid,  # NEW: Link meaning unit to the same source_id
                     meaning_unit_string=parsed_text,
                     assigned_code_list=[],
                     preliminary_segment=preliminary_segment
