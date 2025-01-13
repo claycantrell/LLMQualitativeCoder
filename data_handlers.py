@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import uuid  # Import UUID module
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
@@ -66,6 +67,9 @@ class FlexibleDataHandler:
         self.document_metadata = {}  # Store document-level metadata
         self.full_data = None
         self.filtered_out_source_ids: Set[str] = set()
+
+        # Initialize counters
+        self.meaning_unit_counter = 1  # Independent counter for meaning_unit_id
 
         # ------------------------------------------------------------------
         # NEW: Initialize LangChainLLM for parsing (if needed)
@@ -132,8 +136,11 @@ class FlexibleDataHandler:
         # Ensure we have a source_id
         if self.source_id_field and self.source_id_field in data.columns:
             data['source_id'] = data[self.source_id_field].astype(str)
+            # Optionally, ensure uniqueness if necessary
+            # If duplicates are possible, consider appending UUIDs or handling accordingly
         else:
-            data['source_id'] = [f"auto_{i}" for i in range(len(data))]
+            # Generate unique UUIDs for source_id
+            data['source_id'] = [str(uuid.uuid4()) for _ in range(len(data))]
 
         self.full_data = data.copy()
         all_source_ids = set(data['source_id'])
@@ -265,11 +272,13 @@ Preliminary Segments (JSON):
 
         if not self.use_parsing:
             # No parsing needed
-            meaning_unit_id_counter = 1
             for _, record in data.iterrows():
                 content = record.get(self.content_field, "")
                 metadata = record.drop(labels=[self.content_field], errors='ignore').to_dict()
                 source_id = str(record['source_id'])
+
+                # Generate UUID for meaning_unit_id
+                meaning_unit_uuid = str(uuid.uuid4())
 
                 preliminary_segment = PreliminarySegment(
                     source_id=source_id,
@@ -277,12 +286,14 @@ Preliminary Segments (JSON):
                     metadata=metadata
                 )
                 mu = MeaningUnit(
-                    meaning_unit_id=meaning_unit_id_counter,
+                    meaning_unit_id=self.meaning_unit_counter,
+                    meaning_unit_uuid=meaning_unit_uuid,  # NEW: Assign UUID
                     meaning_unit_string=content,
+                    assigned_code_list=[],
                     preliminary_segment=preliminary_segment
                 )
                 meaning_units.append(mu)
-                meaning_unit_id_counter += 1
+                self.meaning_unit_counter += 1
 
             logger.debug(f"Transformed data (no parsing) into {len(meaning_units)} meaning units.")
             return meaning_units
@@ -312,24 +323,36 @@ Preliminary Segments (JSON):
         # Sort the results based on batch_index to maintain order
         all_parsed_results.sort(key=lambda x: x[0])
 
-        meaning_unit_id_counter = 1
         for _, parsed_list in all_parsed_results:
             for item in parsed_list:
                 sid = item["source_id"]
                 parsed_text = item["parsed_text"]
-                record = data[data['source_id'] == sid].iloc[0]
+                # Retrieve the original record to get metadata
+                matching_records = data[data['source_id'] == sid]
+                if not matching_records.empty:
+                    record = matching_records.iloc[0]
+                    metadata = record.drop(labels=[self.content_field], errors='ignore').to_dict()
+                else:
+                    metadata = {}
+
                 preliminary_segment = PreliminarySegment(
                     source_id=sid,
-                    content=record.get(self.content_field, ""),
-                    metadata=record.drop(labels=[self.content_field], errors='ignore').to_dict()
+                    content=record.get(self.content_field, "") if not matching_records.empty else "",
+                    metadata=metadata
                 )
+
+                # Generate UUID for meaning_unit_id
+                meaning_unit_uuid = str(uuid.uuid4())
+
                 mu = MeaningUnit(
-                    meaning_unit_id=meaning_unit_id_counter,
+                    meaning_unit_id=self.meaning_unit_counter,
+                    meaning_unit_uuid=meaning_unit_uuid,  # NEW: Assign UUID
                     meaning_unit_string=parsed_text,
+                    assigned_code_list=[],
                     preliminary_segment=preliminary_segment
                 )
                 meaning_units.append(mu)
-                meaning_unit_id_counter += 1
+                self.meaning_unit_counter += 1
 
         logger.debug(f"Transformed data (with parsing) into {len(meaning_units)} meaning units.")
         return meaning_units

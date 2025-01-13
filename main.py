@@ -174,7 +174,8 @@ def main(config: ConfigModel):
         input_list_field=format_config.list_field,
         output_list_field='meaning_units',
         text_field=format_config.content_field,
-        source_id_field=format_config.source_id_field
+        source_id_field=format_config.source_id_field,
+        meaning_unit_uuid_field='meaning_unit_uuid'  # NEW: Include meaning_unit_uuid in validation
     )
     logger.info(f"Validation completed. Report saved to '{validation_report_path}'.")
 

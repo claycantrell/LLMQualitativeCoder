@@ -39,6 +39,7 @@ class PreliminarySegment:
 @dataclass
 class MeaningUnit:
     meaning_unit_id: int
+    meaning_unit_uuid: str  # NEW: Unique UUID for MeaningUnit
     meaning_unit_string: str
     assigned_code_list: List[CodeAssigned] = field(default_factory=list)
     preliminary_segment: Optional[PreliminarySegment] = None
@@ -46,6 +47,7 @@ class MeaningUnit:
     def to_dict(self) -> Dict[str, Any]:
         return {
             "meaning_unit_id": self.meaning_unit_id,
+            "meaning_unit_uuid": self.meaning_unit_uuid,  # NEW: Include UUID
             "meaning_unit_string": self.meaning_unit_string,
             "assigned_code_list": [code.__dict__ for code in self.assigned_code_list],
             "preliminary_segment": self.preliminary_segment.to_dict() if self.preliminary_segment else None

@@ -15,10 +15,17 @@ from data_handlers import FlexibleDataHandler
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)  # Set to DEBUG for detailed logs; adjust as needed
 
-handler = logging.StreamHandler()
+# Create console handler with a higher log level
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)  # Adjust as needed
+
+# Create formatter and add it to the handlers
 formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+ch.setFormatter(formatter)
+
+# Add the handlers to the logger
+if not logger.handlers:
+    logger.addHandler(ch)
 
 
 def replace_nan_with_null(obj):
@@ -94,6 +101,7 @@ def generate_report(
     report_file: str = 'validation_report.json',
     text_field: str = 'text',
     source_id_field: Optional[str] = None,
+    meaning_unit_uuid_field: Optional[str] = None,  # NEW: Field name for meaning_unit_uuid
     filtered_source_ids: Optional[Set[str]] = None  # New parameter
 ) -> Dict[str, Any]:
     """
@@ -106,6 +114,7 @@ def generate_report(
         report_file (str, optional): Path to save the validation report JSON file. Defaults to 'validation_report.json'.
         text_field (str, optional): The field name that contains the preliminary segment text.
         source_id_field (Optional[str], optional): The field name that contains the source_id.
+        meaning_unit_uuid_field (Optional[str], optional): The field name that contains the meaning_unit_uuid.
         filtered_source_ids (Optional[Set[str]], optional): Set of source_ids that were filtered out.
 
     Returns:
@@ -141,8 +150,12 @@ def generate_report(
         is_identical, diff = compare_texts(original_text, concatenated_text)
 
         if not is_identical:
+            # Collect all meaning_unit_uuids associated with this source_id
+            meaning_unit_uuids = [unit.get(meaning_unit_uuid_field, "N/A") for unit in units if meaning_unit_uuid_field and unit.get(meaning_unit_uuid_field)]
+
             inconsistent_preliminary_segments.append({
                 'source_id': source_id,
+                'meaning_unit_uuids': meaning_unit_uuids,  # NEW: Include all UUIDs
                 'preliminary_segment_text': original_text,
                 'concatenated_meaning_units_text': concatenated_text,
                 'diff': diff,
@@ -151,6 +164,8 @@ def generate_report(
 
     # Prepare the report
     report = {
+        'total_preliminary_segments': total_preliminary_segments,
+        'total_meaning_units': total_meaning_units,
         'skipped_preliminary_segments': skipped_preliminary_segments,
         'inconsistent_preliminary_segments': inconsistent_preliminary_segments
     }
@@ -180,6 +195,7 @@ def run_validation(
     output_list_field: Optional[str] = None,
     text_field: str = 'text',
     source_id_field: Optional[str] = None,
+    meaning_unit_uuid_field: Optional[str] = None,  # NEW: Field name for meaning_unit_uuid
     filter_rules: Optional[List[Dict[str, Any]]] = None,  # Ensure filter_rules can be passed
     context_fields: Optional[List[str]] = None,
     use_parsing: bool = True,
@@ -199,6 +215,7 @@ def run_validation(
         output_list_field (Optional[str], optional): Dot-separated path to the list of items within the output JSON.
         text_field (str, optional): The field name that contains the preliminary segment text.
         source_id_field (Optional[str], optional): The field name that contains the source_id.
+        meaning_unit_uuid_field (Optional[str], optional): The field name that contains the meaning_unit_uuid.
         filter_rules (Optional[List[Dict[str, Any]]], optional): List of filter rules to apply.
         context_fields (Optional[List[str]], optional): List of fields to include as context.
         use_parsing (bool, optional): Whether parsing was used in the main processing.
@@ -244,7 +261,8 @@ def run_validation(
         report_file=report_file,
         text_field=text_field,
         source_id_field=source_id_field,
-        filtered_source_ids=filtered_source_ids  # Pass filtered source_ids
+        meaning_unit_uuid_field=meaning_unit_uuid_field,  # NEW: Pass meaning_unit_uuid_field
+        filtered_source_ids=filtered_out_source_ids  # Pass filtered source_ids
     )
 
     return report
