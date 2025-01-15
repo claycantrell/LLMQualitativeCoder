@@ -4,7 +4,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 import sys
 
 from importlib import resources
@@ -66,8 +66,14 @@ def main(config: ConfigModel):
 
     format_config = data_format_config[config.data_format]
 
-    # Determine the data file to load
-    file_path = Path(config.paths.json_folder) / config.selected_json_file
+    # Determine the data file to load using importlib.resources
+    try:
+        with resources.path('transcriptanalysis.json_inputs', 'teacher_transcript.json') as data_file_path:
+            file_path = Path(data_file_path)
+    except FileNotFoundError:
+        logger.error("File 'transcriptanalysis.json_inputs/teacher_transcript.json' not found in package resources.")
+        raise
+
     if not file_path.exists():
         logger.error(f"Data file '{file_path}' not found.")
         raise FileNotFoundError(f"Data file '{file_path}' not found.")
@@ -192,7 +198,7 @@ def run():
     Entry point for the script. Loads the configuration and invokes the main function.
     """
     try:
-        # Access the config.json from the package resources using resources.path
+        # Access the config.json from the package resources using importlib.resources
         with resources.path('transcriptanalysis.configs', 'config.json') as config_path:
             # Convert Path object to string if necessary
             config: ConfigModel = load_config(str(config_path))

@@ -897,3 +897,21 @@ Please provide the assigned codes in the following JSON format:
 2025-01-15 14:47:40,902 [DEBUG] transcriptanalysis.validator: Saving validation report to 'outputs/teacher_transcript_validation_report.json'.
 2025-01-15 14:47:40,904 [INFO] transcriptanalysis.validator: Validation report saved to 'outputs/teacher_transcript_validation_report.json'.
 2025-01-15 14:47:40,904 [INFO] transcriptanalysis.main: Validation completed. Report saved to 'outputs/teacher_transcript_validation_report.json'.
+2025-01-15 15:20:25,329 [INFO] transcriptanalysis.main: Starting the main pipeline.
+2025-01-15 15:20:25,333 [ERROR] transcriptanalysis.main: Data file 'json_inputs/teacher_transcript.json' not found.
+2025-01-15 15:24:18,148 [INFO] transcriptanalysis.main: Starting the main pipeline.
+2025-01-15 15:24:18,150 [ERROR] transcriptanalysis.main: Data file 'json_inputs/teacher_transcript.json' not found.
+2025-01-15 15:26:55,550 [INFO] transcriptanalysis.main: Starting the main pipeline.
+2025-01-15 15:26:55,554 [ERROR] transcriptanalysis.main: Data file 'json_inputs/teacher_transcript.json' not found.
+2025-01-15 15:30:30,048 [INFO] transcriptanalysis.main: Starting the main pipeline.
+2025-01-15 15:30:38,681 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-15 15:30:45,692 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-15 15:30:48,423 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-15 15:30:48,430 [INFO] transcriptanalysis.main: Coded meaning units saved to 'outputs/teacher_transcript_output_20250115_153048.json'.
+2025-01-15 15:30:48,433 [DEBUG] transcriptanalysis.validator: Loaded data with shape (7, 5).
+2025-01-15 15:30:48,438 [INFO] transcriptanalysis.validator: Loaded meaning units derived from 7 unique source_ids.
+2025-01-15 15:30:48,438 [INFO] transcriptanalysis.validator: Total preliminary segments: 14
+2025-01-15 15:30:48,440 [INFO] transcriptanalysis.validator: Total meaning units: 19
+2025-01-15 15:30:48,441 [DEBUG] transcriptanalysis.validator: Saving validation report to 'outputs/teacher_transcript_validation_report.json'.
+2025-01-15 15:30:48,443 [INFO] transcriptanalysis.validator: Validation report saved to 'outputs/teacher_transcript_validation_report.json'.
+2025-01-15 15:30:48,444 [INFO] transcriptanalysis.main: Validation completed. Report saved to 'outputs/teacher_transcript_validation_report.json'.
