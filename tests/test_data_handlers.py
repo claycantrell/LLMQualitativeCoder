@@ -5,8 +5,8 @@ import tempfile
 import pytest
 from unittest.mock import patch, MagicMock
 from pydantic import BaseModel
-from qual_functions import parse_transcript, MeaningUnit
-from data_handlers import FlexibleDataHandler  # Ensure correct import
+from TranscriptAnalysis.src.TranscriptAnalysis.qual_functions import parse_transcript, MeaningUnit
+from TranscriptAnalysis.src.TranscriptAnalysis.data_handlers import FlexibleDataHandler  # Ensure correct import
 
 class SampleModel(BaseModel):  # Renamed from TestModel
     text: str

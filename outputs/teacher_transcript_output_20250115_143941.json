@@ -1,0 +1,404 @@
+{
+  "document_metadata": {},
+  "meaning_units": [
+    {
+      "meaning_unit_id": 1,
+      "meaning_unit_uuid": "358ea5ae-5ea9-43ac-ba6a-7584bd0eba8d",
+      "source_id": "1",
+      "meaning_unit_string": "Hi Sarah, thank you for taking the time to meet with me today.",
+      "assigned_code_list": [
+        {
+          "code_name": "Polite Formality",
+          "code_justification": "The speaker is engaging in a standard polite greeting which signifies formality, but it's rather mundane and unremarkable."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "1",
+        "content": "Hi Sarah, thank you for taking the time to meet with me today. I wanted to discuss the lesson I observed in your classroom yesterday.",
+        "metadata": {
+          "id": 1,
+          "length_of_time_spoken_seconds": 6.0,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 2,
+      "meaning_unit_uuid": "a2189a06-b414-4843-bddc-5a1673d41404",
+      "source_id": "1",
+      "meaning_unit_string": "I wanted to discuss the lesson I observed in your classroom yesterday.",
+      "assigned_code_list": [
+        {
+          "code_name": "Lesson Observation Report",
+          "code_justification": "The speaker explicitly states their intention to discuss an observed lesson, highlighting a lack of creativity in conversation starters."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "1",
+        "content": "Hi Sarah, thank you for taking the time to meet with me today. I wanted to discuss the lesson I observed in your classroom yesterday.",
+        "metadata": {
+          "id": 1,
+          "length_of_time_spoken_seconds": 6.0,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 3,
+      "meaning_unit_uuid": "bd93c4ed-7445-4166-8d99-99cf8f710a93",
+      "source_id": "3",
+      "meaning_unit_string": "Great.",
+      "assigned_code_list": [
+        {
+          "code_name": "Generic Praise",
+          "code_justification": "The speaker offers a generic compliment which is nice, but feels overly simplistic and lacks depth."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "3",
+        "content": "Great. First, I wanted to commend you on how you started the lesson. Your warm-up activity really engaged the students and set a positive tone for the class.",
+        "metadata": {
+          "id": 3,
+          "length_of_time_spoken_seconds": 7.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 4,
+      "meaning_unit_uuid": "2b597451-0e8f-4553-af1c-b8a698298e45",
+      "source_id": "3",
+      "meaning_unit_string": "First, I wanted to commend you on how you started the lesson.",
+      "assigned_code_list": [
+        {
+          "code_name": "Empty Compliment",
+          "code_justification": "While the speaker attempts to commend the lesson's start, the phrase is vague and doesn't convey substantial feedback."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "3",
+        "content": "Great. First, I wanted to commend you on how you started the lesson. Your warm-up activity really engaged the students and set a positive tone for the class.",
+        "metadata": {
+          "id": 3,
+          "length_of_time_spoken_seconds": 7.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 5,
+      "meaning_unit_uuid": "2746e252-6d33-43eb-83a5-388ae60e1598",
+      "source_id": "3",
+      "meaning_unit_string": "Your warm-up activity really engaged the students and set a positive tone for the class.",
+      "assigned_code_list": [
+        {
+          "code_name": "Overused Teaching Strategy",
+          "code_justification": "The praise for engaging students with a warm-up is so clich\u00e9d that it borders on eye-roll worthy."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "3",
+        "content": "Great. First, I wanted to commend you on how you started the lesson. Your warm-up activity really engaged the students and set a positive tone for the class.",
+        "metadata": {
+          "id": 3,
+          "length_of_time_spoken_seconds": 7.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 6,
+      "meaning_unit_uuid": "7c891c2d-5caa-4d5a-b526-31e54d00fb33",
+      "source_id": "5",
+      "meaning_unit_string": "That's excellent.",
+      "assigned_code_list": [
+        {
+          "code_name": "Vague Affirmation",
+          "code_justification": "The response is a bland agreement that contributes nothing insightful to the conversation."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "5",
+        "content": "That's excellent. When you used the real-world examples during the math problems, I noticed the students were particularly attentive. How did you decide to include those?",
+        "metadata": {
+          "id": 5,
+          "length_of_time_spoken_seconds": 7.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 7,
+      "meaning_unit_uuid": "f9d94de2-b174-4f3d-a7bc-0562c3b6f7a3",
+      "source_id": "5",
+      "meaning_unit_string": "When you used the real-world examples during the math problems, I noticed the students were particularly attentive.",
+      "assigned_code_list": [
+        {
+          "code_name": "Real-World Connection",
+          "code_justification": "The speaker mentions using real-world examples, but it sounds like they're just parroting common educational jargon."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "5",
+        "content": "That's excellent. When you used the real-world examples during the math problems, I noticed the students were particularly attentive. How did you decide to include those?",
+        "metadata": {
+          "id": 5,
+          "length_of_time_spoken_seconds": 7.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 8,
+      "meaning_unit_uuid": "0808fbf5-341e-4cc7-a43e-140156be173a",
+      "source_id": "5",
+      "meaning_unit_string": "How did you decide to include those?",
+      "assigned_code_list": [
+        {
+          "code_name": "Uninspired Questioning",
+          "code_justification": "The question posed lacks any originality or depth, making it seem like a forced attempt at engagement."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "5",
+        "content": "That's excellent. When you used the real-world examples during the math problems, I noticed the students were particularly attentive. How did you decide to include those?",
+        "metadata": {
+          "id": 5,
+          "length_of_time_spoken_seconds": 7.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 9,
+      "meaning_unit_uuid": "0d02534b-a296-4fe7-8330-170cec9720bc",
+      "source_id": "7",
+      "meaning_unit_string": "Absolutely, and it seems to be working well.",
+      "assigned_code_list": [
+        {
+          "code_name": "Obvious Observation",
+          "code_justification": "The statement is a painfully obvious acknowledgment of the lesson's effectiveness, contributing nothing new to the discussion."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "7",
+        "content": "Absolutely, and it seems to be working well. I did observe, however, that during the group activity, some students appeared a bit confused about the instructions. Can you tell me more about how you explained the task?",
+        "metadata": {
+          "id": 7,
+          "length_of_time_spoken_seconds": 8.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 10,
+      "meaning_unit_uuid": "ed9c9450-16ff-4492-b759-c158fb8cf540",
+      "source_id": "7",
+      "meaning_unit_string": "I did observe, however, that during the group activity, some students appeared a bit confused about the instructions.",
+      "assigned_code_list": [
+        {
+          "code_name": "Instruction Confusion",
+          "code_justification": "The mention of students being confused during a group activity highlights a common teaching mishap, but is presented in a surprisingly bland manner."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "7",
+        "content": "Absolutely, and it seems to be working well. I did observe, however, that during the group activity, some students appeared a bit confused about the instructions. Can you tell me more about how you explained the task?",
+        "metadata": {
+          "id": 7,
+          "length_of_time_spoken_seconds": 8.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 11,
+      "meaning_unit_uuid": "cfe14de6-3f12-480b-ae06-76ab90b68b15",
+      "source_id": "7",
+      "meaning_unit_string": "Can you tell me more about how you explained the task?",
+      "assigned_code_list": [
+        {
+          "code_name": "Clarity in Task Explanation",
+          "code_justification": "The speaker is asking for more details about how the task was explained, indicating a focus on ensuring the instructions are clear and understood."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "7",
+        "content": "Absolutely, and it seems to be working well. I did observe, however, that during the group activity, some students appeared a bit confused about the instructions. Can you tell me more about how you explained the task?",
+        "metadata": {
+          "id": 7,
+          "length_of_time_spoken_seconds": 8.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 12,
+      "meaning_unit_uuid": "7ccbd6d1-9dfa-4b34-bcda-8d6d96423514",
+      "source_id": "9",
+      "meaning_unit_string": "That makes sense.",
+      "assigned_code_list": [
+        {
+          "code_name": "UNCLEAR",
+          "code_justification": "The phrase 'That makes sense' does not provide any substantial information or topic, merely reflects agreement without elaboration."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "9",
+        "content": "That makes sense. What strategies might you use next time to ensure that all students understand the expectations before starting the activity?",
+        "metadata": {
+          "id": 9,
+          "length_of_time_spoken_seconds": 8.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 13,
+      "meaning_unit_uuid": "f5024d68-bba8-4aaa-83b7-7d82f2ef9212",
+      "source_id": "9",
+      "meaning_unit_string": "What strategies might you use next time to ensure that all students understand the expectations before starting the activity?",
+      "assigned_code_list": [
+        {
+          "code_name": "Strategies for Clarity",
+          "code_justification": "The excerpt discusses seeking strategies to ensure student understanding, highlighting the importance of clear communication in instruction."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "9",
+        "content": "That makes sense. What strategies might you use next time to ensure that all students understand the expectations before starting the activity?",
+        "metadata": {
+          "id": 9,
+          "length_of_time_spoken_seconds": 8.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 14,
+      "meaning_unit_uuid": "a5e6d1ea-1205-4059-b01f-b9d6e67449a0",
+      "source_id": "11",
+      "meaning_unit_string": "Those are great ideas.",
+      "assigned_code_list": [
+        {
+          "code_name": "Agreement on Good Ideas",
+          "code_justification": "The speaker commends the suggested strategies, indicating a collaborative approach to improving instructional methods."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "11",
+        "content": "Those are great ideas. Incorporating a quick demonstration could clarify the task. Also, encouraging students to paraphrase instructions can confirm their understanding.",
+        "metadata": {
+          "id": 11,
+          "length_of_time_spoken_seconds": 7.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 15,
+      "meaning_unit_uuid": "0b765886-ddcd-4a7d-9ec1-075144a8ec72",
+      "source_id": "11",
+      "meaning_unit_string": "Incorporating a quick demonstration could clarify the task.",
+      "assigned_code_list": [
+        {
+          "code_name": "Demonstration to Enhance Understanding",
+          "code_justification": "The suggestion to incorporate a demonstration reflects a proactive attempt to improve clarity in task execution."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "11",
+        "content": "Those are great ideas. Incorporating a quick demonstration could clarify the task. Also, encouraging students to paraphrase instructions can confirm their understanding.",
+        "metadata": {
+          "id": 11,
+          "length_of_time_spoken_seconds": 7.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 16,
+      "meaning_unit_uuid": "9033c73c-75e6-462a-bfb0-cbe0ecf079b5",
+      "source_id": "11",
+      "meaning_unit_string": "Also, encouraging students to paraphrase instructions can confirm their understanding.",
+      "assigned_code_list": [
+        {
+          "code_name": "Paraphrasing for Comprehension",
+          "code_justification": "Encouraging students to paraphrase demonstrates an interactive method to confirm understanding, which is vital for effective teaching."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "11",
+        "content": "Those are great ideas. Incorporating a quick demonstration could clarify the task. Also, encouraging students to paraphrase instructions can confirm their understanding.",
+        "metadata": {
+          "id": 11,
+          "length_of_time_spoken_seconds": 7.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 17,
+      "meaning_unit_uuid": "06129987-7afa-4b68-92c7-6850274af6d9",
+      "source_id": "13",
+      "meaning_unit_string": "Absolutely.",
+      "assigned_code_list": [
+        {
+          "code_name": "Affirmative Response",
+          "code_justification": "The word 'Absolutely' simply signals agreement but lacks depth in terms of content or topic discussion."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "13",
+        "content": "Absolutely. Visual aids can support diverse learning styles and make abstract concepts more concrete. How might you integrate them into your instructions?",
+        "metadata": {
+          "id": 13,
+          "length_of_time_spoken_seconds": 7.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 18,
+      "meaning_unit_uuid": "f7dad0ed-0728-42d5-b958-d2b3b17a69e5",
+      "source_id": "13",
+      "meaning_unit_string": "Visual aids can support diverse learning styles and make abstract concepts more concrete.",
+      "assigned_code_list": [
+        {
+          "code_name": "Value of Visual Aids",
+          "code_justification": "The excerpt emphasizes the importance of visual aids in catering to different learning styles, highlighting their effectiveness in instruction."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "13",
+        "content": "Absolutely. Visual aids can support diverse learning styles and make abstract concepts more concrete. How might you integrate them into your instructions?",
+        "metadata": {
+          "id": 13,
+          "length_of_time_spoken_seconds": 7.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 19,
+      "meaning_unit_uuid": "c8200a57-a5e2-4abb-9339-5296028fb032",
+      "source_id": "13",
+      "meaning_unit_string": "How might you integrate them into your instructions?",
+      "assigned_code_list": [
+        {
+          "code_name": "Inquiry on Instructional Integration",
+          "code_justification": "The speaker is asking about integrating visual aids into instructions, indicating a focus on enhancing teaching techniques."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "13",
+        "content": "Absolutely. Visual aids can support diverse learning styles and make abstract concepts more concrete. How might you integrate them into your instructions?",
+        "metadata": {
+          "id": 13,
+          "length_of_time_spoken_seconds": 7.5,
+          "speaker_name": "Coach"
+        }
+      }
+    }
+  ]
+}

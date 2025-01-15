@@ -1,4 +1,4 @@
-# utils.py
+# transcriptanalysis/utils.py
 
 import os
 import json
@@ -10,8 +10,10 @@ from pydantic import ValidationError
 from langchain.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
 
-from transcriptanalysis.config_schemas import ConfigModel, DataFormatConfig
-from transcriptanalysis.langchain_llm import LangChainLLM
+from .config_schemas import ConfigModel, DataFormatConfig
+from .langchain_llm import LangChainLLM
+
+from importlib import resources  # Import importlib.resources
 
 logger = logging.getLogger(__name__)
 
@@ -75,12 +77,28 @@ def _load_text_file(file_path: str, description: str = 'file') -> str:
 
     return content
 
-def load_prompt_file(prompts_folder: str, prompt_file: str, description: str = 'prompt') -> str:
+def load_prompt_file(package: str, filename: str, description: str = 'prompt') -> str:
     """
-    Loads a prompt from a specified file.
+    Loads a prompt from a specified package and filename using importlib.resources.
+    
+    Args:
+        package (str): The package path (e.g., 'transcriptanalysis.prompts').
+        filename (str): The name of the prompt file (e.g., 'parse.txt').
+        description (str): A description of the file for error messages.
+    
+    Returns:
+        str: The contents of the prompt file.
+    
+    Raises:
+        FileNotFoundError: If the prompt file is not found within the package.
+        Exception: If any other error occurs while loading the prompt file.
     """
-    prompt_path = str(Path(prompts_folder) / prompt_file)
-    return _load_text_file(prompt_path, description=description)
+    try:
+        return resources.read_text(package, filename)
+    except FileNotFoundError:
+        raise FileNotFoundError(f"{description.capitalize()} file '{package}/{filename}' not found.")
+    except Exception as e:
+        raise Exception(f"An error occurred while loading {description} file '{package}/{filename}': {e}")
 
 def load_config(config_file_path: str) -> ConfigModel:
     """

@@ -1,0 +1,49 @@
+[project]
+name = "transcriptanalysis"
+version = "0.1.0"
+description = "Middle LLC."
+readme = "README.md"
+requires-python = ">=3.10,<4.0"
+
+dependencies = [
+    "hdbscan",
+    "huggingface-hub",
+    "jsonschema",
+    "langchain",
+    "langchain-openai",
+    "matplotlib",
+    "numpy",
+    "pandas",
+    "pydantic",
+    "pytest",
+    "scikit-learn",
+    "scipy",
+    "tqdm",
+    "umap",
+    "umap-learn"
+]
+
+[project.scripts]
+run-main = "transcriptanalysis.main:run"
+
+[tool.poetry]
+packages = [
+    { include = "transcriptanalysis", from = "src" }
+]
+
+include = [
+    "transcriptanalysis/configs/*.json",
+    "transcriptanalysis/prompts/*",
+    "helpers/*",
+    "json_inputs/*",
+    "logs/*",
+    "outputs/*",
+    "qual_codebase/*",
+    "tests/*",
+    "vtt_transcripts/*",
+    "README.md"
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

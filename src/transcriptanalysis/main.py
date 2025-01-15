@@ -1,24 +1,27 @@
-# main.py
+# transcriptanalysis/main.py
 
 import json
 import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+import sys
 
-from transcriptanalysis.logging_config import setup_logging  # If you have a custom logging config
-from transcriptanalysis.config_schemas import ConfigModel, DataFormatConfig
-from transcriptanalysis.utils import (
+from importlib import resources
+
+from .logging_config import setup_logging  # Relative import
+from .config_schemas import ConfigModel, DataFormatConfig
+from .utils import (
     load_environment_variables,
     load_config,
     load_data_format_config,
     load_prompt_file
 )
-from transcriptanalysis.data_handlers import FlexibleDataHandler
-from transcriptanalysis.qual_functions import assign_codes_to_meaning_units
-from transcriptanalysis.validator import run_validation, replace_nan_with_null  # If you have a validator module
+from .data_handlers import FlexibleDataHandler
+from .qual_functions import assign_codes_to_meaning_units
+from .validator import run_validation, replace_nan_with_null
+from .langchain_llm import LangChainLLM
 
-from transcriptanalysis.langchain_llm import LangChainLLM
 
 def main(config: ConfigModel):
     """
@@ -44,14 +47,18 @@ def main(config: ConfigModel):
     parse_instructions = ""
     if config.use_parsing:
         parse_instructions = load_prompt_file(
-            config.paths.prompts_folder,
-            config.parse_prompt_file,
+            'transcriptanalysis.prompts',      # Package path
+            config.parse_prompt_file,          # Filename, e.g., 'parse.txt'
             description='parse instructions'
         )
 
-    # Load data format configuration
-    data_format_config_path = Path(config.paths.config_folder) / 'data_format_config.json'
-    data_format_config: DataFormatConfig = load_data_format_config(str(data_format_config_path))
+    # Load data format configuration using importlib.resources
+    try:
+        with resources.path('transcriptanalysis.configs', 'data_format_config.json') as data_format_config_path:
+            data_format_config: DataFormatConfig = load_data_format_config(str(data_format_config_path))
+    except FileNotFoundError:
+        logger.error("File 'transcriptanalysis.configs/data_format_config.json' not found.")
+        raise
 
     if config.data_format not in data_format_config:
         logger.error(f"No configuration found for data format: {config.data_format}")
@@ -90,8 +97,8 @@ def main(config: ConfigModel):
     # Stage 3: Code Assignment
     if config.coding_mode == "deductive":
         coding_instructions = load_prompt_file(
-            config.paths.prompts_folder,
-            config.deductive_coding_prompt_file,
+            'transcriptanalysis.prompts',  # Package path
+            config.deductive_coding_prompt_file,  # Filename, e.g., 'deductive_coding.txt'
             description='deductive coding prompt'
         )
         codebase_file = Path(config.paths.codebase_folder) / config.selected_codebase
@@ -120,8 +127,8 @@ def main(config: ConfigModel):
         )
     else:  # inductive
         inductive_coding_prompt = load_prompt_file(
-            config.paths.prompts_folder,
-            config.inductive_coding_prompt_file,
+            'transcriptanalysis.prompts',  # Package path
+            config.inductive_coding_prompt_file,  # Filename, e.g., 'inductive_coding.txt'
             description='inductive coding prompt'
         )
         assign_llm = LangChainLLM(config.assign_llm_config)
@@ -179,12 +186,22 @@ def main(config: ConfigModel):
     )
     logger.info(f"Validation completed. Report saved to '{validation_report_path}'.")
 
-if __name__ == "__main__":
-    config_file_path = 'configs/config.json'
+
+def run():
+    """
+    Entry point for the script. Loads the configuration and invokes the main function.
+    """
     try:
-        config: ConfigModel = load_config(config_file_path)
+        # Access the config.json from the package resources using resources.path
+        with resources.path('transcriptanalysis.configs', 'config.json') as config_path:
+            # Convert Path object to string if necessary
+            config: ConfigModel = load_config(str(config_path))
     except Exception as e:
-        print(f"Failed to load configuration: {e}")
-        exit(1)
+        print(f"Failed to load configuration: {e}", file=sys.stderr)
+        sys.exit(1)
 
     main(config)
+
+
+if __name__ == "__main__":
+    run()

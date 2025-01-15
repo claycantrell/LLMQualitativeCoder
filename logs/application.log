@@ -810,3 +810,90 @@ Please provide the assigned codes in the following JSON format:
 2024-11-18 16:31:33,457 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
 2024-11-18 16:31:34,355 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
 2024-11-18 16:31:34,361 [INFO] __main__: Coded meaning units saved to 'outputs/coded_meaning_units.json'.
+2025-01-14 17:37:10,802 [INFO] __main__: Starting the main pipeline.
+2025-01-14 17:37:10,804 [ERROR] __main__: Data file 'json_inputs/teacher_transcript.json' not found.
+2025-01-14 17:37:54,656 [INFO] __main__: Starting the main pipeline.
+2025-01-14 17:37:54,661 [WARNING] data_handlers: Could not initialize LangChainLLM with model=gpt-4o-mini: The api_key client option must be set either by passing api_key to the client or by setting the OPENAI_API_KEY environment variable
+2025-01-14 17:37:54,682 [ERROR] data_handlers: LLM was not initialized; cannot parse.
+2025-01-14 17:37:54,683 [WARNING] __main__: No meaning units to process. Exiting.
+2025-01-14 17:38:32,669 [INFO] __main__: Starting the main pipeline.
+2025-01-14 17:38:38,095 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-14 17:38:45,597 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-14 17:38:47,125 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-14 17:38:47,132 [INFO] __main__: Coded meaning units saved to 'outputs/teacher_transcript_output_20250114_173847.json'.
+2025-01-14 17:38:47,135 [DEBUG] validator: Loaded data with shape (7, 5).
+2025-01-14 17:38:47,140 [INFO] validator: Loaded meaning units derived from 7 unique source_ids.
+2025-01-14 17:38:47,141 [INFO] validator: Total preliminary segments: 14
+2025-01-14 17:38:47,142 [INFO] validator: Total meaning units: 19
+2025-01-14 17:38:47,142 [DEBUG] validator: Saving validation report to 'outputs/teacher_transcript_validation_report.json'.
+2025-01-14 17:38:47,144 [INFO] validator: Validation report saved to 'outputs/teacher_transcript_validation_report.json'.
+2025-01-14 17:38:47,149 [INFO] __main__: Validation completed. Report saved to 'outputs/teacher_transcript_validation_report.json'.
+2025-01-15 12:26:47,898 [INFO] __main__: Starting the main pipeline.
+2025-01-15 12:26:47,904 [WARNING] data_handlers: Could not initialize LangChainLLM with model=gpt-4o-mini: The api_key client option must be set either by passing api_key to the client or by setting the OPENAI_API_KEY environment variable
+2025-01-15 12:26:47,938 [ERROR] data_handlers: LLM was not initialized; cannot parse.
+2025-01-15 12:26:47,939 [WARNING] __main__: No meaning units to process. Exiting.
+2025-01-15 12:27:07,016 [INFO] __main__: Starting the main pipeline.
+2025-01-15 12:27:12,637 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-15 12:27:25,595 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-15 12:27:27,502 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-15 12:27:27,507 [INFO] __main__: Coded meaning units saved to 'outputs/teacher_transcript_output_20250115_122727.json'.
+2025-01-15 12:27:27,510 [DEBUG] validator: Loaded data with shape (7, 5).
+2025-01-15 12:27:27,512 [INFO] validator: Loaded meaning units derived from 7 unique source_ids.
+2025-01-15 12:27:27,513 [INFO] validator: Total preliminary segments: 14
+2025-01-15 12:27:27,513 [INFO] validator: Total meaning units: 19
+2025-01-15 12:27:27,514 [DEBUG] validator: Saving validation report to 'outputs/teacher_transcript_validation_report.json'.
+2025-01-15 12:27:27,515 [INFO] validator: Validation report saved to 'outputs/teacher_transcript_validation_report.json'.
+2025-01-15 12:27:27,517 [INFO] __main__: Validation completed. Report saved to 'outputs/teacher_transcript_validation_report.json'.
+2025-01-15 13:34:51,663 [INFO] __main__: Starting the main pipeline.
+2025-01-15 13:34:51,668 [WARNING] transcriptanalysis.data_handlers: Could not initialize LangChainLLM with model=gpt-4o-mini: The api_key client option must be set either by passing api_key to the client or by setting the OPENAI_API_KEY environment variable
+2025-01-15 13:34:51,725 [ERROR] transcriptanalysis.data_handlers: LLM was not initialized; cannot parse.
+2025-01-15 13:34:51,726 [WARNING] __main__: No meaning units to process. Exiting.
+2025-01-15 13:35:39,159 [INFO] __main__: Starting the main pipeline.
+2025-01-15 13:35:39,163 [WARNING] transcriptanalysis.data_handlers: Could not initialize LangChainLLM with model=gpt-4o-mini: The api_key client option must be set either by passing api_key to the client or by setting the OPENAI_API_KEY environment variable
+2025-01-15 13:35:39,188 [ERROR] transcriptanalysis.data_handlers: LLM was not initialized; cannot parse.
+2025-01-15 13:35:39,189 [WARNING] __main__: No meaning units to process. Exiting.
+2025-01-15 13:36:29,658 [INFO] __main__: Starting the main pipeline.
+2025-01-15 13:36:36,914 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-15 13:36:45,442 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-15 13:36:45,886 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-15 13:36:45,892 [INFO] __main__: Coded meaning units saved to 'outputs/teacher_transcript_output_20250115_133645.json'.
+2025-01-15 13:36:45,895 [DEBUG] transcriptanalysis.validator: Loaded data with shape (7, 5).
+2025-01-15 13:36:45,900 [INFO] transcriptanalysis.validator: Loaded meaning units derived from 7 unique source_ids.
+2025-01-15 13:36:45,900 [INFO] transcriptanalysis.validator: Total preliminary segments: 14
+2025-01-15 13:36:45,900 [INFO] transcriptanalysis.validator: Total meaning units: 19
+2025-01-15 13:36:45,900 [DEBUG] transcriptanalysis.validator: Saving validation report to 'outputs/teacher_transcript_validation_report.json'.
+2025-01-15 13:36:45,902 [INFO] transcriptanalysis.validator: Validation report saved to 'outputs/teacher_transcript_validation_report.json'.
+2025-01-15 13:36:45,902 [INFO] __main__: Validation completed. Report saved to 'outputs/teacher_transcript_validation_report.json'.
+2025-01-15 14:28:45,047 [INFO] transcriptanalysis.main: Starting the main pipeline.
+2025-01-15 14:28:45,049 [ERROR] transcriptanalysis.utils: File 'configs/data_format_config.json' not found.
+2025-01-15 14:32:22,895 [INFO] transcriptanalysis.main: Starting the main pipeline.
+2025-01-15 14:32:22,895 [ERROR] transcriptanalysis.utils: Parse instructions file 'transcriptanalysis.prompts/parse.txt' not found.
+2025-01-15 14:35:31,008 [INFO] transcriptanalysis.main: Starting the main pipeline.
+2025-01-15 14:35:31,009 [ERROR] transcriptanalysis.utils: Parse instructions file 'transcriptanalysis.prompts/parse.txt' not found.
+2025-01-15 14:39:28,509 [INFO] transcriptanalysis.main: Starting the main pipeline.
+2025-01-15 14:39:34,490 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-15 14:39:40,252 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-15 14:39:41,097 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-15 14:39:41,105 [INFO] transcriptanalysis.main: Coded meaning units saved to 'outputs/teacher_transcript_output_20250115_143941.json'.
+2025-01-15 14:41:46,419 [INFO] transcriptanalysis.main: Starting the main pipeline.
+2025-01-15 14:41:53,981 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-15 14:42:00,281 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-15 14:42:00,343 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-15 14:42:00,355 [INFO] transcriptanalysis.main: Coded meaning units saved to 'outputs/teacher_transcript_output_20250115_144200.json'.
+2025-01-15 14:42:36,756 [INFO] transcriptanalysis.main: Starting the main pipeline.
+2025-01-15 14:42:49,625 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-15 14:42:55,338 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-15 14:42:56,523 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-15 14:42:56,529 [INFO] transcriptanalysis.main: Coded meaning units saved to 'outputs/teacher_transcript_output_20250115_144256.json'.
+2025-01-15 14:47:23,116 [INFO] transcriptanalysis.main: Starting the main pipeline.
+2025-01-15 14:47:30,566 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-15 14:47:36,796 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-15 14:47:40,879 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-15 14:47:40,896 [INFO] transcriptanalysis.main: Coded meaning units saved to 'outputs/teacher_transcript_output_20250115_144740.json'.
+2025-01-15 14:47:40,899 [DEBUG] transcriptanalysis.validator: Loaded data with shape (7, 5).
+2025-01-15 14:47:40,901 [INFO] transcriptanalysis.validator: Loaded meaning units derived from 7 unique source_ids.
+2025-01-15 14:47:40,901 [INFO] transcriptanalysis.validator: Total preliminary segments: 14
+2025-01-15 14:47:40,901 [INFO] transcriptanalysis.validator: Total meaning units: 19
+2025-01-15 14:47:40,902 [DEBUG] transcriptanalysis.validator: Saving validation report to 'outputs/teacher_transcript_validation_report.json'.
+2025-01-15 14:47:40,904 [INFO] transcriptanalysis.validator: Validation report saved to 'outputs/teacher_transcript_validation_report.json'.
+2025-01-15 14:47:40,904 [INFO] transcriptanalysis.main: Validation completed. Report saved to 'outputs/teacher_transcript_validation_report.json'.

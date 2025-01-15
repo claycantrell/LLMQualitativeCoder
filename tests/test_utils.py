@@ -4,7 +4,7 @@ import json
 import tempfile
 import pytest
 from unittest.mock import patch
-from utils import (
+from TranscriptAnalysis.src.TranscriptAnalysis.utils import (
     load_environment_variables,
     load_config,
     load_coding_instructions,

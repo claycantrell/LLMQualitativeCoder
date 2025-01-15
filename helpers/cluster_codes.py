@@ -712,7 +712,7 @@ def main():
 
     # Import custom modules with error handling
     try:
-        from qual_functions import client  # Must provide the 'client' for embeddings and LLM calls
+        from TranscriptAnalysis.src.TranscriptAnalysis.qual_functions import client  # Must provide the 'client' for embeddings and LLM calls
     except ImportError as e:
         logging.error(f"Custom module import failed: {e}")
         sys.exit(1)

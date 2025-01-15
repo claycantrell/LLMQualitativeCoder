@@ -1,0 +1,86 @@
+[
+    {
+        "id": 1,
+        "length_of_time_spoken_seconds": 6.0,
+        "text_context": "Hi Sarah, thank you for taking the time to meet with me today. I wanted to discuss the lesson I observed in your classroom yesterday.",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 2,
+        "length_of_time_spoken_seconds": 5.5,
+        "text_context": "Hi Mike, no problem at all. I'm eager to hear your thoughts and get your feedback on how it went.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 3,
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "Great. First, I wanted to commend you on how you started the lesson. Your warm-up activity really engaged the students and set a positive tone for the class.",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 4,
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "Thank you. I've been trying to incorporate more interactive elements at the beginning to capture their attention early on.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 5,
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "That's excellent. When you used the real-world examples during the math problems, I noticed the students were particularly attentive. How did you decide to include those?",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 6,
+        "length_of_time_spoken_seconds": 8.0,
+        "text_context": "Well, I've found that when students can relate concepts to their daily lives, they're more interested. So I thought incorporating scenarios they might encounter outside school would help.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 7,
+        "length_of_time_spoken_seconds": 8.5,
+        "text_context": "Absolutely, and it seems to be working well. I did observe, however, that during the group activity, some students appeared a bit confused about the instructions. Can you tell me more about how you explained the task?",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 8,
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "Sure. I gave them a brief overview and expected them to dive in, but I think I might have assumed they had more prior knowledge than they actually did.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 9,
+        "length_of_time_spoken_seconds": 8.5,
+        "text_context": "That makes sense. What strategies might you use next time to ensure that all students understand the expectations before starting the activity?",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 10,
+        "length_of_time_spoken_seconds": 8.5,
+        "text_context": "Maybe I could provide a step-by-step example or check for understanding by asking a few students to repeat the instructions in their own words.",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 11,
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "Those are great ideas. Incorporating a quick demonstration could clarify the task. Also, encouraging students to paraphrase instructions can confirm their understanding.",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 12,
+        "length_of_time_spoken_seconds": 8.0,
+        "text_context": "I agree. I'll definitely try that in the next group activity. Do you think visual aids could also help?",
+        "speaker_name": "Teacher"
+    },
+    {
+        "id": 13,
+        "length_of_time_spoken_seconds": 7.5,
+        "text_context": "Absolutely. Visual aids can support diverse learning styles and make abstract concepts more concrete. How might you integrate them into your instructions?",
+        "speaker_name": "Coach"
+    },
+    {
+        "id": 14,
+        "length_of_time_spoken_seconds": 7.0,
+        "text_context": "I could create a simple infographic or flowchart that outlines the steps they need to follow during the activity.",
+        "speaker_name": "Teacher"
+    }
+]

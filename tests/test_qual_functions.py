@@ -5,7 +5,7 @@ import tempfile
 import pytest
 import numpy as np
 from unittest.mock import patch, MagicMock
-from qual_functions import (
+from TranscriptAnalysis.src.TranscriptAnalysis.qual_functions import (
     parse_transcript,
     initialize_faiss_index_from_formatted_file,
     retrieve_relevant_codes,

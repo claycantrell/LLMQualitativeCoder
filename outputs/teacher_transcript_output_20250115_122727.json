@@ -1,0 +1,404 @@
+{
+  "document_metadata": {},
+  "meaning_units": [
+    {
+      "meaning_unit_id": 1,
+      "meaning_unit_uuid": "437df99d-e7a2-46e1-afc2-bc8dc899efab",
+      "source_id": "1",
+      "meaning_unit_string": "Hi Sarah, thank you for taking the time to meet with me today.",
+      "assigned_code_list": [
+        {
+          "code_name": "VOID",
+          "code_justification": "The excerpt consists solely of a greeting and does not relate to any specific coaching behavior or instructional content."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "1",
+        "content": "Hi Sarah, thank you for taking the time to meet with me today. I wanted to discuss the lesson I observed in your classroom yesterday.",
+        "metadata": {
+          "id": 1,
+          "length_of_time_spoken_seconds": 6.0,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 2,
+      "meaning_unit_uuid": "7726d558-5f6a-4e72-9c43-02f2bb06702b",
+      "source_id": "1",
+      "meaning_unit_string": "I wanted to discuss the lesson I observed in your classroom yesterday.",
+      "assigned_code_list": [
+        {
+          "code_name": "VOID",
+          "code_justification": "The excerpt is a statement of intent to discuss an observed lesson but lacks specific details related to coaching behaviors or instructional practices."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "1",
+        "content": "Hi Sarah, thank you for taking the time to meet with me today. I wanted to discuss the lesson I observed in your classroom yesterday.",
+        "metadata": {
+          "id": 1,
+          "length_of_time_spoken_seconds": 6.0,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 3,
+      "meaning_unit_uuid": "559ed2b1-6490-4217-ba8c-da6c5d810816",
+      "source_id": "3",
+      "meaning_unit_string": "Great.",
+      "assigned_code_list": [
+        {
+          "code_name": "VOID",
+          "code_justification": "The excerpt is a simple acknowledgment and does not convey any coaching behaviors, instructional strengths, or feedback."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "3",
+        "content": "Great. First, I wanted to commend you on how you started the lesson. Your warm-up activity really engaged the students and set a positive tone for the class.",
+        "metadata": {
+          "id": 3,
+          "length_of_time_spoken_seconds": 7.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 4,
+      "meaning_unit_uuid": "58b9efab-ba77-4af4-aaf9-706671ee76ca",
+      "source_id": "3",
+      "meaning_unit_string": "First, I wanted to commend you on how you started the lesson.",
+      "assigned_code_list": [
+        {
+          "code_name": "VOID",
+          "code_justification": "While this statement expresses commendation, it lacks specific feedback or actionable insights related to instructional practices."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "3",
+        "content": "Great. First, I wanted to commend you on how you started the lesson. Your warm-up activity really engaged the students and set a positive tone for the class.",
+        "metadata": {
+          "id": 3,
+          "length_of_time_spoken_seconds": 7.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 5,
+      "meaning_unit_uuid": "cf401ed2-5f49-4ef1-a145-70317ef27ca6",
+      "source_id": "3",
+      "meaning_unit_string": "Your warm-up activity really engaged the students and set a positive tone for the class.",
+      "assigned_code_list": [
+        {
+          "code_name": "Code 2.3",
+          "code_justification": "This code is applicable because the excerpt identifies a specific instructional strength by highlighting the effectiveness of the warm-up activity in engaging students."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "3",
+        "content": "Great. First, I wanted to commend you on how you started the lesson. Your warm-up activity really engaged the students and set a positive tone for the class.",
+        "metadata": {
+          "id": 3,
+          "length_of_time_spoken_seconds": 7.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 6,
+      "meaning_unit_uuid": "805e793a-0e37-4c63-8d83-36aed7fb3976",
+      "source_id": "5",
+      "meaning_unit_string": "That's excellent.",
+      "assigned_code_list": [
+        {
+          "code_name": "VOID",
+          "code_justification": "The excerpt is a positive reinforcement but does not provide any specific feedback or instructional guidance."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "5",
+        "content": "That's excellent. When you used the real-world examples during the math problems, I noticed the students were particularly attentive. How did you decide to include those?",
+        "metadata": {
+          "id": 5,
+          "length_of_time_spoken_seconds": 7.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 7,
+      "meaning_unit_uuid": "c5f6d22b-ca19-4c55-ab1f-83faa695e350",
+      "source_id": "5",
+      "meaning_unit_string": "When you used the real-world examples during the math problems, I noticed the students were particularly attentive.",
+      "assigned_code_list": [
+        {
+          "code_name": "VOID",
+          "code_justification": "The excerpt expresses agreement but lacks specific content related to coaching or instructional strategies."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "5",
+        "content": "That's excellent. When you used the real-world examples during the math problems, I noticed the students were particularly attentive. How did you decide to include those?",
+        "metadata": {
+          "id": 5,
+          "length_of_time_spoken_seconds": 7.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 8,
+      "meaning_unit_uuid": "50c8d7da-56b7-445f-a729-b7e5037bdfde",
+      "source_id": "5",
+      "meaning_unit_string": "How did you decide to include those?",
+      "assigned_code_list": [
+        {
+          "code_name": "VOID",
+          "code_justification": "The question seeks clarification but does not align with the provided codes as it does not relate to coaching behaviors or instructional practices."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "5",
+        "content": "That's excellent. When you used the real-world examples during the math problems, I noticed the students were particularly attentive. How did you decide to include those?",
+        "metadata": {
+          "id": 5,
+          "length_of_time_spoken_seconds": 7.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 9,
+      "meaning_unit_uuid": "ae3a02e6-4a0e-4ca7-990e-8d252c82d71c",
+      "source_id": "7",
+      "meaning_unit_string": "Absolutely, and it seems to be working well.",
+      "assigned_code_list": [
+        {
+          "code_name": "VOID",
+          "code_justification": "The response acknowledges the effectiveness of a strategy but does not provide specific feedback or relate to a coaching behavior."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "7",
+        "content": "Absolutely, and it seems to be working well. I did observe, however, that during the group activity, some students appeared a bit confused about the instructions. Can you tell me more about how you explained the task?",
+        "metadata": {
+          "id": 7,
+          "length_of_time_spoken_seconds": 8.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 10,
+      "meaning_unit_uuid": "a0a33283-dbd6-411b-8629-56f6417fca1b",
+      "source_id": "7",
+      "meaning_unit_string": "I did observe, however, that during the group activity, some students appeared a bit confused about the instructions.",
+      "assigned_code_list": [
+        {
+          "code_name": "Code 2.4",
+          "code_justification": "This code applies as it identifies a specific area for growth by noting student confusion during a group activity, suggesting a need for clearer instructions."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "7",
+        "content": "Absolutely, and it seems to be working well. I did observe, however, that during the group activity, some students appeared a bit confused about the instructions. Can you tell me more about how you explained the task?",
+        "metadata": {
+          "id": 7,
+          "length_of_time_spoken_seconds": 8.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 11,
+      "meaning_unit_uuid": "b918272f-942a-4091-90e4-b9c3c6ce8866",
+      "source_id": "7",
+      "meaning_unit_string": "Can you tell me more about how you explained the task?",
+      "assigned_code_list": [
+        {
+          "code_name": "Code 3.3",
+          "code_justification": "This code is relevant because the excerpt involves the coach asking a clarifying question, which promotes further discussion and understanding regarding the explanation of the task."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "7",
+        "content": "Absolutely, and it seems to be working well. I did observe, however, that during the group activity, some students appeared a bit confused about the instructions. Can you tell me more about how you explained the task?",
+        "metadata": {
+          "id": 7,
+          "length_of_time_spoken_seconds": 8.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 12,
+      "meaning_unit_uuid": "05ad695f-49c7-40a5-8b95-3999a508ffd2",
+      "source_id": "9",
+      "meaning_unit_string": "That makes sense.",
+      "assigned_code_list": [
+        {
+          "code_name": "VOID",
+          "code_justification": "The excerpt does not contain specific content that aligns with any of the provided codes; it is simply a response affirming understanding."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "9",
+        "content": "That makes sense. What strategies might you use next time to ensure that all students understand the expectations before starting the activity?",
+        "metadata": {
+          "id": 9,
+          "length_of_time_spoken_seconds": 8.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 13,
+      "meaning_unit_uuid": "d53f79f4-1eab-45c8-b19e-0541950e03ce",
+      "source_id": "9",
+      "meaning_unit_string": "What strategies might you use next time to ensure that all students understand the expectations before starting the activity?",
+      "assigned_code_list": [
+        {
+          "code_name": "Code 1.2",
+          "code_justification": "This code applies here as the excerpt contains reflective questioning, prompting the teacher to consider future strategies for ensuring student understanding."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "9",
+        "content": "That makes sense. What strategies might you use next time to ensure that all students understand the expectations before starting the activity?",
+        "metadata": {
+          "id": 9,
+          "length_of_time_spoken_seconds": 8.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 14,
+      "meaning_unit_uuid": "b9acb12c-a6f4-4d20-b675-5c27884cab80",
+      "source_id": "11",
+      "meaning_unit_string": "Those are great ideas.",
+      "assigned_code_list": [
+        {
+          "code_name": "VOID",
+          "code_justification": "The phrase 'Those are great ideas' does not provide substantial content related to any defined coaching behaviors or instructional strategies."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "11",
+        "content": "Those are great ideas. Incorporating a quick demonstration could clarify the task. Also, encouraging students to paraphrase instructions can confirm their understanding.",
+        "metadata": {
+          "id": 11,
+          "length_of_time_spoken_seconds": 7.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 15,
+      "meaning_unit_uuid": "f151a4b8-328c-43b3-b5be-93bb766a9061",
+      "source_id": "11",
+      "meaning_unit_string": "Incorporating a quick demonstration could clarify the task.",
+      "assigned_code_list": [
+        {
+          "code_name": "VOID",
+          "code_justification": "The excerpt is a suggestion that lacks specific content aligned with the provided codes; it does not detail a coaching behavior or instructional practice."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "11",
+        "content": "Those are great ideas. Incorporating a quick demonstration could clarify the task. Also, encouraging students to paraphrase instructions can confirm their understanding.",
+        "metadata": {
+          "id": 11,
+          "length_of_time_spoken_seconds": 7.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 16,
+      "meaning_unit_uuid": "3b5eaa30-338c-418d-86d1-55d8f9c37cba",
+      "source_id": "11",
+      "meaning_unit_string": "Also, encouraging students to paraphrase instructions can confirm their understanding.",
+      "assigned_code_list": [
+        {
+          "code_name": "VOID",
+          "code_justification": "The excerpt suggests a strategy without detailed content, making it unsuitable for any of the defined codes."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "11",
+        "content": "Those are great ideas. Incorporating a quick demonstration could clarify the task. Also, encouraging students to paraphrase instructions can confirm their understanding.",
+        "metadata": {
+          "id": 11,
+          "length_of_time_spoken_seconds": 7.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 17,
+      "meaning_unit_uuid": "1152ec71-72c3-4a94-87f8-97bc80dde09c",
+      "source_id": "13",
+      "meaning_unit_string": "Absolutely.",
+      "assigned_code_list": [
+        {
+          "code_name": "Code 3.3",
+          "code_justification": "This excerpt includes a supportive affirmation that encourages the teacher to reflect on their instructional strategies, aligning with clarifying questions about understanding."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "13",
+        "content": "Absolutely. Visual aids can support diverse learning styles and make abstract concepts more concrete. How might you integrate them into your instructions?",
+        "metadata": {
+          "id": 13,
+          "length_of_time_spoken_seconds": 7.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 18,
+      "meaning_unit_uuid": "519bea5f-7331-4424-a208-8f425ff187c6",
+      "source_id": "13",
+      "meaning_unit_string": "Visual aids can support diverse learning styles and make abstract concepts more concrete.",
+      "assigned_code_list": [
+        {
+          "code_name": "VOID",
+          "code_justification": "While the excerpt discusses visual aids, it does not specifically connect to any defined coaching behaviors or instructional strategies."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "13",
+        "content": "Absolutely. Visual aids can support diverse learning styles and make abstract concepts more concrete. How might you integrate them into your instructions?",
+        "metadata": {
+          "id": 13,
+          "length_of_time_spoken_seconds": 7.5,
+          "speaker_name": "Coach"
+        }
+      }
+    },
+    {
+      "meaning_unit_id": 19,
+      "meaning_unit_uuid": "36253d42-87e3-4eb9-a00d-a6875151b096",
+      "source_id": "13",
+      "meaning_unit_string": "How might you integrate them into your instructions?",
+      "assigned_code_list": [
+        {
+          "code_name": "VOID",
+          "code_justification": "The question posed does not align with any of the provided codes; it is a general inquiry into instructional integration without specific reflection or coaching context."
+        }
+      ],
+      "preliminary_segment": {
+        "source_id": "13",
+        "content": "Absolutely. Visual aids can support diverse learning styles and make abstract concepts more concrete. How might you integrate them into your instructions?",
+        "metadata": {
+          "id": 13,
+          "length_of_time_spoken_seconds": 7.5,
+          "speaker_name": "Coach"
+        }
+      }
+    }
+  ]
+}

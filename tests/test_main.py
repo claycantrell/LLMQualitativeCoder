@@ -1,7 +1,7 @@
 # tests/test_main.py
 import pytest
 from unittest.mock import patch, MagicMock, ANY
-import main
+import TranscriptAnalysis.src.TranscriptAnalysis.main as main
 import json
 import warnings
 

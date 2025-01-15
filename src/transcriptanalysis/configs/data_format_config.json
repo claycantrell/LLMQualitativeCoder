@@ -3,7 +3,6 @@
     "content_field": "text_context",
     "speaker_field": "speaker_name",
     "list_field": "content",
-    "source_id_field" : "id",
     "filter_rules": [
       {
         "field": "speaker_name",
