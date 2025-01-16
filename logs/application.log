@@ -915,3 +915,24 @@ Please provide the assigned codes in the following JSON format:
 2025-01-15 15:30:48,441 [DEBUG] transcriptanalysis.validator: Saving validation report to 'outputs/teacher_transcript_validation_report.json'.
 2025-01-15 15:30:48,443 [INFO] transcriptanalysis.validator: Validation report saved to 'outputs/teacher_transcript_validation_report.json'.
 2025-01-15 15:30:48,444 [INFO] transcriptanalysis.main: Validation completed. Report saved to 'outputs/teacher_transcript_validation_report.json'.
+2025-01-15 22:59:53,840 [INFO] transcriptanalysis.main: Starting the main pipeline.
+2025-01-15 22:59:53,850 [WARNING] transcriptanalysis.data_handlers: Could not initialize LangChainLLM with model=gpt-4o-mini: The api_key client option must be set either by passing api_key to the client or by setting the OPENAI_API_KEY environment variable
+2025-01-15 22:59:53,877 [ERROR] transcriptanalysis.data_handlers: LLM was not initialized; cannot parse.
+2025-01-15 22:59:53,877 [WARNING] transcriptanalysis.main: No meaning units to process. Exiting.
+2025-01-15 23:00:21,296 [INFO] transcriptanalysis.main: Starting the main pipeline.
+2025-01-15 23:00:29,581 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-15 23:00:34,447 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-15 23:00:36,521 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-01-15 23:00:36,541 [INFO] transcriptanalysis.main: Coded meaning units saved to 'outputs/teacher_transcript_output_20250115_230036.json'.
+2025-01-15 23:00:36,544 [DEBUG] transcriptanalysis.validator: Loaded data with shape (7, 5).
+2025-01-15 23:00:36,558 [INFO] transcriptanalysis.validator: Loaded meaning units derived from 7 unique source_ids.
+2025-01-15 23:00:36,559 [INFO] transcriptanalysis.validator: Total preliminary segments: 14
+2025-01-15 23:00:36,561 [INFO] transcriptanalysis.validator: Total meaning units: 19
+2025-01-15 23:00:36,562 [DEBUG] transcriptanalysis.validator: Saving validation report to 'outputs/teacher_transcript_validation_report.json'.
+2025-01-15 23:00:36,573 [INFO] transcriptanalysis.validator: Validation report saved to 'outputs/teacher_transcript_validation_report.json'.
+2025-01-15 23:00:36,573 [INFO] transcriptanalysis.main: Validation completed. Report saved to 'outputs/teacher_transcript_validation_report.json'.
+2025-01-16 11:32:02,389 [INFO] transcriptanalysis.main: Starting the main pipeline.
+2025-01-16 11:32:02,400 [WARNING] transcriptanalysis.data_handlers: Could not initialize LangChainLLM with model=gpt-4o-mini: The api_key client option must be set either by passing api_key to the client or by setting the OPENAI_API_KEY environment variable
+2025-01-16 11:32:02,459 [ERROR] transcriptanalysis.data_handlers: LLM was not initialized; cannot parse.
+2025-01-16 11:32:02,461 [WARNING] transcriptanalysis.main: No meaning units to process. Exiting.
+2025-01-16 11:32:02,462 [INFO] transcriptanalysis.api: Pipeline completed successfully.
