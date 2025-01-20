@@ -1,72 +1,246 @@
-Transcript Analyzer is a comprehensive tool designed to facilitate the analysis of qualitative data through automated coding processes. This pipeline leverages advanced language models to parse, transform, and assign codes to qualitative data.
+TranscriptAnalyzer is a comprehensive tool for qualitative data analysis through automated coding processes. It leverages advanced language models to parse, transform, and assign codes to qualitative data, supporting flexible data handling, multiple coding approaches, and robust validation capabilities for an efficient and reliable workflow.
 
-Flexible Data Handling: Supports various JSON data formats
-Automated Parsing: Breaks down large texts into smaller, manageable meaning units.
-Deductive and Inductive Coding: Offers both predefined (deductive) and emergent (inductive) coding approaches.
-Retrieval-Augmented Generation (RAG): Enhances code assignment accuracy by leveraging FAISS indexes.
-Customizable Configuration: Easily adaptable to different datasets and coding schemas.
+## 1. Overview
+TranscriptAnalyzer automates the qualitative coding of transcripts or other textual data using Large Language Models (LLMs). The workflow includes:
 
-Main Pipeline (main.py): Orchestrates the entire workflow, from data loading to code assignment and validation.
-Data Handlers (data_handlers.py): Manages data loading, transformation, and filtering based on configuration.
-Qualitative Functions (qual_functions.py): Contains core functionalities like parsing transcripts and assigning codes.
-Utilities (utils.py): Provides helper functions for environment setup, configuration loading, and resource initialization.
-Validator (validator.py): Ensures the output's consistency and completeness through validation reports.
+- Loading raw transcripts or text segments.
+- Assigning codes to each meaning unit, either inductively or deductively.
+- Validating that the final meaning units align with the original text segments.
 
-Configuration
-The pipeline is highly configurable through two main JSON configuration files:
-Pipeline Configuration (config.json)
-Data Format Configuration (data_format_config.json)
+**Key Features:**
 
-1. Pipeline Configuration (config.json)
-This file controls the overall behavior of the pipeline, including coding modes, model selections, paths, and logging settings.
+- **Flexible Data Handling:** Supports diverse JSON data formats with customizable filtering and context fields.
+- **Automated Parsing:** Breaks down large texts into smaller, manageable meaning units.
+- **Deductive and Inductive Coding:** Offers both predefined (deductive) and emergent (inductive) coding approaches.
+- **Customizable Configuration:** Adaptable to various datasets and coding schemas through JSON configuration files.
 
-2. Data Format Configuration (data_format_config.json)
-This file defines how different data formats are handled, specifying fields for content, speaker, source IDs, and any filtering rules.
+## 2. Installation & Setup
+### Using Poetry
+TranscriptAnalyzer uses Poetry for dependency management and packaging, ensuring consistent environments and a streamlined installation process.
 
-Usage
-Setting Up Environment Variables
-Before running the pipeline, set the OpenAI API key.
-export OPENAI_API_KEY='your-openai-api-key'
-On Windows:
-set OPENAI_API_KEY=your-openai-api-key
+### Prerequisites
+- **Python 3.8+:** Ensure Python is installed.
+- **Poetry:** Install Poetry if not already available:
+  ```
+  curl -sSL https://install.python-poetry.org | python3 -
+  ```
+  Verify the installation:
+  ```
+  poetry --version
+  ```
 
-Running the Pipeline
-Execute the main script to start the coding process:
+### Installation Steps
+1. **Clone the Repository:**
+   ```
+   git clone https://github.com/iggygraceful/TranscriptAnalyzer.git
+   cd TranscriptAnalyzer
+   ```
 
-Modules
-1. main.py
-The entry point of the pipeline, responsible for orchestrating all stages from data loading to validation. It reads configurations, initializes resources, processes data, assigns codes, and generates outputs and reports.
+2. **Install Dependencies:**
+   ```
+   poetry install
+   ```
 
-2. data_handlers.py
-Handles data operations, including loading JSON files, applying filter rules, and transforming data into MeaningUnit objects. It ensures that data conforms to the specified formats and applies necessary preprocessing steps.
+3. **Activate the Virtual Environment:**
+   ```
+   poetry shell
+   ```
 
-3. qual_functions.py
-Contains core functionalities such as parsing transcripts into meaning units and assigning codes using language models. It interfaces with OpenAI's API and manages FAISS indexes for RAG.
+4. **Set Environment Variables:**
+   Configure API keys before running the pipeline:
+   - On Linux/macOS:
+     ```
+     export OPENAI_API_KEY='your-openai-api-key'
+     export HUGGINGFACE_API_KEY='your-huggingface-api-key'
+     ```
+   - On Windows CMD:
+     ```
+     set OPENAI_API_KEY=your-openai-api-key
+     set HUGGINGFACE_API_KEY=your-huggingface-api-key
+     ```
+   **Note:** Hugging Face functionality is currently unavailable; only OpenAI models are supported.
 
-4. utils.py
-Provides utility functions for environment setup, configuration loading, prompt file handling, and initializing resources like FAISS indexes. It ensures that all necessary resources are available and correctly configured.
+## 3. Key Features
+- **Flexible Data Handling:** Supports diverse JSON data formats with customizable filtering and context fields.
+- **Automated Parsing:** Segments large texts into smaller, manageable units.
+- **Deductive and Inductive Coding:** Provides predefined (deductive) and emergent (inductive) coding approaches.
+- **Retrieval-Augmented Generation (RAG):** Enhances code assignment accuracy using FAISS indexes.
+- **Customizable Configuration:** Easily tailored to various datasets and coding schemas via JSON configuration files.
 
-5. validator.py
-Validates the consistency and integrity of the coded outputs. It compares original speaking turns with concatenated meaning units, identifies inconsistencies, and generates detailed validation reports in JSON format.
+## 4. Key Components
+The codebase includes several modules, each responsible for specific tasks:
 
-Input and Output
-Input
-JSON Files: The pipeline accepts JSON files containing qualitative data. Depending on the data_format specified in the configuration, it expects certain fields:
+### `main.py`
+**Purpose:** Coordinates the workflow from data loading to validation.
+**Key Tasks:**
+- Reads configuration files.
+- Initializes the environment and logging.
+- Loads and filters data.
+- Optionally parses data into meaning units.
+- Assigns codes (deductive or inductive).
+- Saves coded meaning units to an output JSON file.
+- Runs validation and generates a report.
 
-Codebase Files: For deductive coding, JSONL files containing predefined codes are used. Each line should represent a JSON object with text and metadata.
+### `data_handlers.py`
+**Purpose:** Manages data loading, transformation, and filtering based on configuration.
+**Key Tasks:**
+- Loads JSON files.
+- Applies filter rules.
+- Transforms data into `MeaningUnit` objects.
 
-Prompts: Text files containing prompts for parsing and coding instructions.
+### `qual_functions.py`
+**Purpose:** Includes core functionalities for parsing transcripts and assigning codes.
+**Key Tasks:**
+- Interfaces with LLMs for parsing and coding.
 
-Coded JSON Files: The output includes meaning_units with assigned codes and document_metadata. These files are saved in the specified output_folder with timestamped filenames.
+### `utils.py`
+**Purpose:** Provides helper functions for environment setup and resource initialization.
+**Key Tasks:**
+- Loads JSON and text files.
+- Manages environment variables.
+- Generates structured LLM responses.
 
-Validation Reports: JSON reports detailing skipped and inconsistent speaking turns to ensure data integrity.
+### `validator.py`
+**Purpose:** Ensures output consistency and completeness through validation reports.
+**Key Tasks:**
+- Compares original segments with meaning units.
+- Identifies skipped or inconsistent segments.
+- Generates detailed JSON validation reports.
 
-Logs: Detailed logs are maintained in both the console and specified log files for monitoring and debugging.
+### `logging_config.py`
+**Purpose:** Centralizes logging setup.
+**Key Tasks:**
+- Configures log levels (DEBUG, INFO, etc.).
+- Manages console and file outputs.
 
-Logging Levels: Configurable through config.json (DEBUG, INFO, WARNING, ERROR, CRITICAL).
+### `api.py` (Optional)
+**Purpose:** Provides a FastAPI server for asynchronous pipeline execution.
+**Key Endpoints:**
+- `POST /run-pipeline`
+- `GET /status/{job_id}`
+- `GET /output/{job_id}`
+- `GET /reports/{job_id}/{report_name}`
 
-Log Outputs: Logs are output to the console and can be saved to files as specified in the configuration.
+## 5. Configuration
+### Pipeline Configuration (`config.json`)
+Defines the pipeline behavior, including coding modes, model selections, paths, and logging settings.
 
-Master Log: A master log file (logs/master_log.jsonl) records each run's timestamp, output file, and configuration for auditing purposes.
+**Example:**
+```json
+{
+  "coding_mode": "deductive",
+  "use_parsing": true,
+  "preliminary_segments_per_prompt": 5,
+  "meaning_units_per_assignment_prompt": 10,
+  "context_size": 2048,
+  "data_format": "transcript",
+  "paths": {
+    "prompts_folder": "transcriptanalysis/prompts",
+    "codebase_folder": "transcriptanalysis/codebases",
+    "json_folder": "transcriptanalysis/json_inputs",
+    "config_folder": "transcriptanalysis/configs"
+  },
+  "selected_codebase": "default_codebase.json",
+  "selected_json_file": "teacher_transcript.json",
+  "parse_prompt_file": "parse_prompt.txt",
+  "inductive_coding_prompt_file": "inductive_prompt.txt",
+  "deductive_coding_prompt_file": "deductive_prompt.txt",
+  "output_folder": "outputs",
+  "enable_logging": true,
+  "logging_level": "INFO",
+  "log_to_file": true,
+  "log_file_path": "logs/application.log",
+  "thread_count": 4,
+  "parse_llm_config": {
+    "provider": "openai",
+    "model_name": "gpt-4",
+    "temperature": 0.7,
+    "max_tokens": 2000,
+    "api_key": "YOUR_OPENAI_API_KEY"
+  },
+  "assign_llm_config": {
+    "provider": "huggingface",
+    "model_name": "some-hf-model",
+    "temperature": 0.6,
+    "max_tokens": 1500,
+    "api_key": "YOUR_HUGGINGFACE_API_KEY"
+  }
+}
+```
 
-Validation Reports: Post-processing reports (*_validation_report.json) highlight any discrepancies between the original data and the coded outputs, ensuring reliability.
+**Key Fields:**
+- `coding_mode`: "deductive" or "inductive".
+- `use_parsing`: Enable or disable parsing.
+- `paths`: Directory paths for prompts, codebases, JSON inputs, and configurations.
+- `parse_llm_config`, `assign_llm_config`: LLM configurations for parsing and coding tasks.
+
+### Data Format Configuration (`data_format_config.json`)
+Specifies how different data formats are processed, including fields for content, speaker, source IDs, and filtering rules.
+
+**Example:**
+```json
+{
+  "transcript": {
+    "content_field": "text",
+    "context_fields": ["speaker", "timestamp"],
+    "list_field": "dialogues",
+    "source_id_field": "id",
+    "filter_rules": []
+  }
+}
+```
+
+## 6. Running the Pipeline (CLI)
+### Setting Up Environment Variables
+Set the necessary API keys:
+- On Linux/macOS:
+  ```
+  export OPENAI_API_KEY='your-openai-api-key'
+  export HUGGINGFACE_API_KEY='your-huggingface-api-key'
+  ```
+- On Windows CMD:
+  ```
+  set OPENAI_API_KEY=your-openai-api-key
+  set HUGGINGFACE_API_KEY=your-huggingface-api-key
+  ```
+
+**Note:** Hugging Face API is currently unavailable.
+
+### Execute the Pipeline
+Run the main script:
+```sh
+cd TranscriptAnalyzer
+python main.py
+```
+
+## 7. Using the FastAPI Server
+Start the server:
+```sh
+uvicorn transcriptanalysis.api:app --host 0.0.0.0 --port 8000
+```
+
+**Endpoints:**
+- `POST /run-pipeline`
+- `GET /status/{job_id}`
+- `GET /output/{job_id}`
+- `GET /reports/{job_id}/{report_name}`
+
+## 8. Validation Process
+Validation ensures the final meaning units accurately represent the original segments. Discrepancies are reported in `validation_report.json`.
+
+## 9. Logging
+Logs capture pipeline operations and are saved in the specified `log_file_path`.
+
+## 10. Input and Output
+### Input
+- **Preliminary Segments:** JSON files containing raw data.
+- **Codebase Files:** JSONL files for deductive coding.
+- **Prompts:** Text files with LLM instructions.
+
+### Output
+- **Coded JSON Files:** Contain meaning units with assigned codes.
+- **Validation Reports:** Detail discrepancies between input and output.
+- **Logs:** Available in the console and specified files.
+
+Enjoy using TranscriptAnalyzer for automated qualitative coding! For support, open an issue on GitHub.
+
