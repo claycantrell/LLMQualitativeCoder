@@ -1,5 +1,5 @@
 ## 1. Overview
-LLMQualitativeCoder automates the qualitative coding process using Large Language Models (LLMs). The workflow includes:
+LLMQualitativeCoder is a tool for automated qualitative coding using Large Language Models (LLMs). The workflow includes:
 
 - **Flexible Data Handling:** Supports diverse JSON input data formats with customizable fields and basic filtering.
 - **Automated Parsing:** Breaks down large texts into smaller meaning units for coding based on specifications in LLM user prompt.
