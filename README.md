@@ -1,20 +1,14 @@
 ## 1. Overview
-LLMQualitativeCoder automates the qualitative coding textual data using Large Language Models (LLMs). The workflow includes:
+LLMQualitativeCoder automates the qualitative coding process using Large Language Models (LLMs). The workflow includes:
 
-- Loading raw transcripts or text segments.
-- Assigning codes to each meaning unit, either inductively or deductively.
-- Validating that the final meaning units align with the original text segments.
-
-**Key Features:**
-
-- **Flexible Data Handling:** Supports diverse JSON data formats with customizable filtering and context fields.
-- **Automated Parsing:** Breaks down large texts into smaller, manageable meaning units.
+- **Flexible Data Handling:** Supports diverse JSON input data formats with customizable fields and basic filtering.
+- **Automated Parsing:** Breaks down large texts into smaller meaning units for coding based on specifications in LLM user prompt.
 - **Deductive and Inductive Coding:** Offers both predefined (deductive) and emergent (inductive) coding approaches.
-- **Customizable Configuration:** Adaptable to various datasets and coding schemas through JSON configuration files.
+- **Customizable Configuration:** Config files allow for customization of batch size, context size, and LLM provider/model for coding taks.
 
 ## 2. Installation & Setup
 ### Using Poetry
-LLMQualitativeCoder uses Poetry for dependency management and packaging, ensuring consistent environments and a streamlined installation process.
+LLMQualitativeCoder uses Poetry for dependency management and packaging.
 
 ### Prerequisites
 - **Python 3.8+:** Ensure Python is installed.
@@ -56,17 +50,11 @@ LLMQualitativeCoder uses Poetry for dependency management and packaging, ensurin
      set OPENAI_API_KEY=your-openai-api-key
      set HUGGINGFACE_API_KEY=your-huggingface-api-key
      ```
-   **Note:** Hugging Face functionality is currently unavailable; only OpenAI models are supported.
+   **Note:** I couldnt get the HuggingFace API to work correctly; only OpenAI models are supported at this time.
 
-## 3. Key Features
-- **Flexible Data Handling:** Supports diverse JSON data formats with customizable filtering and context fields.
-- **Automated Parsing:** Segments large texts into smaller, manageable units.
-- **Deductive and Inductive Coding:** Provides predefined (deductive) and emergent (inductive) coding approaches.
-- **Retrieval-Augmented Generation (RAG):** Enhances code assignment accuracy using FAISS indexes.
-- **Customizable Configuration:** Easily tailored to various datasets and coding schemas via JSON configuration files.
 
 ## 4. Key Components
-The codebase includes several modules, each responsible for specific tasks:
+The codebase includes several modules:
 
 ### `main.py`
 **Purpose:** Coordinates the workflow from data loading to validation.
@@ -74,7 +62,7 @@ The codebase includes several modules, each responsible for specific tasks:
 - Reads configuration files.
 - Initializes the environment and logging.
 - Loads and filters data.
-- Optionally parses data into meaning units.
+- Optionally parses data into smaller meaning units.
 - Assigns codes (deductive or inductive).
 - Saves coded meaning units to an output JSON file.
 - Runs validation and generates a report.
@@ -103,7 +91,7 @@ The codebase includes several modules, each responsible for specific tasks:
 **Key Tasks:**
 - Compares original segments with meaning units.
 - Identifies skipped or inconsistent segments.
-- Generates detailed JSON validation reports.
+- Generates JSON validation reports.
 
 ### `logging_config.py`
 **Purpose:** Centralizes logging setup.
@@ -111,7 +99,7 @@ The codebase includes several modules, each responsible for specific tasks:
 - Configures log levels (DEBUG, INFO, etc.).
 - Manages console and file outputs.
 
-### `api.py` (Optional)
+### `api.py` (In Development)
 **Purpose:** Provides a FastAPI server for asynchronous pipeline execution.
 **Key Endpoints:**
 - `POST /run-pipeline`
@@ -130,7 +118,7 @@ Defines the pipeline behavior, including coding modes, model selections, paths, 
   "use_parsing": true,
   "preliminary_segments_per_prompt": 5,
   "meaning_units_per_assignment_prompt": 10,
-  "context_size": 2048,
+  "context_size": 5,
   "data_format": "transcript",
   "paths": {
     "prompts_folder": "transcriptanalysis/prompts",
@@ -166,14 +154,10 @@ Defines the pipeline behavior, including coding modes, model selections, paths, 
 }
 ```
 
-**Key Fields:**
-- `coding_mode`: "deductive" or "inductive".
-- `use_parsing`: Enable or disable parsing.
-- `paths`: Directory paths for prompts, codebases, JSON inputs, and configurations.
-- `parse_llm_config`, `assign_llm_config`: LLM configurations for parsing and coding tasks.
-
 ### Data Format Configuration (`data_format_config.json`)
-Specifies how different data formats are processed, including fields for content, speaker, source IDs, and filtering rules.
+Specifies your JSON input file, including fields for content, speaker, source IDs, and filtering rules.
+
+Context fields are input fields that you want to include during the LLM coding task.
 
 **Example:**
 ```json
@@ -182,7 +166,6 @@ Specifies how different data formats are processed, including fields for content
     "content_field": "text",
     "context_fields": ["speaker", "timestamp"],
     "list_field": "dialogues",
-    "source_id_field": "id",
     "filter_rules": []
   }
 }
@@ -211,18 +194,6 @@ cd LLMQualitativeCoder
 python main.py
 ```
 
-## 7. Using the FastAPI Server
-Start the server:
-```sh
-uvicorn transcriptanalysis.api:app --host 0.0.0.0 --port 8000
-```
-
-**Endpoints:**
-- `POST /run-pipeline`
-- `GET /status/{job_id}`
-- `GET /output/{job_id}`
-- `GET /reports/{job_id}/{report_name}`
-
 ## 8. Validation Process
 Validation ensures the final meaning units accurately represent the original segments. Discrepancies are reported in `validation_report.json`.
 
@@ -239,6 +210,4 @@ Logs capture pipeline operations and are saved in the specified `log_file_path`.
 - **Coded JSON Files:** Contain meaning units with assigned codes.
 - **Validation Reports:** Detail discrepancies between input and output.
 - **Logs:** Available in the console and specified files.
-
-Enjoy using LLMQualitativeCoder for automated qualitative coding! For support, open an issue on GitHub.
 
