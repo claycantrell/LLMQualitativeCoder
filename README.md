@@ -1,5 +1,3 @@
-TranscriptAnalyzer is a comprehensive tool for qualitative data analysis through automated coding processes. It leverages advanced language models to parse, transform, and assign codes to qualitative data, supporting flexible data handling, multiple coding approaches, and robust validation capabilities for an efficient and reliable workflow.
-
 ## 1. Overview
 TranscriptAnalyzer automates the qualitative coding of transcripts or other textual data using Large Language Models (LLMs). The workflow includes:
 
