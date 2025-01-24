@@ -1,5 +1,5 @@
 ## 1. Overview
-TranscriptAnalyzer automates the qualitative coding of transcripts or other textual data using Large Language Models (LLMs). The workflow includes:
+LLMQualitativeCoder automates the qualitative coding textual data using Large Language Models (LLMs). The workflow includes:
 
 - Loading raw transcripts or text segments.
 - Assigning codes to each meaning unit, either inductively or deductively.
@@ -14,7 +14,7 @@ TranscriptAnalyzer automates the qualitative coding of transcripts or other text
 
 ## 2. Installation & Setup
 ### Using Poetry
-TranscriptAnalyzer uses Poetry for dependency management and packaging, ensuring consistent environments and a streamlined installation process.
+LLMQualitativeCoder uses Poetry for dependency management and packaging, ensuring consistent environments and a streamlined installation process.
 
 ### Prerequisites
 - **Python 3.8+:** Ensure Python is installed.
@@ -30,8 +30,8 @@ TranscriptAnalyzer uses Poetry for dependency management and packaging, ensuring
 ### Installation Steps
 1. **Clone the Repository:**
    ```
-   git clone https://github.com/iggygraceful/TranscriptAnalyzer.git
-   cd TranscriptAnalyzer
+   git clone https://github.com/iggygraceful/LLMQualitativeCoder.git
+   cd LLMQualitativeCoder
    ```
 
 2. **Install Dependencies:**
@@ -207,7 +207,7 @@ Set the necessary API keys:
 ### Execute the Pipeline
 Run the main script:
 ```sh
-cd TranscriptAnalyzer
+cd LLMQualitativeCoder
 python main.py
 ```
 
@@ -240,5 +240,5 @@ Logs capture pipeline operations and are saved in the specified `log_file_path`.
 - **Validation Reports:** Detail discrepancies between input and output.
 - **Logs:** Available in the console and specified files.
 
-Enjoy using TranscriptAnalyzer for automated qualitative coding! For support, open an issue on GitHub.
+Enjoy using LLMQualitativeCoder for automated qualitative coding! For support, open an issue on GitHub.
 
