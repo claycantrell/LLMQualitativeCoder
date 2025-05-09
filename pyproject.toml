@@ -12,7 +12,7 @@ packages = [
 include = ["src/transcriptanalysis/configs/*.json", "src/transcriptanalysis/prompts/*.txt", "src/transcriptanalysis/json_inputs/*.json"]
 
 [tool.poetry.dependencies]
-python = ">=3.10,<4.0"
+python = ">=3.9,<4.0"
 hdbscan = "*"
 huggingface-hub = "*"
 jsonschema = "*"

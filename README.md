@@ -11,11 +11,28 @@ LLMQualitativeCoder is a tool for automated qualitative coding using Large Langu
 LLMQualitativeCoder uses Poetry for dependency management and packaging.
 
 ### Prerequisites
-- **Python 3.8+:** Ensure Python is installed.
-- **Poetry:** Install Poetry if not already available:
+- **Python:** The project requires Python 3.10+, but can be modified to work with Python 3.9 by changing the `python` version in `pyproject.toml`.
+- **Poetry:** Install Poetry using one of the following methods:
+  
+  **Method 1: Using curl (recommended):**
   ```
   curl -sSL https://install.python-poetry.org | python3 -
   ```
+  
+  **Method 2: Using pip (alternative):**
+  ```
+  python3 -m pip install --user poetry
+  ```
+  
+  **Add Poetry to your PATH:** After installation, make sure Poetry's bin directory is in your PATH:
+  ```
+  # For curl installation
+  export PATH=$PATH:$HOME/.local/bin
+  
+  # For pip installation
+  export PATH=$PATH:$HOME/Library/Python/3.9/bin  # Adjust Python version as needed
+  ```
+  
   Verify the installation:
   ```
   poetry --version
@@ -28,18 +45,58 @@ LLMQualitativeCoder uses Poetry for dependency management and packaging.
    cd LLMQualitativeCoder
    ```
 
-2. **Install Dependencies:**
+2. **Optional: Adjust Python Version (if using Python 3.9):**
+   Edit the `pyproject.toml` file to change:
    ```
+   python = ">=3.10,<4.0"
+   ```
+   to
+   ```
+   python = ">=3.9,<4.0"
+   ```
+
+3. **Install Dependencies:**
+   ```
+   poetry lock    # Generate/update lock file if needed
    poetry install
    ```
 
-3. **Activate the Virtual Environment:**
+4. **Activate the Virtual Environment:**
    ```
+   # For Poetry 2.0+ (newer versions)
+   poetry env activate
+   
+   # For older Poetry versions
    poetry shell
    ```
+   
+   The `poetry env activate` command will output the source command you need to run, for example:
+   ```
+   source /path/to/virtualenvs/myproject-py3.9/bin/activate
+   ```
 
-4. **Set Environment Variables:**
-   Configure API keys before running the pipeline:
+5. **Set Environment Variables:**
+   Configure API keys for the pipeline using one of these methods:
+   
+   **Option 1: Using local config file (recommended for development):**
+   
+   A template file `src/transcriptanalysis/configs/local_config.template.json` is included in the repository. The application will automatically create a copy of this template as `local_config.json` when you first run it.
+   
+   To set up your credentials:
+   
+   1. Edit the `src/transcriptanalysis/configs/local_config.json` file with your API keys:
+   ```json
+   {
+     "api_keys": {
+       "openai_api_key": "your-actual-openai-api-key",
+       "huggingface_api_key": "your-actual-huggingface-api-key" 
+     }
+   }
+   ```
+   
+   This file is included in .gitignore to prevent accidentally committing your API keys.
+   
+   **Option 2: Using environment variables (better for production):**
    - On Linux/macOS:
      ```
      export OPENAI_API_KEY='your-openai-api-key'
@@ -50,8 +107,16 @@ LLMQualitativeCoder uses Poetry for dependency management and packaging.
      set OPENAI_API_KEY=your-openai-api-key
      set HUGGINGFACE_API_KEY=your-huggingface-api-key
      ```
-   **Note:** I couldnt get the HuggingFace API to work correctly; only OpenAI models are supported at this time.
+   
+   **Note:** 
+   - You can use both methods simultaneously. The system will check for credentials in the local config file first, then fall back to environment variables.
+   - Currently, only OpenAI models are fully supported.
 
+### Troubleshooting
+- **Poetry Not Found:** If you get a "command not found" error, ensure Poetry's bin directory is added to your PATH.
+- **Python Version Mismatch:** If you see "Python version X is not supported by the project", modify the `pyproject.toml` file as described above.
+- **SSL/OpenSSL Warnings:** You may see warnings about OpenSSL versions with urllib3. These are usually harmless and can be ignored.
+- **Missing Dependencies:** If you encounter errors about missing modules, try running `poetry update` followed by `poetry install`.
 
 ## 4. Key Components
 The codebase includes several modules:
@@ -171,7 +236,7 @@ Context fields are input fields that you want to include during the LLM coding t
 }
 ```
 
-## 6. Running the Pipeline (CLI)
+## 6. Running the Pipeline
 ### Setting Up Environment Variables
 Set the necessary API keys:
 - On Linux/macOS:
@@ -185,14 +250,26 @@ Set the necessary API keys:
   set HUGGINGFACE_API_KEY=your-huggingface-api-key
   ```
 
-**Note:** Hugging Face API is currently unavailable.
+**Note:** Currently, only OpenAI models are fully supported.
 
 ### Execute the Pipeline
-Run the main script:
+Make sure you're in the Poetry virtual environment (see Installation Step 4), then run:
+
 ```sh
-cd LLMQualitativeCoder
-python main.py
+# Navigate to the src directory
+cd src
+
+# Run the main module
+python -m transcriptanalysis.main
 ```
+
+Alternatively, you can use Poetry's run script (from the project root):
+
+```sh
+poetry run transcriptanalysis.main:run
+```
+
+If you encounter any errors, check the logs for details.
 
 ## 8. Validation Process
 Validation ensures the final meaning units accurately represent the original segments. Discrepancies are reported in `validation_report.json`.
