@@ -32,6 +32,7 @@ LLMQualitativeCoder uses Poetry for dependency management and packaging.
   # For pip installation
   export PATH=$PATH:$HOME/Library/Python/3.9/bin  # Adjust Python version as needed
   ```
+  **Note:** To make the `poetry` command available in all terminal sessions, add the relevant `export PATH=...` line to your shell's startup file (e.g., `~/.zshrc`, `~/.bash_profile`, or `~/.config/fish/config.fish`) and then source it or open a new terminal.
   
   Verify the installation:
   ```
@@ -74,18 +75,33 @@ LLMQualitativeCoder uses Poetry for dependency management and packaging.
    ```
    source /path/to/virtualenvs/myproject-py3.9/bin/activate
    ```
+   Run the `source` command that `poetry env activate` outputs.
+
+   ### Verify Environment Activation (Optional)
+   After running the `source .../activate` command, you can verify the environment is active by:
+   1. Checking your command prompt: It should now be prefixed with the environment name (e.g., `(transcriptanalysis-py3.9)`).
+   2. Checking the Python interpreter path:
+      ```sh
+      which python
+      # Should point to the python executable within your virtual environment
+      ```
+   3. Listing installed packages:
+      ```sh
+      pip list
+      # You should see the project's dependencies installed here
+      ```
 
 5. **Set Environment Variables:**
    Configure API keys before running the pipeline:
    - On Linux/macOS:
      ```
      export OPENAI_API_KEY='your-openai-api-key'
-     export HUGGINGFACE_API_KEY='your-huggingface-api-key'
+     # export HUGGINGFACE_API_KEY='your-huggingface-api-key' # If HuggingFace is supported later
      ```
    - On Windows CMD:
      ```
      set OPENAI_API_KEY=your-openai-api-key
-     set HUGGINGFACE_API_KEY=your-huggingface-api-key
+     # set HUGGINGFACE_API_KEY=your-huggingface-api-key # If HuggingFace is supported later
      ```
    **Note:** Currently, only OpenAI models are fully supported.
 
@@ -153,6 +169,8 @@ The codebase includes several modules:
 ### Pipeline Configuration (`config.json`)
 Defines the pipeline behavior, including coding modes, model selections, paths, and logging settings.
 
+**Note on Configuration File Paths:** The application expects `config.json` and `data_format_config.json` (described below) to be in the `src/transcriptanalysis/configs/` directory by default. Ensure your input data files (e.g., `teacher_transcript.json`) and prompt files (e.g., `parse_prompt.txt`) are correctly pathed within your `config.json` relative to the project structure and the paths specified in `config.json` itself (e.g., `paths.json_folder`, `paths.prompts_folder`).
+
 **Example:**
 ```json
 {
@@ -215,22 +233,24 @@ Context fields are input fields that you want to include during the LLM coding t
 
 ## 6. Running the Pipeline
 ### Setting Up Environment Variables
-Set the necessary API keys:
+Set the necessary API keys (as also described in Step 5 of Installation & Setup):
 - On Linux/macOS:
   ```
   export OPENAI_API_KEY='your-openai-api-key'
-  export HUGGINGFACE_API_KEY='your-huggingface-api-key'
+  # export HUGGINGFACE_API_KEY='your-huggingface-api-key' # If HuggingFace is supported later
   ```
 - On Windows CMD:
   ```
   set OPENAI_API_KEY=your-openai-api-key
-  set HUGGINGFACE_API_KEY=your-huggingface-api-key
+  # set HUGGINGFACE_API_KEY=your-huggingface-api-key # If HuggingFace is supported later
   ```
 
 **Note:** Currently, only OpenAI models are fully supported.
 
+**Important:** Ensure you have set your `OPENAI_API_KEY` environment variable with a valid key **before** proceeding to execute the pipeline. The application will not function correctly without it.
+
 ### Execute the Pipeline
-Make sure you're in the Poetry virtual environment (see Installation Step 4), then run:
+Make sure you're in the Poetry virtual environment (see Installation Step 4 and verify its activation), then run:
 
 ```sh
 # Navigate to the src directory
@@ -247,6 +267,7 @@ poetry run transcriptanalysis.main:run
 ```
 
 If you encounter any errors, check the logs for details.
+A successful run will show API communication logs (HTTP 200) and messages indicating that the output and validation report JSON files have been saved to the `outputs/` directory.
 
 ## 8. Validation Process
 Validation ensures the final meaning units accurately represent the original segments. Discrepancies are reported in `validation_report.json`.

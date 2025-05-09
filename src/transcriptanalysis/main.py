@@ -9,6 +9,9 @@ import sys
 
 from importlib import resources
 
+# Define Project Root, assuming this file is src/transcriptanalysis/main.py
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+
 from .logging_config import setup_logging  # Relative import
 from .config_schemas import ConfigModel, DataFormatConfig
 from .utils import (
@@ -155,11 +158,12 @@ def main(config: ConfigModel):
         )
 
     # Stage 4: Output Results
-    output_folder = Path(config.output_folder)
-    output_folder.mkdir(parents=True, exist_ok=True)
+    output_folder_name = config.output_folder # e.g., "outputs"
+    output_dir = PROJECT_ROOT / output_folder_name
+    output_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_file_basename = Path(config.selected_json_file).stem
-    output_file_path = output_folder / f"{output_file_basename}_output_{timestamp}.json"
+    output_file_path = output_dir / f"{output_file_basename}_output_{timestamp}.json"
 
     document_metadata = data_handler.document_metadata
 
@@ -176,7 +180,7 @@ def main(config: ConfigModel):
 
     # Stage 5: Validation
     validation_report_filename = f"{output_file_basename}_validation_report.json"
-    validation_report_path = output_folder / validation_report_filename
+    validation_report_path = output_dir / validation_report_filename
 
     run_validation(
         input_file=str(file_path),
