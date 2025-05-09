@@ -1,6 +1,0 @@
-{
-  "api_keys": {
-    "openai_api_key": "your-openai-api-key-here",
-    "huggingface_api_key": "your-huggingface-api-key-here" 
-  }
-} 

@@ -76,27 +76,7 @@ LLMQualitativeCoder uses Poetry for dependency management and packaging.
    ```
 
 5. **Set Environment Variables:**
-   Configure API keys for the pipeline using one of these methods:
-   
-   **Option 1: Using local config file (recommended for development):**
-   
-   A template file `src/transcriptanalysis/configs/local_config.template.json` is included in the repository. The application will automatically create a copy of this template as `local_config.json` when you first run it.
-   
-   To set up your credentials:
-   
-   1. Edit the `src/transcriptanalysis/configs/local_config.json` file with your API keys:
-   ```json
-   {
-     "api_keys": {
-       "openai_api_key": "your-actual-openai-api-key",
-       "huggingface_api_key": "your-actual-huggingface-api-key" 
-     }
-   }
-   ```
-   
-   This file is included in .gitignore to prevent accidentally committing your API keys.
-   
-   **Option 2: Using environment variables (better for production):**
+   Configure API keys before running the pipeline:
    - On Linux/macOS:
      ```
      export OPENAI_API_KEY='your-openai-api-key'
@@ -107,10 +87,7 @@ LLMQualitativeCoder uses Poetry for dependency management and packaging.
      set OPENAI_API_KEY=your-openai-api-key
      set HUGGINGFACE_API_KEY=your-huggingface-api-key
      ```
-   
-   **Note:** 
-   - You can use both methods simultaneously. The system will check for credentials in the local config file first, then fall back to environment variables.
-   - Currently, only OpenAI models are fully supported.
+   **Note:** Currently, only OpenAI models are fully supported.
 
 ### Troubleshooting
 - **Poetry Not Found:** If you get a "command not found" error, ensure Poetry's bin directory is added to your PATH.

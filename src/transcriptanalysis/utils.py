@@ -27,57 +27,12 @@ parser = PydanticOutputParser(pydantic_object=ParseResponse)
 def load_environment_variables() -> Dict[str, str]:
     """
     Loads and validates required environment variables, returning them in a dictionary.
-    First checks for a local_config.json file with API keys, then falls back to environment variables.
-    Users can use either method or both.
+    For example, you could load your provider API keys here if not given in config.
     """
-    # Initialize with empty values
-    openai_api_key = ''
-    huggingface_api_key = ''
-    
-    # First try to load from local_config.json
-    try:
-        local_config_path = Path(__file__).parent / 'configs' / 'local_config.json'
-        if local_config_path.exists():
-            with local_config_path.open('r', encoding='utf-8') as file:
-                local_config = json.load(file)
-                api_keys = local_config.get('api_keys', {})
-                openai_api_key = api_keys.get('openai_api_key', '')
-                huggingface_api_key = api_keys.get('huggingface_api_key', '')
-                
-                # Skip placeholder values
-                if openai_api_key in ('your-openai-api-key', 'your-openai-api-key-here'):
-                    openai_api_key = ''
-                if huggingface_api_key in ('your-huggingface-api-key', 'your-huggingface-api-key-here'):
-                    huggingface_api_key = ''
-                
-                if openai_api_key or huggingface_api_key:
-                    logger.info("API keys loaded from local_config.json")
-    except Exception as e:
-        logger.warning(f"Error loading local config: {e}")
-        # If local_config.json doesn't exist, check if we can create it from the template
-        try:
-            template_path = Path(__file__).parent / 'configs' / 'local_config.template.json'
-            if template_path.exists() and not local_config_path.exists():
-                logger.info("Creating local_config.json from template")
-                import shutil
-                shutil.copy(template_path, local_config_path)
-        except Exception as copy_error:
-            logger.warning(f"Error copying template config: {copy_error}")
-    
-    # If keys are not found in local config, try environment variables
-    if not openai_api_key:
-        openai_api_key = os.getenv('OPENAI_API_KEY', '')
-        if openai_api_key:
-            logger.info("OpenAI API key loaded from environment variable")
-            
-    if not huggingface_api_key:
-        huggingface_api_key = os.getenv('HUGGINGFACE_API_KEY', '')
-        if huggingface_api_key:
-            logger.info("HuggingFace API key loaded from environment variable")
-    
+    openai_api_key = os.getenv('OPENAI_API_KEY', '')
+    # You might also have HF API keys or other environment variables
     return {
-        "OPENAI_API_KEY": openai_api_key,
-        "HUGGINGFACE_API_KEY": huggingface_api_key
+        "OPENAI_API_KEY": openai_api_key
     }
 
 def _load_json_file(file_path: str) -> Any:
