@@ -56,18 +56,28 @@ def main(config: ConfigModel):
         )
 
     # Load data format configuration using importlib.resources
-    try:
-        with resources.path('transcriptanalysis.configs', 'data_format_config.json') as data_format_config_path:
-            data_format_config: DataFormatConfig = load_data_format_config(str(data_format_config_path))
-    except FileNotFoundError:
-        logger.error("File 'transcriptanalysis.configs/data_format_config.json' not found.")
-        raise
+    data_format_config = None
+    format_config = None
+    
+    # Check if we're using a custom data format from dynamic configuration
+    if config.data_format == "custom" and hasattr(config, "custom_format_config"):
+        # Use the custom format config directly
+        logger.info("Using custom data format configuration from dynamic config")
+        format_config = config.custom_format_config
+    else:
+        # Load from standard config file
+        try:
+            with resources.path('transcriptanalysis.configs', 'data_format_config.json') as data_format_config_path:
+                data_format_config: DataFormatConfig = load_data_format_config(str(data_format_config_path))
+        except FileNotFoundError:
+            logger.error("File 'transcriptanalysis.configs/data_format_config.json' not found.")
+            raise
 
-    if config.data_format not in data_format_config:
-        logger.error(f"No configuration found for data format: {config.data_format}")
-        raise ValueError(f"No configuration found for data format: {config.data_format}")
+        if config.data_format not in data_format_config:
+            logger.error(f"No configuration found for data format: {config.data_format}")
+            raise ValueError(f"No configuration found for data format: {config.data_format}")
 
-    format_config = data_format_config[config.data_format]
+        format_config = data_format_config[config.data_format]
 
     # Determine the data file to load
     # Check if it's a full path to a file first (for user-uploaded files)

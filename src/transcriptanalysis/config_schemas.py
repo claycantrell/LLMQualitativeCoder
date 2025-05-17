@@ -120,10 +120,13 @@ class ConfigModel(BaseModel):
     # NEW FIELDS: Separate LLM configurations for parse and assign tasks
     parse_llm_config: LLMConfig
     assign_llm_config: LLMConfig
+    
+    # NEW FIELD: Custom format configuration for dynamic configs
+    custom_format_config: Optional[DataFormatConfigItem] = None
 
     @field_validator('data_format')
     def validate_data_format(cls, v):
-        allowed_formats = ['transcript', 'movie_script', 'other_format']  # Update as needed
+        allowed_formats = ['transcript', 'movie_script', 'other_format', 'custom']  # Added 'custom'
         if v not in allowed_formats:
             raise ValueError(f"'data_format' must be one of {allowed_formats}, got '{v}'")
         return v

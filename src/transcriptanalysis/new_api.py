@@ -18,7 +18,7 @@ from datetime import datetime
 
 # Import our package modules
 from transcriptanalysis.main import main
-from transcriptanalysis.config_schemas import ConfigModel, CodingModeEnum, LoggingLevelEnum, LLMConfig, ProviderEnum
+from transcriptanalysis.config_schemas import ConfigModel, CodingModeEnum, LoggingLevelEnum, LLMConfig, ProviderEnum, DataFormatConfigItem, PathsModel
 from transcriptanalysis.utils import load_environment_variables
 
 # Setup enhanced logging
@@ -103,6 +103,23 @@ class FileInfo(BaseModel):
     size: int
     upload_date: str
     is_default: bool
+
+class DynamicConfigModel(BaseModel):
+    """Model for dynamic configuration from frontend"""
+    file_id: str
+    content_field: str
+    context_fields: List[str] = []
+    list_field: Optional[str] = None
+    filter_rules: List[Dict[str, Any]] = []
+    coding_mode: str = "inductive"
+    use_parsing: bool = True
+    preliminary_segments_per_prompt: int = 5
+    meaning_units_per_assignment_prompt: int = 10
+    context_size: int = 5
+    model_name: str = "gpt-4o-mini"
+    temperature: float = 0.7
+    max_tokens: int = 2000
+    thread_count: int = 2
 
 @app.get("/")
 def read_root():
@@ -311,6 +328,79 @@ def get_job_validation(job_id: str):
         media_type="application/json"
     )
 
+@app.get("/analyze-file/{file_id}")
+async def analyze_file_structure(file_id: str):
+    """Analyze a JSON file's structure and suggest configuration mappings"""
+    try:
+        # Determine if it's a user-uploaded file or default file
+        file_path = USER_UPLOADS_DIR / file_id
+        
+        if not file_path.exists():
+            # Check in the default directory
+            default_dir = Path(__file__).resolve().parent / "json_inputs"
+            file_path = default_dir / file_id
+            
+            if not file_path.exists():
+                raise HTTPException(status_code=404, detail=f"File {file_id} not found")
+        
+        # Read the file
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+        
+        # Analyze structure
+        structure = detect_json_structure(data)
+        
+        logger.info(f"Successfully analyzed file structure for {file_id}")
+        return {
+            "file_id": file_id,
+            "structure": structure,
+            "suggested_mappings": structure["suggested_mappings"]
+        }
+    
+    except json.JSONDecodeError:
+        logger.exception(f"Invalid JSON file: {file_id}")
+        raise HTTPException(status_code=400, detail="Invalid JSON file")
+    except Exception as e:
+        logger.exception(f"Error analyzing file {file_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error analyzing file: {str(e)}")
+
+@app.post("/run-pipeline-with-config")
+async def run_pipeline_with_config(
+    background_tasks: BackgroundTasks,
+    config: DynamicConfigModel
+):
+    """Run the pipeline with a dynamic user-provided configuration"""
+    try:
+        # Create a job ID
+        job_id = str(uuid.uuid4())
+        job_info = JobInfo(job_id)
+        jobs[job_id] = job_info
+        
+        # Create job output directory
+        job_dir = OUTPUTS_DIR / job_id
+        job_dir.mkdir(exist_ok=True)
+        
+        # Create internal config
+        internal_config = create_internal_config_from_user_input(config, job_dir)
+        
+        # Start background task
+        background_tasks.add_task(
+            run_pipeline_task,
+            job_id=job_id,
+            config=internal_config,
+            input_file=config.file_id
+        )
+        
+        logger.info(f"Started pipeline job with dynamic config: {job_id}")
+        return {
+            "job_id": job_id,
+            "status": job_info.status,
+            "message": "Pipeline started with dynamic configuration"
+        }
+    except Exception as e:
+        logger.exception(f"Failed to start pipeline with dynamic config: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 def create_internal_config(api_config: ApiConfigModel, output_dir: Path) -> ConfigModel:
     """Convert API config to internal config"""
     # Set up LLM config (using same config for both parse and assign)
@@ -410,6 +500,150 @@ def run_pipeline_task(job_id: str, config: ConfigModel, input_file: Optional[str
         job_info.status = JobStatus.FAILED
         job_info.error = str(e)
         job_info.completed_at = datetime.now()
+
+def create_internal_config_from_user_input(config: DynamicConfigModel, output_dir: Path) -> ConfigModel:
+    """
+    Convert user-provided configuration to internal ConfigModel format
+    """
+    # Set up LLM config (using same config for both parse and assign)
+    llm_config = LLMConfig(
+        provider=ProviderEnum.OPENAI,
+        model_name=config.model_name,
+        temperature=config.temperature,
+        max_tokens=config.max_tokens,
+        api_key=""  # Will be loaded from environment
+    )
+    
+    # Create paths config
+    paths_config = {
+        "prompts_folder": "prompts",
+        "codebase_folder": "qual_codebase",
+        "json_folder": "json_inputs",
+        "config_folder": "configs",
+        "user_uploads_folder": str(USER_UPLOADS_DIR)
+    }
+    
+    # Create custom format config
+    custom_format_config = DataFormatConfigItem(
+        content_field=config.content_field,
+        context_fields=config.context_fields,
+        list_field=config.list_field,
+        source_id_field=None,  # We don't expose this in the UI for simplicity
+        filter_rules=[]  # We don't expose this in the UI for simplicity
+    )
+    
+    # Create full config
+    return ConfigModel(
+        coding_mode=CodingModeEnum(config.coding_mode),
+        use_parsing=config.use_parsing,
+        preliminary_segments_per_prompt=config.preliminary_segments_per_prompt,
+        meaning_units_per_assignment_prompt=config.meaning_units_per_assignment_prompt,
+        context_size=config.context_size,
+        data_format="custom",  # Mark as custom
+        paths=PathsModel(**paths_config),
+        selected_codebase="teacher_schema.jsonl",
+        selected_json_file=config.file_id,  # Use the file ID
+        parse_prompt_file="parse.txt",
+        inductive_coding_prompt_file="inductive.txt",
+        deductive_coding_prompt_file="deductive.txt",
+        output_folder=str(output_dir),
+        enable_logging=True,
+        logging_level=LoggingLevelEnum.INFO,
+        log_to_file=True,
+        log_file_path=str(output_dir / "api_log.log"),
+        thread_count=config.thread_count,
+        parse_llm_config=llm_config,
+        assign_llm_config=llm_config,
+        custom_format_config=custom_format_config
+    )
+
+def detect_json_structure(data):
+    """
+    Analyze a JSON document to determine fields and structure
+    Returns detailed information about the fields for configuration
+    """
+    structure = {
+        "fields": [],
+        "arrays": [],
+        "objects": [],
+        "suggested_mappings": {
+            "content_field": None,
+            "context_fields": [],
+            "list_field": None
+        }
+    }
+    
+    # Handle top-level array
+    if isinstance(data, list) and len(data) > 0:
+        structure["is_array"] = True
+        structure["suggested_mappings"]["list_field"] = "root"
+        
+        # Analyze the first item if it's an object
+        if len(data) > 0 and isinstance(data[0], dict):
+            sample_item = data[0]
+            analyze_object_fields(sample_item, structure)
+    
+    # Handle top-level object
+    elif isinstance(data, dict):
+        structure["is_object"] = True
+        analyze_object_fields(data, structure)
+        
+        # Check for arrays in the object that might contain the main data
+        for key, value in data.items():
+            if isinstance(value, list) and len(value) > 0:
+                structure["arrays"].append(key)
+                if len(value) > 0 and isinstance(value[0], dict):
+                    structure["suggested_mappings"]["list_field"] = key
+                    analyze_object_fields(value[0], structure, prefix=f"{key}.")
+    
+    return structure
+
+def analyze_object_fields(obj, structure, prefix=""):
+    """Helper function to analyze fields in an object"""
+    for key, value in obj.items():
+        field_path = f"{prefix}{key}"
+        field_info = {
+            "name": field_path,
+            "type": determine_field_type(value)
+        }
+        
+        # Add field to the fields list
+        structure["fields"].append(field_info)
+        
+        # Detect potential content fields (text fields with substantial content)
+        if field_info["type"] == "string" and isinstance(value, str) and len(value) > 50:
+            structure["suggested_mappings"]["content_field"] = field_path
+        
+        # Detect potential context fields (shorter text or metadata)
+        elif field_info["type"] in ["string", "number", "boolean", "date"] and field_path != structure["suggested_mappings"]["content_field"]:
+            structure["suggested_mappings"]["context_fields"].append(field_path)
+        
+        # Recursively analyze nested objects
+        if isinstance(value, dict):
+            structure["objects"].append(field_path)
+            analyze_object_fields(value, structure, prefix=f"{field_path}.")
+
+def determine_field_type(value):
+    """Helper function to determine the data type of a field"""
+    if isinstance(value, str):
+        # Try to detect if it's a date
+        try:
+            datetime.fromisoformat(value.replace('Z', '+00:00'))
+            return "date"
+        except (ValueError, TypeError):
+            return "string"
+    elif isinstance(value, (int, float)):
+        return "number"
+    elif isinstance(value, bool):
+        return "boolean"
+    elif isinstance(value, list):
+        return "array"
+    elif isinstance(value, dict):
+        return "object"
+    elif value is None:
+        return "null"
+    else:
+        return "unknown"
 
 if __name__ == "__main__":
     import uvicorn
