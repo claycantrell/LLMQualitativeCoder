@@ -823,6 +823,40 @@ def delete_codebase(codebase_name: str):
         logger.exception(f"Error deleting codebase {codebase_name}: {e}")
         raise HTTPException(status_code=500, detail=f"Error deleting codebase: {str(e)}")
 
+@app.get("/files/{filename}/content")
+def get_file_content(filename: str):
+    """Get the content of a file (either user-uploaded or default)"""
+    try:
+        # Check user uploads first
+        file_path = USER_UPLOADS_DIR / filename
+        
+        if not file_path.exists():
+            # Check in the default directory
+            default_dir = Path(__file__).resolve().parent / "json_inputs"
+            file_path = default_dir / filename
+            
+            if not file_path.exists():
+                raise HTTPException(status_code=404, detail=f"File {filename} not found")
+        
+        # Read the file content
+        with open(file_path, 'r') as f:
+            content = f.read()
+        
+        # Try to parse as JSON to ensure it's valid
+        try:
+            json_content = json.loads(content)
+            # Return the parsed JSON for proper formatting
+            return {"content": json_content, "filename": filename}
+        except json.JSONDecodeError:
+            # If not valid JSON, return as plain text
+            return {"content": content, "filename": filename, "is_text": True}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error reading file content: {e}")
+        raise HTTPException(status_code=500, detail=f"Error reading file content: {str(e)}")
+
 def create_internal_config(api_config: ApiConfigModel, output_dir: Path) -> ConfigModel:
     """Convert API config to internal config"""
     # Set up LLM config (using same config for both parse and assign)

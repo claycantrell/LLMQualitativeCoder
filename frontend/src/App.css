@@ -876,3 +876,259 @@ button:disabled {
   margin-top: 5px;
   display: block;
 }
+
+/* File List Container */
+.file-list-container {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 20px;
+  background-color: var(--background-secondary);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.files-section {
+  background-color: var(--background-tertiary);
+  padding: 15px;
+  border-radius: 6px;
+}
+
+.file-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.file-group h4 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.file-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  background-color: var(--background-primary);
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+}
+
+.file-list li {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.file-list li:last-child {
+  border-bottom: none;
+}
+
+.file-list li:hover {
+  background-color: var(--hover-color);
+}
+
+.file-list li.selected {
+  background-color: var(--primary-color-light);
+}
+
+.file-icon {
+  color: var(--primary-color);
+  margin-right: 10px;
+}
+
+.file-name {
+  flex-grow: 1;
+  font-size: 0.9rem;
+}
+
+.file-actions {
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.file-list li:hover .file-actions {
+  opacity: 1;
+}
+
+.action-button {
+  background: none;
+  border: none;
+  color: var(--text-color);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.action-button:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.delete-button:hover {
+  color: var(--error-color);
+}
+
+.empty-message {
+  color: var(--text-muted);
+  font-style: italic;
+  cursor: default;
+}
+
+/* File Content Preview */
+.file-content-preview {
+  background-color: var(--background-tertiary);
+  padding: 15px;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+}
+
+.file-content-preview h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.json-document-viewer {
+  flex-grow: 1;
+  overflow: auto;
+  background-color: var(--background-primary);
+  padding: 15px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  font-family: monospace;
+  height: 400px;
+}
+
+.json-document-viewer pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.json-document-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-style: italic;
+  background-color: var(--background-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+.loading-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  background-color: var(--background-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+/* File Upload Component */
+.file-upload-area {
+  border: 2px dashed var(--border-color);
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: var(--background-primary);
+  margin-bottom: 20px;
+}
+
+.file-upload-area:hover, .file-upload-area.dragging {
+  border-color: var(--primary-color);
+  background-color: var(--primary-color-light);
+}
+
+.upload-icon {
+  font-size: 2rem;
+  color: var(--primary-color);
+  margin-bottom: 10px;
+}
+
+.file-type-note {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 5px;
+}
+
+.upload-text p {
+  margin: 5px 0;
+}
+
+.upload-status {
+  margin-bottom: 15px;
+}
+
+.progress-bar {
+  height: 6px;
+  background-color: var(--background-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.progress {
+  height: 100%;
+  background-color: var(--primary-color);
+  transition: width 0.3s ease;
+}
+
+.status-message {
+  font-size: 0.85rem;
+  color: var(--text-color);
+  margin: 5px 0;
+}
+
+.status-message.error {
+  color: var(--error-color);
+}
+
+/* File Actions */
+.file-actions {
+  margin-top: 15px;
+  display: flex;
+  gap: 10px;
+}
+
+.primary-button, .secondary-button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.primary-button {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.primary-button:hover {
+  background-color: var(--primary-color-dark);
+}
+
+.secondary-button {
+  background-color: var(--background-tertiary);
+  color: var(--text-color);
+}
+
+.secondary-button:hover {
+  background-color: var(--border-color);
+}

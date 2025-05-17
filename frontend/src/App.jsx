@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import './App.css'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faFileCode, faTrash, faUpload, faFileAlt, faDownload } from '@fortawesome/free-solid-svg-icons'
 
 // API base URL - change this to your API URL when deployed
 const API_URL = 'http://localhost:8000'
@@ -416,7 +418,7 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
   }
   
   if (error) {
-    return (
+  return (
       <div className="error-panel">
         <h3>Error Analyzing File</h3>
         <p>{error}</p>
@@ -664,8 +666,8 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
                 <p>
                   This prompt template is used for inductive coding (discovering codes from data).
                   Customizing this prompt allows you to adjust how the AI model identifies and applies codes to your data.
-                </p>
-              </div>
+        </p>
+      </div>
             </>
           )}
         </div>
@@ -908,531 +910,476 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
   );
 }
 
-function App() {
-  // State for config form
-  const [config, setConfig] = useState({
-    coding_mode: 'inductive',
-    use_parsing: true,
-    preliminary_segments_per_prompt: 50,
-    meaning_units_per_assignment_prompt: 10,
-    context_size: 5,
-    data_format: 'transcript',
-    model_name: 'gpt-4o-mini',
-    temperature: 0.7,
-    max_tokens: 2000,
-    thread_count: 2,
-    input_file: null  // Track the selected input file
-  })
-  
-  // State for jobs and selected job
-  const [jobs, setJobs] = useState([])
-  const [selectedJob, setSelectedJob] = useState(null)
-  const [selectedJobData, setSelectedJobData] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-  const [apiConnected, setApiConnected] = useState(false)
-  
-  // State for file management
-  const [availableFiles, setAvailableFiles] = useState({
-    default_files: [],
-    user_files: []
-  })
-  const [uploadingFile, setUploadingFile] = useState(false)
-  const [fileError, setFileError] = useState(null)
-  
-  // State for file configuration
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [configuringFile, setConfiguringFile] = useState(false);
-  
-  // Check API connection on load
-  useEffect(() => {
-    const checkApiConnection = async () => {
-      try {
-        await axios.get(`${API_URL}/`)
-        setApiConnected(true)
-        setError(null)
-      } catch (err) {
-        console.error('API connection failed:', err)
-        setError('Cannot connect to the API server. Please ensure it is running.')
-        setApiConnected(false)
-      }
-    }
-    
-    checkApiConnection()
-    const interval = setInterval(checkApiConnection, 5000)
-    return () => clearInterval(interval)
-  }, [])
-  
-  // Load available files on API connection
-  useEffect(() => {
-    if (apiConnected) {
-      fetchAvailableFiles()
-    }
-  }, [apiConnected])
-  
-  // Fetch available files
-  const fetchAvailableFiles = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/files/list`)
-      setAvailableFiles(response.data)
-      
-      // If no file is selected and there are files available, select the first default file
-      if (!config.input_file && response.data.default_files.length > 0) {
-        setConfig(prev => ({
-          ...prev,
-          input_file: response.data.default_files[0].filename
-        }))
-      }
-    } catch (err) {
-      console.error('Error fetching files:', err)
-      setFileError('Failed to load available files')
-    }
-  }
-  
-  // Handle file upload
-  const handleFileUpload = async (event) => {
-    const file = event.target.files[0]
-    if (!file) return
-    
-    // Validate file type
-    if (!file.name.endsWith('.json')) {
-      setFileError('Only JSON files are allowed')
-      return
-    }
-    
-    setUploadingFile(true)
-    setFileError(null)
-    
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-      
-      const response = await axios.post(`${API_URL}/files/upload`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      })
-      
-      // Refresh file list and select the newly uploaded file
-      await fetchAvailableFiles()
-      setConfig(prev => ({
-        ...prev,
-        input_file: response.data.filename
-      }))
-    } catch (err) {
-      console.error('Error uploading file:', err)
-      setFileError(err.response?.data?.detail || 'Failed to upload file')
-    } finally {
-      setUploadingFile(false)
-      // Clear file input
-      event.target.value = null
-    }
-  }
-  
-  // Handle file deletion
-  const handleDeleteFile = async (filename) => {
-    try {
-      await axios.delete(`${API_URL}/files/${filename}`)
-      
-      // If the deleted file was selected, reset selection
-      if (config.input_file === filename) {
-        setConfig(prev => ({
-          ...prev,
-          input_file: availableFiles.default_files.length > 0 ? availableFiles.default_files[0].filename : null
-        }))
-      }
-      
-      // Refresh file list
-      fetchAvailableFiles()
-    } catch (err) {
-      console.error('Error deleting file:', err)
-      setFileError(err.response?.data?.detail || 'Failed to delete file')
-    }
-  }
-  
-  // Function to handle form changes
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target
-    setConfig({
-      ...config,
-      [name]: type === 'checkbox' ? checked : 
-              type === 'number' ? Number(value) :
-              value
-    })
-  }
-  
-  // Function to handle file selection
-  const handleFileSelect = (file) => {
-    // Use the configuration mode for all files
-    setSelectedFile(file);
-    setConfiguringFile(true);
-  };
-  
-  // Function to handle file configuration submission
-  const handleFileConfigSubmit = async (fileConfig, isStandardConfig) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      let response;
-      
-      if (isStandardConfig) {
-        // Use the standard pipeline endpoint
-        response = await axios.post(`${API_URL}/run-pipeline`, fileConfig);
-      } else {
-        // Use the dynamic config endpoint
-        response = await axios.post(`${API_URL}/run-pipeline-with-config`, fileConfig);
-      }
-      
-      // Update job list and select the new job
-      fetchJobs();
-      setSelectedJob(response.data.job_id);
-      setConfiguringFile(false);
-    } catch (err) {
-      console.error('Error starting pipeline:', err);
-      if (err.response) {
-        console.error('Response data:', err.response.data);
-        console.error('Response status:', err.response.status);
-        setError(`Server error (${err.response.status}): ${err.response?.data?.detail || 'Unknown error'}`);
-      } else if (err.request) {
-        setError('No response from server. Please check if the API is running.');
-      } else {
-        setError(`Error: ${err.message}`);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Cancel configuration
-  const handleCancelConfig = () => {
-    setSelectedFile(null);
-    setConfiguringFile(false);
-  };
-  
-  // Function to start a new pipeline
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!apiConnected) {
-      setError('Cannot start pipeline: API server is not connected');
-      return;
-    }
-    
-    if (!config.input_file) {
-      setError('Please select an input file before starting the pipeline');
-      return;
-    }
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // Debug the request
-      console.log('Sending request to:', `${API_URL}/run-pipeline`);
-      console.log('With payload:', config);
-      
-      const response = await axios.post(`${API_URL}/run-pipeline`, config, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      console.log('Response:', response.data);
-      fetchJobs(); // Refresh job list
-      setSelectedJob(response.data.job_id);
-    } catch (err) {
-      console.error('Error starting pipeline:', err);
-      if (err.response) {
-        console.error('Response data:', err.response.data);
-        console.error('Response status:', err.response.status);
-        setError(`Server error (${err.response.status}): ${err.response?.data?.detail || 'Unknown error'}`);
-      } else if (err.request) {
-        setError('No response from server. Please check if the API is running.');
-      } else {
-        setError(`Error: ${err.message}`);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-  
-  // Function to fetch all jobs
-  const fetchJobs = async () => {
-    if (!apiConnected) return
-    
-    try {
-      const response = await axios.get(`${API_URL}/jobs`)
-      setJobs(response.data.jobs || [])
-    } catch (err) {
-      console.error('Error fetching jobs:', err)
-    }
-  }
-  
-  // Function to fetch job details
-  const fetchJobDetails = async (jobId) => {
-    if (!jobId || !apiConnected) return
-    
-    try {
-      const response = await axios.get(`${API_URL}/jobs/${jobId}`)
-      setSelectedJobData(response.data)
-      
-      // Auto-refresh if job is still processing
-      if (response.data.status === 'pending' || response.data.status === 'running') {
-        setTimeout(() => fetchJobDetails(jobId), 2000)
-      }
-    } catch (err) {
-      console.error('Error fetching job details:', err)
-    }
-  }
-  
-  // Function to download output file
-  const downloadOutput = async (jobId) => {
-    try {
-      window.open(`${API_URL}/jobs/${jobId}/output`, '_blank')
-    } catch (err) {
-      console.error('Error downloading output:', err)
-    }
-  }
-  
-  // Function to download validation file
-  const downloadValidation = async (jobId) => {
-    try {
-      window.open(`${API_URL}/jobs/${jobId}/validation`, '_blank')
-    } catch (err) {
-      console.error('Error downloading validation:', err)
-    }
-  }
-  
-  // Fetch jobs on component mount and when API connection changes
-  useEffect(() => {
-    if (apiConnected) {
-      fetchJobs()
-      const interval = setInterval(fetchJobs, 5000)
-      return () => clearInterval(interval)
-    }
-  }, [apiConnected])
-  
-  // Fetch job details when selected job changes
-  useEffect(() => {
-    if (selectedJob) {
-      fetchJobDetails(selectedJob)
-    }
-  }, [selectedJob])
-  
-  // Format date for readable display
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A'
-    
-    const date = new Date(dateString)
-    return date.toLocaleString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    })
-  }
-  
-  // Format file size
-  const formatFileSize = (bytes) => {
-    if (bytes < 1024) return bytes + ' B'
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-  }
+// JSON Document Viewer Component
+function JsonDocumentViewer({ content }) {
+  if (!content) return <div className="json-document-empty">Select a file to view its content</div>;
   
   return (
-    <div className="container">
-      <header>
+    <div className="json-document-viewer">
+      <pre>{JSON.stringify(content, null, 2)}</pre>
+    </div>
+  );
+}
+
+function FileList({ files, onSelect, selectedFile, onDelete }) {
+  const [viewingContent, setViewingContent] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleSelect = async (file) => {
+    onSelect(file);
+    
+    // Load file content for preview
+    try {
+      setLoading(true);
+      const response = await fetch(`http://localhost:8000/files/${file.filename}/content`);
+      if (!response.ok) {
+        throw new Error(`Failed to load file content: ${response.statusText}`);
+      }
+      const data = await response.json();
+      setViewingContent(data.content);
+    } catch (error) {
+      console.error("Error loading file content:", error);
+      setViewingContent(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="file-list-container">
+      <div className="files-section">
+        <h3>Available Files</h3>
+        <div className="file-groups">
+          <div className="file-group">
+            <h4>Uploaded Files</h4>
+            <ul className="file-list">
+              {files.user_files?.length > 0 ? (
+                files.user_files.map((file) => (
+                  <li
+                    key={file.filename}
+                    className={selectedFile?.filename === file.filename ? 'selected' : ''}
+                    onClick={() => handleSelect(file)}
+                  >
+                    <span className="file-icon">
+                      <FontAwesomeIcon icon={faFileCode} />
+                    </span>
+                    <span className="file-name">{file.filename}</span>
+                    <span className="file-actions">
+                      <button 
+                        className="action-button delete-button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(file.filename);
+                        }}
+                      >
+                        <FontAwesomeIcon icon={faTrash} />
+                      </button>
+                    </span>
+                  </li>
+                ))
+              ) : (
+                <li className="empty-message">No uploaded files</li>
+              )}
+            </ul>
+          </div>
+          <div className="file-group">
+            <h4>Default Files</h4>
+            <ul className="file-list">
+              {files.default_files?.length > 0 ? (
+                files.default_files.map((file) => (
+                  <li
+                    key={file.filename}
+                    className={selectedFile?.filename === file.filename ? 'selected' : ''}
+                    onClick={() => handleSelect(file)}
+                  >
+                    <span className="file-icon">
+                      <FontAwesomeIcon icon={faFileCode} />
+                    </span>
+                    <span className="file-name">{file.filename}</span>
+                  </li>
+                ))
+              ) : (
+                <li className="empty-message">No default files</li>
+              )}
+            </ul>
+          </div>
+        </div>
+      </div>
+      
+      <div className="file-content-preview">
+        <h3>File Preview</h3>
+        {loading ? (
+          <div className="loading-content">Loading content...</div>
+        ) : (
+          <JsonDocumentViewer content={viewingContent} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// FileUpload Component
+function FileUpload({ onUploadSuccess, setUploadProgress, setUploadStatus }) {
+  const [dragging, setDragging] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragging(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFileUpload(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleFileUpload(e.target.files[0]);
+    }
+  };
+
+  const handleClickUpload = () => {
+    fileInputRef.current.click();
+  };
+
+  const handleFileUpload = async (file) => {
+    // Validate file type
+    if (!file.name.endsWith('.json')) {
+      setUploadStatus('Error: Only JSON files are supported');
+      setTimeout(() => setUploadStatus(''), 3000);
+      return;
+    }
+
+    setUploadStatus('Uploading file...');
+    setUploadProgress(0);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      await axios.post(`${API_URL}/files/upload`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(percentCompleted);
+        }
+      });
+
+      setUploadStatus('File uploaded successfully!');
+      setUploadProgress(100);
+      
+      // Reset status after a delay
+      setTimeout(() => {
+        setUploadStatus('');
+        setUploadProgress(0);
+      }, 3000);
+
+      // Refresh file list
+      if (onUploadSuccess) {
+        onUploadSuccess();
+      }
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      setUploadStatus(`Error: ${error.response?.data?.detail || 'Failed to upload file'}`);
+      setUploadProgress(0);
+    }
+  };
+
+  return (
+    <div 
+      className={`file-upload-area ${dragging ? 'dragging' : ''}`}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      onClick={handleClickUpload}
+    >
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept=".json"
+        style={{ display: 'none' }}
+      />
+      <FontAwesomeIcon icon={faUpload} className="upload-icon" />
+      <div className="upload-text">
+        <p>Drag & drop a JSON file here or click to browse</p>
+        <p className="file-type-note">Only .json files are supported</p>
+      </div>
+    </div>
+  );
+}
+
+// Helper function to format dates
+const formatDate = (dateString) => {
+  if (!dateString) return 'N/A';
+  
+  const date = new Date(dateString);
+  return date.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+// Helper function to download output
+const downloadOutput = (jobId) => {
+  window.open(`${API_URL}/jobs/${jobId}/output`, '_blank');
+};
+
+// Helper function to download validation
+const downloadValidation = (jobId) => {
+  window.open(`${API_URL}/jobs/${jobId}/validation`, '_blank');
+};
+
+function App() {
+  // State for file selection
+  const [files, setFiles] = useState({ user_files: [], default_files: [] });
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [showFileConfig, setShowFileConfig] = useState(false);
+  const [analyzeLoading, setAnalyzeLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState('');
+  const [jobs, setJobs] = useState([]);
+  const [activeJobId, setActiveJobId] = useState(null);
+  
+  // File drag and drop state
+  const [dragging, setDragging] = useState(false);
+
+  // State for codebase management
+  const [codebases, setCodebases] = useState({ default_codebases: [], user_codebases: [] });
+  const [selectedCodebase, setSelectedCodebase] = useState(null);
+  const [newCodeText, setNewCodeText] = useState('');
+  const [newCodeDescription, setNewCodeDescription] = useState('');
+  
+  // Polling for job status
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetchJobStatus();
+    }, 5000);
+    
+    return () => clearInterval(intervalId);
+  }, []);
+  
+  // Fetch available files on component mount
+  useEffect(() => {
+    fetchFiles();
+    fetchCodebases();
+  }, []);
+
+  // Function to fetch available files
+  const fetchFiles = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/files/list`);
+      setFiles(response.data);
+    } catch (error) {
+      console.error('Error fetching files:', error);
+    }
+  };
+
+  // Function to fetch available codebases
+  const fetchCodebases = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/codebases/list`);
+      setCodebases(response.data);
+    } catch (error) {
+      console.error('Error fetching codebases:', error);
+    }
+  };
+
+  // Function to fetch job status
+  const fetchJobStatus = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/jobs`);
+      setJobs(response.data.jobs || []);
+    } catch (error) {
+      console.error('Error fetching job status:', error);
+    }
+  };
+
+  // File select handler
+  const handleFileSelect = (file) => {
+    setSelectedFile(file);
+  };
+
+  // File delete handler
+  const handleDeleteFile = async (filename) => {
+    if (window.confirm(`Are you sure you want to delete ${filename}?`)) {
+      try {
+        await axios.delete(`${API_URL}/files/${filename}`);
+        fetchFiles(); // Refresh the file list
+        if (selectedFile?.filename === filename) {
+          setSelectedFile(null);
+        }
+      } catch (error) {
+        console.error('Error deleting file:', error);
+        alert(`Failed to delete file: ${error.message}`);
+      }
+    }
+  };
+
+  // Analyze file structure 
+  const handleAnalyzeFile = async (filename) => {
+    if (!filename) return;
+    
+    setAnalyzeLoading(true);
+    try {
+      const response = await axios.get(`${API_URL}/analyze-file/${filename}`);
+      
+      // If successful, proceed to configuration
+      setShowFileConfig(true);
+    } catch (error) {
+      console.error('Error analyzing file:', error);
+      alert(`Failed to analyze file: ${error.response?.data?.detail || error.message}`);
+    } finally {
+      setAnalyzeLoading(false);
+    }
+  };
+
+  // Handle configuration submission
+  const handleConfigSubmit = async (config) => {
+    try {
+      const response = await axios.post(`${API_URL}/run-pipeline-with-config`, config);
+      setShowFileConfig(false);
+      // Refresh jobs list
+      fetchJobStatus();
+      setActiveJobId(response.data.job_id);
+    } catch (error) {
+      console.error('Error submitting configuration:', error);
+      alert(`Failed to start processing: ${error.response?.data?.detail || error.message}`);
+    }
+  };
+
+  // Cancel configuration
+  const handleCancelConfig = () => {
+    setShowFileConfig(false);
+  };
+
+  return (
+    <div className="App">
+      <header className="App-header">
         <h1>LLM Qualitative Coder</h1>
         <p>Automated qualitative coding using Large Language Models</p>
-        <div className={`api-status ${apiConnected ? 'connected' : 'disconnected'}`}>
-          API Status: {apiConnected ? 'Connected' : 'Disconnected'}
-        </div>
       </header>
       
       <div className="content">
-        {configuringFile ? (
+        {showFileConfig ? (
           // Show file configuration form when a file is being configured
           <FileConfigForm 
-            file={selectedFile} 
-            onSubmit={handleFileConfigSubmit} 
-            onCancel={handleCancelConfig} 
+            file={selectedFile}
+            onSubmit={handleConfigSubmit}
+            onCancel={handleCancelConfig}
           />
         ) : (
-          // Show normal interface when not configuring a file
-          <div className="config-panel">
-            {/* File Selection Panel */}
-            <div className="file-panel">
+          <div className="main-panel">
+            <section className="files-section">
               <h2>Input Files</h2>
-              {fileError && <div className="error">{fileError}</div>}
+              <FileUpload 
+                onUploadSuccess={fetchFiles}
+                setUploadProgress={setUploadProgress}
+                setUploadStatus={setUploadStatus}
+              />
               
-              <div className="file-upload">
-                <div className="upload-container">
-                  <label className="upload-button">
-                    <UploadIcon /> Upload JSON File
-                    <input 
-                      type="file" 
-                      accept=".json" 
-                      onChange={handleFileUpload} 
-                      disabled={uploadingFile || !apiConnected}
-                      style={{ display: 'none' }}
-                    />
-                  </label>
-                  {uploadingFile && <span className="upload-status">Uploading...</span>}
-                  {!uploadingFile && <span className="file-type-note">Only .json files are supported</span>}
+              <div className="upload-status">
+                {uploadProgress > 0 && uploadProgress < 100 && (
+                  <div className="progress-bar">
+                    <div className="progress" style={{width: `${uploadProgress}%`}}></div>
+                  </div>
+                )}
+                {uploadStatus && <p className="status-message">{uploadStatus}</p>}
+              </div>
+              
+              <FileList 
+                files={files}
+                onSelect={handleFileSelect}
+                selectedFile={selectedFile}
+                onDelete={handleDeleteFile}
+              />
+              
+              {selectedFile && (
+                <div className="file-actions">
+                  <button className="primary-button" onClick={() => handleAnalyzeFile(selectedFile.filename)}>
+                    {analyzeLoading ? 'Analyzing...' : 'Analyze Structure'}
+                  </button>
+                  <button className="secondary-button" onClick={() => setShowFileConfig(true)}>
+                    Configure Processing
+                  </button>
                 </div>
+              )}
+            </section>
+
+            <section className="jobs-section">
+              <h2>Processing Jobs</h2>
+              
+              <div className="jobs-list">
+                {jobs.length === 0 ? (
+                  <p>No jobs yet. Start a new pipeline.</p>
+                ) : (
+                  <ul>
+                    {jobs.map(job => (
+                      <li 
+                        key={job.job_id}
+                        className={activeJobId === job.job_id ? 'selected' : ''}
+                        onClick={() => setActiveJobId(job.job_id)}
+                      >
+                        <div className={`job-status ${job.status}`}></div>
+                        <div className="job-info">
+                          <div className="job-name">{job.filename || 'Job'}</div>
+                          <div className="job-meta">
+                            <span className="job-date">{formatDate(job.started_at)}</span>
+                            <span className={`job-status-text ${job.status}`}>{job.status}</span>
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
               
-              <div className="file-list">
-                <h3>Default Files</h3>
-                <ul>
-                  {availableFiles.default_files.map(file => (
-                    <li 
-                      key={file.filename}
-                      className={config.input_file === file.filename ? 'selected' : ''}
-                      onClick={() => handleFileSelect(file)}
-                    >
-                      <div className="file-item">
-                        <div className="file-icon">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                            <polyline points="14 2 14 8 20 8"></polyline>
-                            <path d="M10 12a1 1 0 0 0 0 2h4a1 1 0 0 0 0-2h-4z"></path>
-                          </svg>
-                        </div>
-                        <div className="file-info">
-                          <div className="file-name">{file.filename}</div>
-                          <div className="file-meta">
-                            <span>{formatFileSize(file.size)}</span>
-                            <span className="file-default">Default</span>
-                          </div>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-                
-                <h3>User Files</h3>
-                <ul>
-                  {availableFiles.user_files.length === 0 ? (
-                    <li className="empty-list">No user files uploaded</li>
-                  ) : (
-                    availableFiles.user_files.map(file => (
-                      <li 
-                        key={file.filename}
-                        className={config.input_file === file.filename ? 'selected' : ''}
-                        onClick={() => handleFileSelect(file)}
-                      >
-                        <div className="file-item">
-                          <div className="file-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                              <polyline points="14 2 14 8 20 8"></polyline>
-                              <path d="M10 12a1 1 0 0 0 0 2h4a1 1 0 0 0 0-2h-4z"></path>
-                            </svg>
-                          </div>
-                          <div className="file-info">
-                            <div className="file-name">{file.filename}</div>
-                            <div className="file-meta">
-                              <span>{formatFileSize(file.size)}</span>
-                              <span>{new Date(file.upload_date).toLocaleDateString()}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <button 
-                          className="delete-button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteFile(file.filename);
-                          }}
-                          title="Delete file"
-                        >
-                          <TrashIcon />
-                        </button>
-                      </li>
-                    ))
+              {activeJobId && jobs.find(j => j.job_id === activeJobId) && (
+                <div className="job-details">
+                  <h3>Job Details</h3>
+                  <div><strong>Status:</strong> {jobs.find(j => j.job_id === activeJobId).status}</div>
+                  <div><strong>Started:</strong> {formatDate(jobs.find(j => j.job_id === activeJobId).started_at)}</div>
+                  
+                  {jobs.find(j => j.job_id === activeJobId).completed_at && (
+                    <div><strong>Completed:</strong> {formatDate(jobs.find(j => j.job_id === activeJobId).completed_at)}</div>
                   )}
-                </ul>
-              </div>
-            </div>
-            
-            {/* Configuration Panel */}
-            <div className="start-panel">
-              <div className="start-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 15v4c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-4M17 8l-5-5-5 5M12 3v12"/>
-                </svg>
-              </div>
-              <h2>Select a JSON File to Begin</h2>
-              {error && <div className="error">{error}</div>}
-              <p className="help-text">
-                Choose a file from the list to configure and start the analysis pipeline
-              </p>
-              <div className="json-requirement">
-                <span className="json-badge">JSON</span>
-                <span>This system only processes structured JSON data files</span>
-              </div>
-            </div>
+                  
+                  {jobs.find(j => j.job_id === activeJobId).error && (
+                    <div className="error">Error: {jobs.find(j => j.job_id === activeJobId).error}</div>
+                  )}
+                  
+                  {jobs.find(j => j.job_id === activeJobId).status === 'completed' && (
+                    <div className="job-actions">
+                      <button onClick={() => downloadOutput(activeJobId)}>
+                        Download Output
+                      </button>
+                      <button onClick={() => downloadValidation(activeJobId)}>
+                        Download Validation
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
           </div>
         )}
-        
-        <div className="jobs-panel">
-          <h2>Jobs</h2>
-          <div className="jobs-list">
-            {jobs.length === 0 ? (
-              <p>{apiConnected ? 'No jobs yet. Start a new pipeline.' : 'Connect to API to view jobs'}</p>
-            ) : (
-              <ul>
-                {jobs.map(job => (
-                  <li 
-                    key={job.job_id}
-                    className={selectedJob === job.job_id ? 'selected' : ''}
-                    onClick={() => setSelectedJob(job.job_id)}
-                  >
-                    <div className={`job-status ${job.status}`}></div>
-                    <div className="job-info">
-                      <div><strong>ID:</strong> {job.job_id.substring(0, 8)}...</div>
-                      <div><strong>Status:</strong> {job.status}</div>
-                      <div><strong>Started:</strong> {formatDate(job.started_at)}</div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          
-          {selectedJobData && (
-            <div className="job-details">
-              <h3>Job Details</h3>
-              <div><strong>Status:</strong> {selectedJobData.status}</div>
-              <div><strong>Started:</strong> {formatDate(selectedJobData.started_at)}</div>
-              
-              {selectedJobData.completed_at && (
-                <div><strong>Completed:</strong> {formatDate(selectedJobData.completed_at)}</div>
-              )}
-              
-              {selectedJobData.error && (
-                <div className="error">Error: {selectedJobData.error}</div>
-              )}
-              
-              {selectedJobData.status === 'completed' && (
-                <div className="job-actions">
-                  <button onClick={() => downloadOutput(selectedJobData.job_id)}>
-                    <DownloadIcon /> Download Output
-                  </button>
-                  <button onClick={() => downloadValidation(selectedJobData.job_id)}>
-                    <DocumentIcon /> Download Validation
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
       </div>
     </div>
-  )
+  );
 }
 
 export default App
