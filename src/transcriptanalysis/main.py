@@ -47,6 +47,14 @@ def main(config: ConfigModel):
     if not config.assign_llm_config.api_key and env_vars.get("HUGGINGFACE_API_KEY"):
         config.assign_llm_config.api_key = env_vars["HUGGINGFACE_API_KEY"]
 
+    # Load prompts
+    prompt_dir = Path(__file__).resolve().parent / "prompts"
+
+    # Check for custom prompts in user directory first
+    project_root = Path(__file__).resolve().parent.parent.parent
+    user_prompt_dir = project_root / "data" / "user_uploads" / "prompts"
+    default_prompt_dir = Path(__file__).resolve().parent / "prompts"
+
     parse_instructions = ""
     if config.use_parsing:
         parse_instructions = load_prompt_file(
@@ -137,11 +145,17 @@ def main(config: ConfigModel):
 
     # Stage 3: Code Assignment
     if config.coding_mode == "deductive":
-        coding_instructions = load_prompt_file(
-            'transcriptanalysis.prompts',  # Package path
-            config.deductive_coding_prompt_file,  # Filename, e.g., 'deductive_coding.txt'
-            description='deductive coding prompt'
-        )
+        # Check if there's a custom deductive prompt
+        custom_prompt_file = user_prompt_dir / "deductive.txt"
+        default_prompt_file = default_prompt_dir / config.deductive_coding_prompt_file
+        prompt_path = custom_prompt_file if custom_prompt_file.exists() else default_prompt_file
+        
+        # Load the prompt content
+        with open(prompt_path, 'r') as f:
+            coding_instructions = f.read()
+        
+        logger.info(f"Using {'custom' if custom_prompt_file.exists() else 'default'} deductive prompt")
+
         codebase_file = Path(config.paths.codebase_folder) / config.selected_codebase
         if not codebase_file.exists():
             logger.error(f"List of codes file '{codebase_file}' not found.")
@@ -157,36 +171,30 @@ def main(config: ConfigModel):
             coding_instructions=coding_instructions,
             processed_codes=processed_codes,
             codebase=processed_codes,
-            completion_model=config.assign_llm_config.model_name,
-            context_size=config.context_size,
-            meaning_units_per_assignment_prompt=config.meaning_units_per_assignment_prompt,
-            context_fields=format_config.context_fields,  # CHANGED
-            content_field=format_config.content_field,
-            full_preliminary_segments=data_handler.full_data.to_dict(orient='records'),  # Renamed
-            thread_count=config.thread_count,
-            llm_config=config.assign_llm_config
+            llm=assign_llm,
+            config=config
         )
     else:  # inductive
-        inductive_coding_prompt = load_prompt_file(
-            'transcriptanalysis.prompts',  # Package path
-            config.inductive_coding_prompt_file,  # Filename, e.g., 'inductive_coding.txt'
-            description='inductive coding prompt'
-        )
+        # Check if there's a custom inductive prompt
+        custom_prompt_file = user_prompt_dir / "inductive.txt"
+        default_prompt_file = default_prompt_dir / config.inductive_coding_prompt_file
+        prompt_path = custom_prompt_file if custom_prompt_file.exists() else default_prompt_file
+        
+        # Load the prompt content
+        with open(prompt_path, 'r') as f:
+            coding_instructions = f.read()
+        
+        logger.info(f"Using {'custom' if custom_prompt_file.exists() else 'default'} inductive prompt")
+
         assign_llm = LangChainLLM(config.assign_llm_config)
 
         coded_meaning_unit_list = assign_codes_to_meaning_units(
             meaning_unit_list=meaning_unit_object_list,
-            coding_instructions=inductive_coding_prompt,
+            coding_instructions=coding_instructions,
             processed_codes=None,
             codebase=None,
-            completion_model=config.assign_llm_config.model_name,
-            context_size=config.context_size,
-            meaning_units_per_assignment_prompt=config.meaning_units_per_assignment_prompt,
-            context_fields=format_config.context_fields,  # CHANGED
-            content_field=format_config.content_field,
-            full_preliminary_segments=data_handler.full_data.to_dict(orient='records'),  # Renamed
-            thread_count=config.thread_count,
-            llm_config=config.assign_llm_config
+            llm=assign_llm,
+            config=config
         )
 
     # Stage 4: Output Results

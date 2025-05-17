@@ -47,6 +47,9 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
   const [fileStructure, setFileStructure] = useState(null);
   const [error, setError] = useState(null);
   
+  // Add active tab state
+  const [activeTab, setActiveTab] = useState('config'); // 'config', 'inductive', 'deductive'
+  
   // Configuration state
   const [config, setConfig] = useState({
     file_id: file.filename,
@@ -63,6 +66,12 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
     max_tokens: 2000,
     thread_count: 2
   });
+  
+  // Add states for prompt editing
+  const [inductivePrompt, setInductivePrompt] = useState({ content: '', isCustom: false, loading: true });
+  const [deductivePrompt, setDeductivePrompt] = useState({ content: '', isCustom: false, loading: true });
+  const [promptSaving, setPromptSaving] = useState(false);
+  const [promptError, setPromptError] = useState(null);
   
   // Analyze file structure on component mount
   useEffect(() => {
@@ -154,6 +163,85 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
     }
   };
   
+  // Add functions to fetch and save prompts
+  const fetchPrompt = async (promptType) => {
+    try {
+      const response = await axios.get(`${API_URL}/prompts/${promptType}`);
+      if (promptType === 'inductive') {
+        setInductivePrompt({
+          content: response.data.content,
+          isCustom: response.data.is_custom,
+          loading: false
+        });
+      } else {
+        setDeductivePrompt({
+          content: response.data.content,
+          isCustom: response.data.is_custom,
+          loading: false
+        });
+      }
+      setPromptError(null);
+    } catch (err) {
+      console.error(`Error fetching ${promptType} prompt:`, err);
+      if (promptType === 'inductive') {
+        setInductivePrompt(prev => ({ ...prev, loading: false }));
+      } else {
+        setDeductivePrompt(prev => ({ ...prev, loading: false }));
+      }
+      setPromptError(`Failed to load ${promptType} prompt: ${err.response?.data?.detail || err.message}`);
+    }
+  };
+
+  const savePrompt = async (promptType, content) => {
+    setPromptSaving(true);
+    setPromptError(null);
+    try {
+      const response = await axios.post(`${API_URL}/prompts/${promptType}`, content, {
+        headers: {
+          'Content-Type': 'text/plain'
+        }
+      });
+      
+      if (promptType === 'inductive') {
+        setInductivePrompt(prev => ({ 
+          ...prev, 
+          isCustom: response.data.is_custom 
+        }));
+      } else {
+        setDeductivePrompt(prev => ({ 
+          ...prev, 
+          isCustom: response.data.is_custom 
+        }));
+      }
+      
+    } catch (err) {
+      console.error(`Error saving ${promptType} prompt:`, err);
+      setPromptError(`Failed to save ${promptType} prompt: ${err.response?.data?.detail || err.message}`);
+    } finally {
+      setPromptSaving(false);
+    }
+  };
+
+  const resetPrompt = async (promptType) => {
+    try {
+      const response = await axios.delete(`${API_URL}/prompts/${promptType}`);
+      // Fetch the default prompt after resetting
+      fetchPrompt(promptType);
+    } catch (err) {
+      console.error(`Error resetting ${promptType} prompt:`, err);
+      setPromptError(`Failed to reset ${promptType} prompt: ${err.response?.data?.detail || err.message}`);
+    }
+  };
+
+  // Load prompts when tab changes
+  useEffect(() => {
+    if (activeTab === 'inductive' && inductivePrompt.loading) {
+      fetchPrompt('inductive');
+    } else if (activeTab === 'deductive' && deductivePrompt.loading) {
+      fetchPrompt('deductive');
+    }
+  }, [activeTab]);
+  
   if (analyzing) {
     return <div className="loading">Analyzing file structure...</div>;
   }
@@ -167,7 +255,7 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
       </div>
     );
   }
-  
+
   return (
     <div className="file-config-form">
       <h2>Configure {file.filename}</h2>
@@ -177,137 +265,256 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
         <small className="json-note">JSON files contain structured data that can be mapped to specific fields</small>
       </p>
       
-      <form onSubmit={handleSubmit}>
-        <div className="form-section">
-          <h3>Field Mappings</h3>
-          
-          <div className="form-group">
-            <label>Content Field (main text):</label>
-            <select 
-              name="content_field" 
-              value={config.content_field} 
-              onChange={handleChange}
-              required
-            >
-              <option value="">Select Content Field</option>
-              {fileStructure?.fields?.map(field => (
-                <option 
-                  key={field.name} 
-                  value={field.name}
-                  disabled={field.type !== "string"}
-                >
-                  {field.name} {field.type !== "string" ? `(${field.type})` : ""}
-                </option>
-              ))}
-            </select>
-            <small>This is the main text content that will be analyzed</small>
-          </div>
-          
-          <div className="form-group">
-            <label>List Field (if data is in an array):</label>
-            <select 
-              name="list_field" 
-              value={config.list_field} 
-              onChange={handleChange}
-            >
-              <option value="">None (data is not in an array)</option>
-              <option value="root">Root (data is a top-level array)</option>
-              {fileStructure?.arrays?.map(arrayField => (
-                <option key={arrayField} value={arrayField}>
-                  {arrayField}
-                </option>
-              ))}
-            </select>
-            <small>Select if your data is inside an array/list</small>
-          </div>
-          
-          <div className="form-group">
-            <label>Context Fields (additional data for context):</label>
-            <div className="checkbox-group">
-              {fileStructure?.fields?.map(field => (
-                field.name !== config.content_field && (
-                  <label key={field.name} className="checkbox-label">
-                    <input 
-                      type="checkbox"
-                      checked={config.context_fields.includes(field.name)}
-                      onChange={(e) => handleContextFieldChange(field.name, e.target.checked)}
-                    />
-                    {field.name} ({field.type})
-                  </label>
-                )
-              ))}
-            </div>
-            <small>Additional fields to include as context for coding</small>
-          </div>
-        </div>
-        
-        <div className="form-section">
-          <h3>Processing Settings</h3>
-          
-          <div className="form-group">
-            <label>Coding Mode:</label>
-            <select 
-              name="coding_mode" 
-              value={config.coding_mode} 
-              onChange={handleChange}
-            >
-              <option value="inductive">Inductive (discover codes)</option>
-              <option value="deductive">Deductive (use predefined codes)</option>
-            </select>
-          </div>
-          
-          <div className="form-group checkbox-group">
-            <label>
-              <input 
-                type="checkbox" 
-                name="use_parsing" 
-                checked={config.use_parsing} 
+      <div className="config-tabs">
+        <button 
+          className={`tab-button ${activeTab === 'config' ? 'active' : ''}`}
+          onClick={() => setActiveTab('config')}
+        >
+          File Configuration
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'inductive' ? 'active' : ''}`}
+          onClick={() => setActiveTab('inductive')}
+        >
+          Inductive Prompt
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'deductive' ? 'active' : ''}`}
+          onClick={() => setActiveTab('deductive')}
+        >
+          Deductive Prompt
+        </button>
+      </div>
+      
+      {activeTab === 'config' && (
+        <form onSubmit={handleSubmit}>
+          <div className="form-section">
+            <h3>Field Mappings</h3>
+            
+            <div className="form-group">
+              <label>Content Field (main text):</label>
+              <select 
+                name="content_field" 
+                value={config.content_field} 
                 onChange={handleChange}
+                required
+              >
+                <option value="">Select Content Field</option>
+                {fileStructure?.fields?.map(field => (
+                  <option 
+                    key={field.name} 
+                    value={field.name}
+                    disabled={field.type !== "string"}
+                  >
+                    {field.name} {field.type !== "string" ? `(${field.type})` : ""}
+                  </option>
+                ))}
+              </select>
+              <small>This is the main text content that will be analyzed</small>
+            </div>
+            
+            <div className="form-group">
+              <label>List Field (if data is in an array):</label>
+              <select 
+                name="list_field" 
+                value={config.list_field} 
+                onChange={handleChange}
+              >
+                <option value="">None (data is not in an array)</option>
+                <option value="root">Root (data is a top-level array)</option>
+                {fileStructure?.arrays?.map(arrayField => (
+                  <option key={arrayField} value={arrayField}>
+                    {arrayField}
+                  </option>
+                ))}
+              </select>
+              <small>Select if your data is inside an array/list</small>
+            </div>
+            
+            <div className="form-group">
+              <label>Context Fields (additional data for context):</label>
+              <div className="checkbox-group">
+                {fileStructure?.fields?.map(field => (
+                  field.name !== config.content_field && (
+                    <label key={field.name} className="checkbox-label">
+                      <input 
+                        type="checkbox"
+                        checked={config.context_fields.includes(field.name)}
+                        onChange={(e) => handleContextFieldChange(field.name, e.target.checked)}
+                      />
+                      {field.name} ({field.type})
+                    </label>
+                  )
+                ))}
+              </div>
+              <small>Additional fields to include as context for coding</small>
+            </div>
+          </div>
+          
+          <div className="form-section">
+            <h3>Processing Settings</h3>
+            
+            <div className="form-group">
+              <label>Coding Mode:</label>
+              <select 
+                name="coding_mode" 
+                value={config.coding_mode} 
+                onChange={handleChange}
+              >
+                <option value="inductive">Inductive (discover codes)</option>
+                <option value="deductive">Deductive (use predefined codes)</option>
+              </select>
+            </div>
+            
+            <div className="form-group checkbox-group">
+              <label>
+                <input 
+                  type="checkbox" 
+                  name="use_parsing" 
+                  checked={config.use_parsing} 
+                  onChange={handleChange}
+                />
+                Use Text Parsing
+              </label>
+              <small>Break down large texts into smaller meaning units</small>
+            </div>
+            
+            <div className="form-group">
+              <label>Segments Per Prompt:</label>
+              <input 
+                type="number" 
+                name="preliminary_segments_per_prompt" 
+                value={config.preliminary_segments_per_prompt} 
+                onChange={handleChange}
+                min="1"
+                max="100"
               />
-              Use Text Parsing
-            </label>
-            <small>Break down large texts into smaller meaning units</small>
+            </div>
+            
+            <div className="form-group">
+              <label>Model:</label>
+              <select 
+                name="model_name" 
+                value={config.model_name} 
+                onChange={handleChange}
+              >
+                <option value="gpt-4o-mini">GPT-4o Mini</option>
+                <option value="gpt-4o">GPT-4o</option>
+                <option value="gpt-4">GPT-4</option>
+                <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+              </select>
+            </div>
           </div>
           
-          <div className="form-group">
-            <label>Segments Per Prompt:</label>
-            <input 
-              type="number" 
-              name="preliminary_segments_per_prompt" 
-              value={config.preliminary_segments_per_prompt} 
-              onChange={handleChange}
-              min="1"
-              max="100"
-            />
-          </div>
-          
-          <div className="form-group">
-            <label>Model:</label>
-            <select 
-              name="model_name" 
-              value={config.model_name} 
-              onChange={handleChange}
+          <div className="form-actions">
+            <button type="button" onClick={onCancel} className="secondary-button">
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              className="start-button"
             >
-              <option value="gpt-4o-mini">GPT-4o Mini</option>
-              <option value="gpt-4o">GPT-4o</option>
-              <option value="gpt-4">GPT-4</option>
-              <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-            </select>
+              Start Processing
+            </button>
           </div>
+        </form>
+      )}
+      
+      {activeTab === 'inductive' && (
+        <div className="prompt-editor">
+          <div className="prompt-header">
+            <h3>Inductive Coding Prompt</h3>
+            {inductivePrompt.isCustom && (
+              <span className="custom-badge">Custom</span>
+            )}
+          </div>
+          
+          {promptError && <div className="error">{promptError}</div>}
+          
+          {inductivePrompt.loading ? (
+            <div className="loading">Loading prompt...</div>
+          ) : (
+            <>
+              <textarea
+                className="prompt-textarea"
+                value={inductivePrompt.content}
+                onChange={(e) => setInductivePrompt({ ...inductivePrompt, content: e.target.value })}
+                rows={20}
+              />
+              <div className="prompt-actions">
+                <button 
+                  className="secondary-button"
+                  onClick={() => resetPrompt('inductive')}
+                  disabled={!inductivePrompt.isCustom || promptSaving}
+                >
+                  Reset to Default
+                </button>
+                <button 
+                  className="primary-button"
+                  onClick={() => savePrompt('inductive', inductivePrompt.content)}
+                  disabled={promptSaving}
+                >
+                  {promptSaving ? 'Saving...' : 'Save Prompt'}
+        </button>
+              </div>
+              <div className="prompt-info">
+        <p>
+                  This prompt template is used for inductive coding (discovering codes from data).
+                  Customizing this prompt allows you to adjust how the AI model identifies and applies codes to your data.
+        </p>
+      </div>
+            </>
+          )}
         </div>
-        
-        <div className="form-actions">
-          <button type="button" onClick={onCancel} className="secondary-button">
-            Cancel
-          </button>
-          <button 
-            type="submit" 
-            className="start-button"
-          >
-            Start Processing
-          </button>
+      )}
+      
+      {activeTab === 'deductive' && (
+        <div className="prompt-editor">
+          <div className="prompt-header">
+            <h3>Deductive Coding Prompt</h3>
+            {deductivePrompt.isCustom && (
+              <span className="custom-badge">Custom</span>
+            )}
+          </div>
+          
+          {promptError && <div className="error">{promptError}</div>}
+          
+          {deductivePrompt.loading ? (
+            <div className="loading">Loading prompt...</div>
+          ) : (
+            <>
+              <textarea
+                className="prompt-textarea"
+                value={deductivePrompt.content}
+                onChange={(e) => setDeductivePrompt({ ...deductivePrompt, content: e.target.value })}
+                rows={20}
+              />
+              <div className="prompt-actions">
+                <button 
+                  className="secondary-button"
+                  onClick={() => resetPrompt('deductive')}
+                  disabled={!deductivePrompt.isCustom || promptSaving}
+                >
+                  Reset to Default
+                </button>
+                <button 
+                  className="primary-button"
+                  onClick={() => savePrompt('deductive', deductivePrompt.content)}
+                  disabled={promptSaving}
+                >
+                  {promptSaving ? 'Saving...' : 'Save Prompt'}
+                </button>
+              </div>
+              <div className="prompt-info">
+                <p>
+                  This prompt template is used for deductive coding (applying predefined codes).
+                  Customizing this prompt allows you to adjust how the AI model applies your codebook to the data.
+                </p>
+              </div>
+            </>
+          )}
         </div>
-      </form>
+      )}
     </div>
   );
 }

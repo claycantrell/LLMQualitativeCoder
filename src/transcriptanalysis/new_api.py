@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # new_api.py
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Form, Request
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Form, Request, Body
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -36,6 +36,13 @@ OUTPUTS_DIR.mkdir(exist_ok=True)
 # Define user uploads directory (outside the package)
 USER_UPLOADS_DIR = PROJECT_ROOT / "data" / "user_uploads"
 USER_UPLOADS_DIR.mkdir(exist_ok=True)
+
+# Create prompts directory in user uploads
+USER_PROMPTS_DIR = USER_UPLOADS_DIR / "prompts"
+USER_PROMPTS_DIR.mkdir(exist_ok=True)
+
+# Default prompts directory (inside the package)
+DEFAULT_PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -400,6 +407,118 @@ async def run_pipeline_with_config(
     except Exception as e:
         logger.exception(f"Failed to start pipeline with dynamic config: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# Prompt management endpoints
+@app.get("/prompts/{prompt_type}")
+async def get_prompt(prompt_type: str):
+    """Get a prompt's content and information about whether it's customized.
+    
+    Args:
+        prompt_type: The type of prompt ('inductive' or 'deductive')
+        
+    Returns:
+        A JSON object containing the prompt content and whether it's customized
+    """
+    if prompt_type not in ["inductive", "deductive"]:
+        raise HTTPException(status_code=400, detail="Invalid prompt type. Must be 'inductive' or 'deductive'")
+    
+    try:
+        # Check for custom prompt
+        custom_prompt_path = USER_PROMPTS_DIR / f"{prompt_type}.txt"
+        default_prompt_path = DEFAULT_PROMPTS_DIR / f"{prompt_type}.txt"
+        
+        is_custom = custom_prompt_path.exists()
+        prompt_path = custom_prompt_path if is_custom else default_prompt_path
+        
+        if not prompt_path.exists():
+            raise HTTPException(status_code=404, detail=f"Prompt file {prompt_type}.txt not found")
+        
+        # Read the prompt content
+        with open(prompt_path, 'r') as f:
+            content = f.read()
+        
+        return {
+            "content": content,
+            "is_custom": is_custom
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error reading prompt {prompt_type}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error reading prompt: {str(e)}")
+
+@app.post("/prompts/{prompt_type}")
+async def save_custom_prompt(prompt_type: str, content: str = Body(...)):
+    """Save a customized version of a prompt.
+    
+    Args:
+        prompt_type: The type of prompt ('inductive' or 'deductive')
+        content: The new content for the prompt (sent as raw text)
+        
+    Returns:
+        A JSON object confirming that the prompt was saved
+    """
+    if prompt_type not in ["inductive", "deductive"]:
+        raise HTTPException(status_code=400, detail="Invalid prompt type. Must be 'inductive' or 'deductive'")
+    
+    try:
+        # Ensure prompts directory exists
+        USER_PROMPTS_DIR.mkdir(exist_ok=True)
+        
+        # Save the custom prompt
+        custom_prompt_path = USER_PROMPTS_DIR / f"{prompt_type}.txt"
+        
+        with open(custom_prompt_path, 'w') as f:
+            f.write(content)
+        
+        logger.info(f"Custom {prompt_type} prompt saved")
+        
+        return {
+            "message": f"Custom {prompt_type} prompt saved successfully",
+            "is_custom": True
+        }
+    
+    except Exception as e:
+        logger.exception(f"Error saving custom prompt {prompt_type}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error saving custom prompt: {str(e)}")
+
+@app.delete("/prompts/{prompt_type}")
+async def reset_prompt(prompt_type: str):
+    """Reset a prompt to its default version by deleting the custom version.
+    
+    Args:
+        prompt_type: The type of prompt ('inductive' or 'deductive')
+        
+    Returns:
+        A JSON object confirming that the prompt was reset
+    """
+    if prompt_type not in ["inductive", "deductive"]:
+        raise HTTPException(status_code=400, detail="Invalid prompt type. Must be 'inductive' or 'deductive'")
+    
+    try:
+        # Check if a custom prompt exists
+        custom_prompt_path = USER_PROMPTS_DIR / f"{prompt_type}.txt"
+        
+        if not custom_prompt_path.exists():
+            return {
+                "message": f"No custom {prompt_type} prompt found",
+                "is_custom": False
+            }
+        
+        # Delete the custom prompt
+        os.remove(custom_prompt_path)
+        
+        logger.info(f"Custom {prompt_type} prompt reset to default")
+        
+        return {
+            "message": f"Custom {prompt_type} prompt reset to default",
+            "is_custom": False
+        }
+    
+    except Exception as e:
+        logger.exception(f"Error resetting prompt {prompt_type}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error resetting prompt: {str(e)}")
 
 def create_internal_config(api_config: ApiConfigModel, output_dir: Path) -> ConfigModel:
     """Convert API config to internal config"""
