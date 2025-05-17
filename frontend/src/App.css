@@ -712,3 +712,167 @@ button:disabled {
   background-color: #95a5a6;
   cursor: not-allowed;
 }
+
+/* Codebase management styles */
+.codebases-panel {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.codebases-layout {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 20px;
+}
+
+.codebases-list-panel, .codebase-content-panel {
+  background-color: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #eee;
+}
+
+.codebases-section {
+  margin-bottom: 25px;
+}
+
+.codebases-section h4 {
+  font-size: 1rem;
+  margin-bottom: 12px;
+  color: #555;
+  font-weight: 600;
+}
+
+.codebases-list ul {
+  list-style: none;
+  background-color: #fff;
+  border-radius: 6px;
+  border: 1px solid #eee;
+  margin: 0 0 15px;
+  padding: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.codebases-list li {
+  padding: 12px 15px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.codebases-list li:hover {
+  background-color: #f8f9fa;
+}
+
+.codebases-list li:last-child {
+  border-bottom: none;
+}
+
+.codebases-list li.selected {
+  background-color: #e9f0fd;
+  border-left: 4px solid var(--primary-color);
+}
+
+.codebase-item {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.codebase-name {
+  font-weight: 600;
+  margin-bottom: 3px;
+  color: #333;
+}
+
+.codebase-meta {
+  display: flex;
+  font-size: 0.85rem;
+  color: #6c757d;
+  gap: 15px;
+}
+
+.default-badge {
+  color: #3498db;
+  background-color: #e7f4ff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.create-codebase-section {
+  margin-top: 30px;
+  padding: 15px;
+  background-color: #fff;
+  border-radius: 6px;
+  border: 1px solid #eee;
+}
+
+.codes-list {
+  margin-bottom: 25px;
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  background-color: #fff;
+}
+
+.code-item {
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+  background-color: #fff;
+}
+
+.code-item:last-child {
+  border-bottom: none;
+}
+
+.code-text {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 5px;
+}
+
+.code-description {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.add-code-form {
+  background-color: #fff;
+  padding: 15px;
+  border-radius: 6px;
+  border: 1px solid #eee;
+}
+
+.add-code-form h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 1rem;
+}
+
+.empty-codes {
+  padding: 20px;
+  text-align: center;
+  color: #999;
+}
+
+/* Responsive adjustments for codebase panel */
+@media (max-width: 768px) {
+  .codebases-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.validation-message {
+  color: #e74c3c;
+  font-size: 0.85rem;
+  margin-top: 5px;
+  display: block;
+}

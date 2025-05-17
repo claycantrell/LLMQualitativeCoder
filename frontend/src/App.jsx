@@ -48,7 +48,7 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
   const [error, setError] = useState(null);
   
   // Add active tab state
-  const [activeTab, setActiveTab] = useState('config'); // 'config', 'inductive', 'deductive'
+  const [activeTab, setActiveTab] = useState('config'); // 'config', 'inductive', 'deductive', 'codebases'
   
   // Configuration state
   const [config, setConfig] = useState({
@@ -64,7 +64,8 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
     model_name: 'gpt-4o-mini',
     temperature: 0.7,
     max_tokens: 2000,
-    thread_count: 2
+    thread_count: 2,
+    selected_codebase: ''
   });
   
   // Add states for prompt editing
@@ -72,6 +73,17 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
   const [deductivePrompt, setDeductivePrompt] = useState({ content: '', isCustom: false, loading: true });
   const [promptSaving, setPromptSaving] = useState(false);
   const [promptError, setPromptError] = useState(null);
+  
+  // Add states for codebase management
+  const [codebases, setCodebases] = useState({ default_codebases: [], user_codebases: [], loading: true });
+  const [selectedCodebase, setSelectedCodebase] = useState(null);
+  const [codebaseContents, setCodebaseContents] = useState({ codes: [], is_default: false, loading: true });
+  const [newCodeText, setNewCodeText] = useState('');
+  const [newCodeDescription, setNewCodeDescription] = useState('');
+  const [newCodebaseName, setNewCodebaseName] = useState('');
+  const [baseCodebase, setBaseCodebase] = useState('');
+  const [codebaseError, setCodebaseError] = useState(null);
+  const [saving, setSaving] = useState(false);
   
   // Analyze file structure on component mount
   useEffect(() => {
@@ -233,14 +245,171 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
     }
   };
 
+  // Functions for codebase management
+  const fetchCodebases = async () => {
+    try {
+      setCodebases(prev => ({ ...prev, loading: true }));
+      setCodebaseError(null);
+      
+      const response = await axios.get(`${API_URL}/codebases/list`);
+      setCodebases({
+        default_codebases: response.data.default_codebases || [],
+        user_codebases: response.data.user_codebases || [],
+        loading: false
+      });
+      
+      // Select the first codebase by default if none is selected
+      if (!selectedCodebase && 
+          (response.data.default_codebases?.length > 0 || response.data.user_codebases?.length > 0)) {
+        const firstCodebase = response.data.default_codebases?.[0]?.filename || 
+                              response.data.user_codebases?.[0]?.filename;
+        if (firstCodebase) {
+          setSelectedCodebase(firstCodebase);
+          fetchCodebaseContent(firstCodebase);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching codebases:', err);
+      setCodebaseError(`Failed to load codebases: ${err.response?.data?.detail || err.message}`);
+      setCodebases(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  const fetchCodebaseContent = async (codebaseName) => {
+    if (!codebaseName) return;
+    
+    try {
+      setCodebaseContents(prev => ({ ...prev, loading: true }));
+      setCodebaseError(null);
+      
+      const response = await axios.get(`${API_URL}/codebases/${codebaseName}`);
+      setCodebaseContents({
+        codebase_name: response.data.codebase_name,
+        is_default: response.data.is_default,
+        codes: response.data.codes || [],
+        loading: false
+      });
+    } catch (err) {
+      console.error('Error fetching codebase content:', err);
+      setCodebaseError(`Failed to load codebase content: ${err.response?.data?.detail || err.message}`);
+      setCodebaseContents(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  const createCodebase = async () => {
+    if (!newCodebaseName) {
+      setCodebaseError('Codebase name is required');
+      return;
+    }
+    
+    try {
+      setSaving(true);
+      setCodebaseError(null);
+      
+      const formData = new FormData();
+      formData.append('codebase_name', newCodebaseName);
+      if (baseCodebase) {
+        formData.append('base_codebase', baseCodebase);
+      }
+      
+      await axios.post(`${API_URL}/codebases/create`, formData);
+      
+      // Clear form and refresh the list
+      setNewCodebaseName('');
+      setBaseCodebase('');
+      fetchCodebases();
+      
+    } catch (err) {
+      console.error('Error creating codebase:', err);
+      setCodebaseError(`Failed to create codebase: ${err.response?.data?.detail || err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const addCodeToCodebase = async () => {
+    if (!selectedCodebase) {
+      setCodebaseError('Please select a codebase first');
+      return;
+    }
+    
+    if (!newCodeText) {
+      setCodebaseError('Code text is required');
+      return;
+    }
+    
+    try {
+      setSaving(true);
+      setCodebaseError(null);
+      
+      const codeData = {
+        text: newCodeText,
+        metadata: {
+          description: newCodeDescription
+        }
+      };
+      
+      await axios.post(`${API_URL}/codebases/${selectedCodebase}/add_code`, codeData);
+      
+      // Clear form and refresh
+      setNewCodeText('');
+      setNewCodeDescription('');
+      fetchCodebaseContent(selectedCodebase);
+      
+    } catch (err) {
+      console.error('Error adding code:', err);
+      setCodebaseError(`Failed to add code: ${err.response?.data?.detail || err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteCodebase = async (codebaseName) => {
+    try {
+      await axios.delete(`${API_URL}/codebases/${codebaseName}`);
+      
+      // If we just deleted the selected codebase, clear selection
+      if (selectedCodebase === codebaseName) {
+        setSelectedCodebase(null);
+        setCodebaseContents({ codes: [], is_default: false, loading: false });
+      }
+      
+      // Refresh the list
+      fetchCodebases();
+      
+    } catch (err) {
+      console.error('Error deleting codebase:', err);
+      setCodebaseError(`Failed to delete codebase: ${err.response?.data?.detail || err.message}`);
+    }
+  };
+
   // Load prompts when tab changes
   useEffect(() => {
     if (activeTab === 'inductive' && inductivePrompt.loading) {
       fetchPrompt('inductive');
     } else if (activeTab === 'deductive' && deductivePrompt.loading) {
       fetchPrompt('deductive');
+    } else if (activeTab === 'codebases' && codebases.loading) {
+      fetchCodebases();
     }
   }, [activeTab]);
+  
+  // Update selected codebase in config when it changes
+  useEffect(() => {
+    if (selectedCodebase) {
+      setConfig(prev => ({
+        ...prev,
+        selected_codebase: selectedCodebase
+      }));
+    }
+  }, [selectedCodebase]);
+  
+  // Fetch codebases when deductive mode is selected
+  useEffect(() => {
+    if (config.coding_mode === 'deductive' && codebases.loading) {
+      fetchCodebases();
+    }
+  }, [config.coding_mode]);
   
   if (analyzing) {
     return <div className="loading">Analyzing file structure...</div>;
@@ -283,6 +452,12 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
           onClick={() => setActiveTab('deductive')}
         >
           Deductive Prompt
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'codebases' ? 'active' : ''}`}
+          onClick={() => setActiveTab('codebases')}
+        >
+          Codebases
         </button>
       </div>
       
@@ -366,6 +541,33 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
               </select>
             </div>
             
+            {config.coding_mode === 'deductive' && (
+              <div className="form-group">
+                <label>Select Codebase:</label>
+                <select
+                  name="selected_codebase"
+                  value={config.selected_codebase}
+                  onChange={handleChange}
+                  required={config.coding_mode === 'deductive'}
+                >
+                  <option value="">Select a codebase</option>
+                  {codebases.default_codebases.map(codebase => (
+                    <option key={`default-${codebase.filename}`} value={codebase.filename}>
+                      {codebase.filename} ({codebase.code_count} codes) - Default
+                    </option>
+                  ))}
+                  {codebases.user_codebases.map(codebase => (
+                    <option key={`user-${codebase.filename}`} value={codebase.filename}>
+                      {codebase.filename} ({codebase.code_count} codes)
+                    </option>
+                  ))}
+                </select>
+                {config.coding_mode === 'deductive' && !config.selected_codebase && (
+                  <small className="validation-message">A codebase is required for deductive coding</small>
+                )}
+              </div>
+            )}
+            
             <div className="form-group checkbox-group">
               <label>
                 <input 
@@ -413,6 +615,7 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
             <button 
               type="submit" 
               className="start-button"
+              disabled={config.coding_mode === 'deductive' && !config.selected_codebase}
             >
               Start Processing
             </button>
@@ -455,14 +658,14 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
                   disabled={promptSaving}
                 >
                   {promptSaving ? 'Saving...' : 'Save Prompt'}
-        </button>
+                </button>
               </div>
               <div className="prompt-info">
-        <p>
+                <p>
                   This prompt template is used for inductive coding (discovering codes from data).
                   Customizing this prompt allows you to adjust how the AI model identifies and applies codes to your data.
-        </p>
-      </div>
+                </p>
+              </div>
             </>
           )}
         </div>
@@ -513,6 +716,192 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
               </div>
             </>
           )}
+        </div>
+      )}
+      
+      {activeTab === 'codebases' && (
+        <div className="codebases-panel">
+          {codebaseError && <div className="error">{codebaseError}</div>}
+          
+          <div className="codebases-layout">
+            <div className="codebases-list-panel">
+              <h3>Available Codebases</h3>
+              
+              {codebases.loading ? (
+                <div className="loading">Loading codebases...</div>
+              ) : (
+                <div className="codebases-list">
+                  <div className="codebases-section">
+                    <h4>Default Codebases</h4>
+                    <ul>
+                      {codebases.default_codebases.map(codebase => (
+                        <li 
+                          key={codebase.filename}
+                          className={selectedCodebase === codebase.filename ? 'selected' : ''}
+                          onClick={() => {
+                            setSelectedCodebase(codebase.filename);
+                            fetchCodebaseContent(codebase.filename);
+                          }}
+                        >
+                          <div className="codebase-item">
+                            <div className="codebase-name">{codebase.filename}</div>
+                            <div className="codebase-meta">
+                              <span>{codebase.code_count} codes</span>
+                              <span className="default-badge">Default</span>
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  
+                  <div className="codebases-section">
+                    <h4>Your Codebases</h4>
+                    <ul>
+                      {codebases.user_codebases.length === 0 ? (
+                        <li className="empty-list">No custom codebases yet</li>
+                      ) : (
+                        codebases.user_codebases.map(codebase => (
+                          <li 
+                            key={codebase.filename}
+                            className={selectedCodebase === codebase.filename ? 'selected' : ''}
+                            onClick={() => {
+                              setSelectedCodebase(codebase.filename);
+                              fetchCodebaseContent(codebase.filename);
+                            }}
+                          >
+                            <div className="codebase-item">
+                              <div className="codebase-name">{codebase.filename}</div>
+                              <div className="codebase-meta">
+                                <span>{codebase.code_count} codes</span>
+                              </div>
+                            </div>
+                            <button 
+                              className="delete-button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteCodebase(codebase.filename);
+                              }}
+                              title="Delete codebase"
+                            >
+                              <TrashIcon />
+                            </button>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  </div>
+                  
+                  <div className="create-codebase-section">
+                    <h4>Create New Codebase</h4>
+                    <div className="form-group">
+                      <label>Codebase Name:</label>
+                      <input 
+                        type="text"
+                        value={newCodebaseName}
+                        onChange={(e) => setNewCodebaseName(e.target.value)}
+                        placeholder="my_codebase.jsonl"
+                      />
+                    </div>
+                    
+                    <div className="form-group">
+                      <label>Base Codebase (optional):</label>
+                      <select
+                        value={baseCodebase}
+                        onChange={(e) => setBaseCodebase(e.target.value)}
+                      >
+                        <option value="">Create Empty Codebase</option>
+                        {codebases.default_codebases.map(codebase => (
+                          <option key={codebase.filename} value={codebase.filename}>
+                            {codebase.filename} ({codebase.code_count} codes)
+                          </option>
+                        ))}
+                        {codebases.user_codebases.map(codebase => (
+                          <option key={codebase.filename} value={codebase.filename}>
+                            {codebase.filename} ({codebase.code_count} codes)
+                          </option>
+                        ))}
+                      </select>
+                      <small>Start with an existing codebase as a template</small>
+                    </div>
+                    
+                    <button 
+                      className="secondary-button"
+                      onClick={createCodebase}
+                      disabled={saving || !newCodebaseName}
+                    >
+                      {saving ? 'Creating...' : 'Create Codebase'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="codebase-content-panel">
+              <h3>
+                {selectedCodebase ? 
+                  `Codes in ${selectedCodebase}` : 
+                  'Select a codebase to view and edit codes'}
+              </h3>
+              
+              {selectedCodebase && (
+                <>
+                  {codebaseContents.loading ? (
+                    <div className="loading">Loading codes...</div>
+                  ) : (
+                    <>
+                      <div className="codes-list">
+                        {codebaseContents.codes.length === 0 ? (
+                          <div className="empty-codes">
+                            <p>No codes in this codebase</p>
+                          </div>
+                        ) : (
+                          codebaseContents.codes.map((code, index) => (
+                            <div key={index} className="code-item">
+                              <div className="code-text">{code.text}</div>
+                              <div className="code-description">{code.metadata?.description}</div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      
+                      {/* Add new code form */}
+                      <div className="add-code-form">
+                        <h4>Add New Code</h4>
+                        <div className="form-group">
+                          <label>Code Name:</label>
+                          <input
+                            type="text"
+                            value={newCodeText}
+                            onChange={(e) => setNewCodeText(e.target.value)}
+                            placeholder="Code name"
+                          />
+                        </div>
+                        
+                        <div className="form-group">
+                          <label>Code Description:</label>
+                          <textarea
+                            value={newCodeDescription}
+                            onChange={(e) => setNewCodeDescription(e.target.value)}
+                            placeholder="Description of what this code represents"
+                            rows={3}
+                          />
+                        </div>
+                        
+                        <button
+                          className="primary-button"
+                          onClick={addCodeToCodebase}
+                          disabled={saving || !newCodeText}
+                        >
+                          {saving ? 'Adding...' : 'Add Code'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

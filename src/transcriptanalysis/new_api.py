@@ -41,8 +41,15 @@ USER_UPLOADS_DIR.mkdir(exist_ok=True)
 USER_PROMPTS_DIR = USER_UPLOADS_DIR / "prompts"
 USER_PROMPTS_DIR.mkdir(exist_ok=True)
 
+# Create codebases directory in user uploads
+USER_CODEBASES_DIR = USER_UPLOADS_DIR / "codebases"
+USER_CODEBASES_DIR.mkdir(exist_ok=True)
+
 # Default prompts directory (inside the package)
 DEFAULT_PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
+
+# Default codebases directory (inside the package)
+DEFAULT_CODEBASES_DIR = Path(__file__).resolve().parent.parent.parent / "qual_codebase"
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -103,6 +110,7 @@ class ApiConfigModel(BaseModel):
     max_tokens: int = 2000
     thread_count: int = 2
     input_file: Optional[str] = None  # Name of input file to use (can be default or user-uploaded)
+    selected_codebase: Optional[str] = None
 
 class FileInfo(BaseModel):
     """Information about a file"""
@@ -110,6 +118,19 @@ class FileInfo(BaseModel):
     size: int
     upload_date: str
     is_default: bool
+
+class CodebaseInfo(BaseModel):
+    """Information about a codebase file"""
+    filename: str
+    size: int
+    upload_date: str
+    is_default: bool
+    code_count: int
+
+class CodeEntry(BaseModel):
+    """A single code entry for a codebase"""
+    text: str
+    metadata: Dict[str, str]
 
 class DynamicConfigModel(BaseModel):
     """Model for dynamic configuration from frontend"""
@@ -127,6 +148,7 @@ class DynamicConfigModel(BaseModel):
     temperature: float = 0.7
     max_tokens: int = 2000
     thread_count: int = 2
+    selected_codebase: Optional[str] = None
 
 @app.get("/")
 def read_root():
@@ -378,6 +400,26 @@ async def run_pipeline_with_config(
 ):
     """Run the pipeline with a dynamic user-provided configuration"""
     try:
+        # Validate codebase exists if in deductive mode
+        if config.coding_mode == "deductive":
+            if not config.selected_codebase:
+                raise HTTPException(
+                    status_code=400, 
+                    detail="A codebase must be selected for deductive coding mode"
+                )
+            
+            # Check if codebase exists in either location
+            default_codebase_path = DEFAULT_CODEBASES_DIR / config.selected_codebase
+            user_codebase_path = USER_CODEBASES_DIR / config.selected_codebase
+            
+            if not default_codebase_path.exists() and not user_codebase_path.exists():
+                raise HTTPException(
+                    status_code=404, 
+                    detail=f"Codebase '{config.selected_codebase}' not found in either default or user directories"
+                )
+            
+            logger.info(f"Using codebase: {config.selected_codebase} for deductive coding")
+        
         # Create a job ID
         job_id = str(uuid.uuid4())
         job_info = JobInfo(job_id)
@@ -404,6 +446,8 @@ async def run_pipeline_with_config(
             "status": job_info.status,
             "message": "Pipeline started with dynamic configuration"
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception(f"Failed to start pipeline with dynamic config: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -520,6 +564,265 @@ async def reset_prompt(prompt_type: str):
         logger.exception(f"Error resetting prompt {prompt_type}: {e}")
         raise HTTPException(status_code=500, detail=f"Error resetting prompt: {str(e)}")
 
+@app.get("/codebases/list")
+def list_codebases():
+    """List all available codebases (both default and user-created)"""
+    try:
+        # Get default codebases
+        default_codebases = []
+        
+        if DEFAULT_CODEBASES_DIR.exists():
+            for file_path in DEFAULT_CODEBASES_DIR.glob("*.jsonl"):
+                if file_path.is_file():
+                    # Count codes in the file
+                    code_count = 0
+                    with open(file_path, 'r') as f:
+                        for line in f:
+                            if line.strip():
+                                code_count += 1
+                    
+                    default_codebases.append(CodebaseInfo(
+                        filename=file_path.name,
+                        size=file_path.stat().st_size,
+                        upload_date=datetime.fromtimestamp(file_path.stat().st_mtime).isoformat(),
+                        is_default=True,
+                        code_count=code_count
+                    ).dict())
+        
+        # Get user codebases
+        user_codebases = []
+        if USER_CODEBASES_DIR.exists():
+            for file_path in USER_CODEBASES_DIR.glob("*.jsonl"):
+                if file_path.is_file():
+                    # Count codes in the file
+                    code_count = 0
+                    with open(file_path, 'r') as f:
+                        for line in f:
+                            if line.strip():
+                                code_count += 1
+                    
+                    user_codebases.append(CodebaseInfo(
+                        filename=file_path.name,
+                        size=file_path.stat().st_size,
+                        upload_date=datetime.fromtimestamp(file_path.stat().st_mtime).isoformat(),
+                        is_default=False,
+                        code_count=code_count
+                    ).dict())
+        
+        return {"default_codebases": default_codebases, "user_codebases": user_codebases}
+    
+    except Exception as e:
+        logger.exception(f"Error listing codebases: {e}")
+        raise HTTPException(status_code=500, detail=f"Error listing codebases: {str(e)}")
+
+@app.get("/codebases/{codebase_name}")
+def get_codebase(codebase_name: str):
+    """Get a codebase's content and information about whether it's a default codebase.
+    
+    Args:
+        codebase_name: The name of the codebase file (e.g. 'news_schema.jsonl')
+        
+    Returns:
+        A JSON object containing the codebase content and whether it's a default codebase
+    """
+    try:
+        # Check for user codebase
+        user_codebase_path = USER_CODEBASES_DIR / codebase_name
+        default_codebase_path = DEFAULT_CODEBASES_DIR / codebase_name
+        
+        is_default = False
+        codebase_path = None
+        
+        if user_codebase_path.exists():
+            codebase_path = user_codebase_path
+        elif default_codebase_path.exists():
+            codebase_path = default_codebase_path
+            is_default = True
+        else:
+            raise HTTPException(status_code=404, detail=f"Codebase {codebase_name} not found")
+        
+        # Read the codebase content
+        codes = []
+        with open(codebase_path, 'r') as f:
+            for line in f:
+                if line.strip():
+                    try:
+                        code_entry = json.loads(line)
+                        codes.append(code_entry)
+                    except json.JSONDecodeError:
+                        logger.warning(f"Invalid JSON line in codebase {codebase_name}: {line}")
+        
+        return {
+            "codebase_name": codebase_name,
+            "is_default": is_default,
+            "codes": codes
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error reading codebase {codebase_name}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error reading codebase: {str(e)}")
+
+@app.post("/codebases/create")
+async def create_codebase(codebase_name: str = Form(...), base_codebase: Optional[str] = Form(None)):
+    """Create a new codebase, optionally based on an existing one.
+    
+    Args:
+        codebase_name: The name for the new codebase file (will be saved as {codebase_name}.jsonl)
+        base_codebase: Optional name of an existing codebase to use as a template
+        
+    Returns:
+        A JSON object confirming that the codebase was created
+    """
+    try:
+        # Ensure the codebase name is valid
+        if not codebase_name.endswith('.jsonl'):
+            codebase_name = f"{codebase_name}.jsonl"
+        
+        # Check if the codebase already exists
+        target_path = USER_CODEBASES_DIR / codebase_name
+        if target_path.exists():
+            raise HTTPException(status_code=400, detail=f"A codebase with name {codebase_name} already exists")
+        
+        # Create the codebases directory if it doesn't exist
+        USER_CODEBASES_DIR.mkdir(exist_ok=True)
+        
+        # If a base codebase was specified, copy it
+        if base_codebase:
+            # Check if the base codebase exists
+            base_path = None
+            user_base_path = USER_CODEBASES_DIR / base_codebase
+            default_base_path = DEFAULT_CODEBASES_DIR / base_codebase
+            
+            if user_base_path.exists():
+                base_path = user_base_path
+            elif default_base_path.exists():
+                base_path = default_base_path
+            else:
+                raise HTTPException(status_code=404, detail=f"Base codebase {base_codebase} not found")
+            
+            # Copy the base codebase
+            shutil.copy(base_path, target_path)
+        else:
+            # Create an empty codebase file
+            with open(target_path, 'w') as f:
+                pass  # Create an empty file
+        
+        logger.info(f"Codebase {codebase_name} created successfully")
+        
+        return {
+            "message": f"Codebase {codebase_name} created successfully",
+            "codebase_name": codebase_name
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error creating codebase: {e}")
+        raise HTTPException(status_code=500, detail=f"Error creating codebase: {str(e)}")
+
+@app.post("/codebases/{codebase_name}/add_code")
+async def add_code_to_codebase(
+    codebase_name: str,
+    code: CodeEntry
+):
+    """Add a new code to an existing codebase.
+    
+    Args:
+        codebase_name: The name of the codebase file to add the code to
+        code: The code entry to add (with text and metadata)
+        
+    Returns:
+        A JSON object confirming that the code was added
+    """
+    try:
+        # Check if the codebase exists
+        codebase_path = USER_CODEBASES_DIR / codebase_name
+        
+        if not codebase_path.exists():
+            # Check if it's a default codebase
+            default_codebase_path = DEFAULT_CODEBASES_DIR / codebase_name
+            if default_codebase_path.exists():
+                # For default codebases, create a copy in the user directory first
+                USER_CODEBASES_DIR.mkdir(exist_ok=True)
+                shutil.copy(default_codebase_path, codebase_path)
+                logger.info(f"Created user copy of default codebase {codebase_name}")
+            else:
+                raise HTTPException(status_code=404, detail=f"Codebase {codebase_name} not found")
+        
+        # Add the new code to the codebase
+        with open(codebase_path, 'a') as f:
+            # Check if file is empty or ends with a newline
+            needs_newline = False
+            if codebase_path.stat().st_size > 0:
+                with open(codebase_path, 'rb') as check_file:
+                    # Move to the last character of the file
+                    check_file.seek(max(0, codebase_path.stat().st_size - 1))
+                    last_char = check_file.read(1)
+                    needs_newline = last_char != b'\n'
+            
+            # Add a newline only if needed
+            if needs_newline:
+                f.write("\n")
+            
+            # Write the JSON object
+            json.dump(code.dict(), f)
+            
+            # Ensure the file ends with a newline (good practice for text files)
+            f.write("\n")
+        
+        logger.info(f"Code '{code.text}' added to codebase {codebase_name}")
+        
+        return {
+            "message": f"Code '{code.text}' added to codebase {codebase_name}",
+            "codebase_name": codebase_name,
+            "code": code
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error adding code to codebase {codebase_name}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error adding code to codebase: {str(e)}")
+
+@app.delete("/codebases/{codebase_name}")
+def delete_codebase(codebase_name: str):
+    """Delete a user-created codebase.
+    
+    Args:
+        codebase_name: The name of the codebase file to delete
+        
+    Returns:
+        A JSON object confirming that the codebase was deleted
+    """
+    try:
+        # Check if the codebase exists
+        codebase_path = USER_CODEBASES_DIR / codebase_name
+        
+        if not codebase_path.exists():
+            raise HTTPException(status_code=404, detail=f"Codebase {codebase_name} not found")
+        
+        # Check if it's a default codebase that was copied
+        default_codebase_path = DEFAULT_CODEBASES_DIR / codebase_name
+        if default_codebase_path.exists():
+            logger.warning(f"Deleting user copy of default codebase {codebase_name}")
+        
+        # Delete the codebase
+        os.remove(codebase_path)
+        
+        logger.info(f"Codebase {codebase_name} deleted")
+        
+        return {
+            "message": f"Codebase {codebase_name} deleted successfully"
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error deleting codebase {codebase_name}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error deleting codebase: {str(e)}")
+
 def create_internal_config(api_config: ApiConfigModel, output_dir: Path) -> ConfigModel:
     """Convert API config to internal config"""
     # Set up LLM config (using same config for both parse and assign)
@@ -543,6 +846,9 @@ def create_internal_config(api_config: ApiConfigModel, output_dir: Path) -> Conf
         "user_uploads_folder": str(USER_UPLOADS_DIR)  # Add user uploads folder
     }
     
+    # Use the selected codebase from the API config if provided, otherwise use default
+    selected_codebase = api_config.selected_codebase if hasattr(api_config, 'selected_codebase') and api_config.selected_codebase else "teacher_schema.jsonl"
+    
     logger.debug(f"Creating internal config with output dir: {output_dir}")
     
     # Create full config
@@ -554,7 +860,7 @@ def create_internal_config(api_config: ApiConfigModel, output_dir: Path) -> Conf
         context_size=api_config.context_size,
         data_format=api_config.data_format,
         paths=paths_config,
-        selected_codebase="teacher_schema.jsonl",
+        selected_codebase=selected_codebase,
         selected_json_file=input_file,  # Use the selected input file
         parse_prompt_file="parse.txt",
         inductive_coding_prompt_file="inductive.txt",
@@ -651,6 +957,9 @@ def create_internal_config_from_user_input(config: DynamicConfigModel, output_di
         filter_rules=[]  # We don't expose this in the UI for simplicity
     )
     
+    # Use the selected codebase from the UI if provided, otherwise use default
+    selected_codebase = config.selected_codebase if hasattr(config, 'selected_codebase') and config.selected_codebase else "teacher_schema.jsonl"
+    
     # Create full config
     return ConfigModel(
         coding_mode=CodingModeEnum(config.coding_mode),
@@ -660,7 +969,7 @@ def create_internal_config_from_user_input(config: DynamicConfigModel, output_di
         context_size=config.context_size,
         data_format="custom",  # Mark as custom
         paths=PathsModel(**paths_config),
-        selected_codebase="teacher_schema.jsonl",
+        selected_codebase=selected_codebase,
         selected_json_file=config.file_id,  # Use the file ID
         parse_prompt_file="parse.txt",
         inductive_coding_prompt_file="inductive.txt",

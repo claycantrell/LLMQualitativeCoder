@@ -156,23 +156,48 @@ def main(config: ConfigModel):
         
         logger.info(f"Using {'custom' if custom_prompt_file.exists() else 'default'} deductive prompt")
 
+        # Look for codebase in multiple locations
         codebase_file = Path(config.paths.codebase_folder) / config.selected_codebase
-        if not codebase_file.exists():
+        user_codebase_file = None
+        
+        # Check if user_uploads_folder is defined in paths
+        if hasattr(config.paths, 'user_uploads_folder') and config.paths.user_uploads_folder:
+            user_codebase_dir = Path(config.paths.user_uploads_folder) / "codebases"
+            user_codebase_file = user_codebase_dir / config.selected_codebase
+        
+        # Try user codebase first, then default codebase
+        if user_codebase_file and user_codebase_file.exists():
+            logger.info(f"Using user codebase: {user_codebase_file}")
+            codebase_file = user_codebase_file
+        elif not codebase_file.exists():
             logger.error(f"List of codes file '{codebase_file}' not found.")
+            logger.error(f"Also checked user location: {user_codebase_file}")
             raise FileNotFoundError(f"List of codes file '{codebase_file}' not found.")
 
         with codebase_file.open('r', encoding='utf-8') as file:
             processed_codes = [json.loads(line) for line in file if line.strip()]
 
-        assign_llm = LangChainLLM(config.assign_llm_config)
+        # Prepare preliminary segments from data_df for context
+        preliminary_segments = []
+        for _, row in data_df.iterrows():
+            preliminary_segments.append({
+                'source_id': str(row['source_id']),
+                'content': row.get(format_config.content_field, ''),
+                **{field: row.get(field, '') for field in format_config.context_fields if field in row}
+            })
 
         coded_meaning_unit_list = assign_codes_to_meaning_units(
             meaning_unit_list=meaning_unit_object_list,
             coding_instructions=coding_instructions,
             processed_codes=processed_codes,
             codebase=processed_codes,
-            llm=assign_llm,
-            config=config
+            llm_config=config.assign_llm_config,
+            context_size=config.context_size,
+            meaning_units_per_assignment_prompt=config.meaning_units_per_assignment_prompt,
+            context_fields=format_config.context_fields,
+            content_field=format_config.content_field,
+            full_preliminary_segments=preliminary_segments,
+            thread_count=config.thread_count
         )
     else:  # inductive
         # Check if there's a custom inductive prompt
@@ -186,15 +211,27 @@ def main(config: ConfigModel):
         
         logger.info(f"Using {'custom' if custom_prompt_file.exists() else 'default'} inductive prompt")
 
-        assign_llm = LangChainLLM(config.assign_llm_config)
+        # Prepare preliminary segments from data_df for context
+        preliminary_segments = []
+        for _, row in data_df.iterrows():
+            preliminary_segments.append({
+                'source_id': str(row['source_id']),
+                'content': row.get(format_config.content_field, ''),
+                **{field: row.get(field, '') for field in format_config.context_fields if field in row}
+            })
 
         coded_meaning_unit_list = assign_codes_to_meaning_units(
             meaning_unit_list=meaning_unit_object_list,
             coding_instructions=coding_instructions,
             processed_codes=None,
             codebase=None,
-            llm=assign_llm,
-            config=config
+            llm_config=config.assign_llm_config,
+            context_size=config.context_size,
+            meaning_units_per_assignment_prompt=config.meaning_units_per_assignment_prompt, 
+            context_fields=format_config.context_fields,
+            content_field=format_config.content_field,
+            full_preliminary_segments=preliminary_segments,
+            thread_count=config.thread_count
         )
 
     # Stage 4: Output Results
