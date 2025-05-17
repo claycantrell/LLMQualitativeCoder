@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import './App.css'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faFileCode, faTrash, faUpload, faFileAlt, faDownload } from '@fortawesome/free-solid-svg-icons'
+import { faFileCode, faTrash, faUpload, faFileAlt, faDownload, faExpand, faCompress } from '@fortawesome/free-solid-svg-icons'
 
 // API base URL - change this to your API URL when deployed
 const API_URL = 'http://localhost:8000'
@@ -793,11 +793,15 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
                     ) : (
                       <>
                         {previewTab === 'file' ? (
-                          <JsonDocumentViewer content={fileContent} />
+                          <ExpandableContainer title="File Preview">
+                            <JsonDocumentViewer content={fileContent} />
+                          </ExpandableContainer>
                         ) : (
-                          <div className="prompt-preview">
-                            <pre>{promptPreview}</pre>
-                          </div>
+                          <ExpandableContainer title="Prompt Preview">
+                            <div className="prompt-preview">
+                              <pre>{promptPreview}</pre>
+                            </div>
+                          </ExpandableContainer>
                         )}
                       </>
                     )}
@@ -866,6 +870,54 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
           fetchCodebases={fetchCodebases}
         />
       )}
+    </div>
+  );
+}
+
+// Expandable Container Component
+function ExpandableContainer({ children, title }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const containerRef = useRef(null);
+
+  const toggleExpand = () => {
+    setIsExpanded(!isExpanded);
+  };
+
+  // Add event listener to close on escape key
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && isExpanded) {
+        setIsExpanded(false);
+      }
+    };
+
+    if (isExpanded) {
+      document.addEventListener('keydown', handleEscape);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isExpanded]);
+
+  return (
+    <div 
+      ref={containerRef}
+      className={`expandable-container ${isExpanded ? 'expanded' : ''}`}
+    >
+      <div className="expandable-header">
+        {title && <h3>{title}</h3>}
+        <button 
+          className="expand-button"
+          onClick={toggleExpand}
+          title={isExpanded ? "Minimize" : "Maximize"}
+        >
+          <FontAwesomeIcon icon={isExpanded ? faCompress : faExpand} />
+        </button>
+      </div>
+      <div className="expandable-content">
+        {children}
+      </div>
     </div>
   );
 }
@@ -972,7 +1024,9 @@ function FileList({ files, onSelect, selectedFile, onDelete }) {
           {loading ? (
             <div className="loading-content">Loading content...</div>
           ) : (
-            <JsonDocumentViewer content={viewingContent} />
+            <ExpandableContainer title="File Preview">
+              <JsonDocumentViewer content={viewingContent} />
+            </ExpandableContainer>
           )}
         </div>
       </div>
@@ -1142,12 +1196,14 @@ function PromptEditor({ type, prompt, setPrompt, fetchPrompt, savePrompt, resetP
         </p>
       </div>
       
-      <textarea 
-        className="prompt-textarea"
-        value={prompt.content || ''}
-        onChange={handlePromptChange}
-        rows={15}
-      />
+      <ExpandableContainer title={`${type.charAt(0).toUpperCase() + type.slice(1)} Prompt Editor`}>
+        <textarea 
+          className="prompt-textarea"
+          value={prompt.content || ''}
+          onChange={handlePromptChange}
+          rows={15}
+        />
+      </ExpandableContainer>
       
       <div className="prompt-actions">
         <button 
@@ -1326,28 +1382,30 @@ function CodebaseManager({
               <>
                 {activeCodebase && (
                   <>
-                    <div className="codes-list">
-                      {codebaseContent.length > 0 ? (
-                        <table className="codes-table">
-                          <thead>
-                            <tr>
-                              <th>Code</th>
-                              <th>Description</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {codebaseContent.map((code, index) => (
-                              <tr key={index}>
-                                <td>{code.text}</td>
-                                <td>{code.metadata?.description || '-'}</td>
+                    <ExpandableContainer title={`Codes in ${activeCodebase}`}>
+                      <div className="codes-list">
+                        {codebaseContent.length > 0 ? (
+                          <table className="codes-table">
+                            <thead>
+                              <tr>
+                                <th>Code</th>
+                                <th>Description</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      ) : (
-                        <div className="empty-message">No codes in this codebase</div>
-                      )}
-                    </div>
+                            </thead>
+                            <tbody>
+                              {codebaseContent.map((code, index) => (
+                                <tr key={index}>
+                                  <td>{code.text}</td>
+                                  <td>{code.metadata?.description || '-'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        ) : (
+                          <div className="empty-message">No codes in this codebase</div>
+                        )}
+                      </div>
+                    </ExpandableContainer>
                     
                     {/* Form to add new code */}
                     <div className="add-code-form">
