@@ -5,6 +5,7 @@ LLMQualitativeCoder is a tool for automated qualitative coding using Large Langu
 - **Automated Parsing:** Breaks down large texts into smaller meaning units for coding based on specifications in LLM user prompt.
 - **Deductive and Inductive Coding:** Offers both predefined (deductive) and emergent (inductive) coding approaches.
 - **Customizable Configuration:** Config files allow for customization of batch size, context size, and LLM provider/model for coding taks.
+- **Web Interface:** A modern React-based UI for uploading files, running the pipeline, and managing results.
 
 ## 2. Installation & Setup
 ### Using Poetry
@@ -91,7 +92,13 @@ LLMQualitativeCoder uses Poetry for dependency management and packaging.
       # You should see the project's dependencies installed here
       ```
 
-5. **Set Environment Variables:**
+5. **Install Additional Required Packages:**
+   ```
+   pip install python-multipart
+   ```
+   This package is required for file uploads in the web interface.
+
+6. **Set Environment Variables:**
    Configure API keys before running the pipeline:
    - On Linux/macOS:
      ```
@@ -110,6 +117,7 @@ LLMQualitativeCoder uses Poetry for dependency management and packaging.
 - **Python Version Mismatch:** If you see "Python version X is not supported by the project", modify the `pyproject.toml` file as described above.
 - **SSL/OpenSSL Warnings:** You may see warnings about OpenSSL versions with urllib3. These are usually harmless and can be ignored.
 - **Missing Dependencies:** If you encounter errors about missing modules, try running `poetry update` followed by `poetry install`.
+- **File Upload Issues:** If file uploads are not working, ensure you have installed the `python-multipart` package.
 
 ## 4. Key Components
 The codebase includes several modules:
@@ -157,13 +165,16 @@ The codebase includes several modules:
 - Configures log levels (DEBUG, INFO, etc.).
 - Manages console and file outputs.
 
-### `api.py` (In Development)
-**Purpose:** Provides a FastAPI server for asynchronous pipeline execution.
+### `new_api.py`
+**Purpose:** Provides a FastAPI server for asynchronous pipeline execution and web interface support.
 **Key Endpoints:**
-- `POST /run-pipeline`
-- `GET /status/{job_id}`
-- `GET /output/{job_id}`
-- `GET /reports/{job_id}/{report_name}`
+- `POST /run-pipeline` - Start a new coding job
+- `GET /jobs/{job_id}` - Get job status
+- `GET /jobs/{job_id}/output` - Download output file
+- `GET /jobs/{job_id}/validation` - Download validation report
+- `POST /files/upload` - Upload a JSON file
+- `GET /files/list` - List available files
+- `DELETE /files/{filename}` - Delete a user-uploaded file
 
 ## 5. Configuration
 ### Pipeline Configuration (`config.json`)
@@ -184,7 +195,8 @@ Defines the pipeline behavior, including coding modes, model selections, paths, 
     "prompts_folder": "transcriptanalysis/prompts",
     "codebase_folder": "transcriptanalysis/codebases",
     "json_folder": "transcriptanalysis/json_inputs",
-    "config_folder": "transcriptanalysis/configs"
+    "config_folder": "transcriptanalysis/configs",
+    "user_uploads_folder": "data/user_uploads"
   },
   "selected_codebase": "default_codebase.json",
   "selected_json_file": "teacher_transcript.json",
@@ -268,6 +280,62 @@ poetry run transcriptanalysis.main:run
 
 If you encounter any errors, check the logs for details.
 A successful run will show API communication logs (HTTP 200) and messages indicating that the output and validation report JSON files have been saved to the `outputs/` directory.
+
+## 7. Web Interface
+The project includes a modern web interface for easy interaction with the qualitative coding pipeline without needing to use the command line.
+
+### Starting the Web Interface
+1. **Start the API Server:**
+   ```sh
+   # Activate your virtual environment if not already active
+   source /path/to/your/virtualenv/bin/activate
+   
+   # Start the FastAPI server
+   uvicorn transcriptanalysis.new_api:app --reload --host 0.0.0.0 --port 8000
+   ```
+
+2. **Start the Frontend Server:**
+   ```sh
+   # Navigate to the frontend directory
+   cd frontend
+   
+   # Start the development server
+   npm run dev -- --host
+   ```
+
+3. **Access the UI:**
+   Open your browser and navigate to:
+   ```
+   http://localhost:5173
+   ```
+
+### Using the Web Interface
+The web interface offers the following features:
+
+#### File Management
+- **Default Files:** Select from pre-packaged example JSON files.
+- **User Files:** Upload your own JSON files for analysis.
+- **File Upload:** Click the "Upload JSON File" button to add your own files.
+- **File Deletion:** Remove user-uploaded files when no longer needed.
+
+#### Pipeline Configuration
+- **Coding Mode:** Choose between inductive and deductive coding.
+- **Model Selection:** Select which OpenAI model to use.
+- **Advanced Options:** Configure batch sizes, parsing options, and thread count.
+
+#### Job Management
+- **Job Status:** Monitor the status of running and completed jobs.
+- **Download Results:** Download output and validation files from completed jobs.
+
+### Custom File Upload Guidelines
+1. **Format:** Files must be valid JSON with a structure that matches your data_format_config.json settings.
+2. **Size:** Keep files reasonably sized (under 5MB recommended) for efficient processing.
+3. **Fields:** Ensure your JSON contains the required fields as specified in your configuration.
+
+### Security Notes
+- User-uploaded files are stored in the `data/user_uploads` directory.
+- This directory is excluded from version control via .gitignore for privacy.
+- Files are accessible only to users with access to the server filesystem.
 
 ## 8. Validation Process
 Validation ensures the final meaning units accurately represent the original segments. Discrepancies are reported in `validation_report.json`.

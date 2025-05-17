@@ -93,6 +93,7 @@ class PathsModel(BaseModel):
     codebase_folder: str
     json_folder: str
     config_folder: str
+    user_uploads_folder: Optional[str] = None  # Path to directory for user-uploaded files
 
 class ConfigModel(BaseModel):
     coding_mode: CodingModeEnum

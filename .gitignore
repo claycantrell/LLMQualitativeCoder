@@ -166,3 +166,7 @@ outputs/*
 
 # Log files from this project
 logs/*
+
+# User uploaded files
+data/user_uploads/*
+!data/user_uploads/.gitkeep

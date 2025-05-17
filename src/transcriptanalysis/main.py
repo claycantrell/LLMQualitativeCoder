@@ -69,13 +69,35 @@ def main(config: ConfigModel):
 
     format_config = data_format_config[config.data_format]
 
-    # Determine the data file to load using importlib.resources
-    try:
-        with resources.path('transcriptanalysis.json_inputs', 'teacher_transcript.json') as data_file_path:
-            file_path = Path(data_file_path)
-    except FileNotFoundError:
-        logger.error("File 'transcriptanalysis.json_inputs/teacher_transcript.json' not found in package resources.")
-        raise
+    # Determine the data file to load
+    # Check if it's a full path to a file first (for user-uploaded files)
+    if Path(config.selected_json_file).exists() and Path(config.selected_json_file).is_file():
+        file_path = Path(config.selected_json_file)
+        logger.info(f"Using specified file path: {file_path}")
+    # Check user uploads directory if available
+    elif config.paths.user_uploads_folder and Path(config.paths.user_uploads_folder).exists():
+        user_file_path = Path(config.paths.user_uploads_folder) / config.selected_json_file
+        if user_file_path.exists():
+            file_path = user_file_path
+            logger.info(f"Using user-uploaded file: {file_path}")
+        else:
+            # Fall back to package resources
+            try:
+                with resources.path('transcriptanalysis.json_inputs', config.selected_json_file) as data_file_path:
+                    file_path = Path(data_file_path)
+                logger.info(f"Using package resource file: {file_path}")
+            except FileNotFoundError:
+                logger.error(f"File '{config.selected_json_file}' not found in package resources.")
+                raise
+    else:
+        # Fall back to package resources
+        try:
+            with resources.path('transcriptanalysis.json_inputs', config.selected_json_file) as data_file_path:
+                file_path = Path(data_file_path)
+            logger.info(f"Using package resource file: {file_path}")
+        except FileNotFoundError:
+            logger.error(f"File '{config.selected_json_file}' not found in package resources.")
+            raise
 
     if not file_path.exists():
         logger.error(f"Data file '{file_path}' not found.")
