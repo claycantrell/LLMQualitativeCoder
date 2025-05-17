@@ -130,7 +130,28 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
   // Handle form submission
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(config);
+    
+    // If it's a default file and we're using known formats, we can use the simpler endpoint
+    if (file.is_default && (fileStructure?.is_known_format || !config.content_field)) {
+      // Use the simpler API endpoint for default files with known formats
+      const simpleConfig = {
+        coding_mode: config.coding_mode,
+        use_parsing: config.use_parsing,
+        preliminary_segments_per_prompt: config.preliminary_segments_per_prompt,
+        meaning_units_per_assignment_prompt: config.meaning_units_per_assignment_prompt,
+        context_size: config.context_size,
+        model_name: config.model_name,
+        temperature: config.temperature,
+        max_tokens: config.max_tokens,
+        thread_count: config.thread_count,
+        input_file: file.filename
+      };
+      
+      onSubmit(simpleConfig, true); // true indicates this is a standard config
+    } else {
+      // Use the dynamic configuration endpoint
+      onSubmit(config, false); // false indicates this is a dynamic config
+    }
   };
   
   if (analyzing) {
@@ -149,8 +170,12 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
   
   return (
     <div className="file-config-form">
-      <h2>Configure File Structure</h2>
-      <p className="help-text">Configure how your JSON file should be processed</p>
+      <h2>Configure {file.filename}</h2>
+      <p className="help-text">
+        {file.is_default ? 'Adjust processing settings for this JSON file' : 'Configure how your JSON file should be processed'}
+        <br/>
+        <small className="json-note">JSON files contain structured data that can be mapped to specific fields</small>
+      </p>
       
       <form onSubmit={handleSubmit}>
         <div className="form-section">
@@ -442,35 +467,42 @@ function App() {
   
   // Function to handle file selection
   const handleFileSelect = (file) => {
-    // If the file is a default file, use traditional method
-    if (file.is_default) {
-      setConfig({
-        ...config,
-        input_file: file.filename
-      });
-    } else {
-      // For user files, enter configuration mode
-      setSelectedFile(file);
-      setConfiguringFile(true);
-    }
+    // Use the configuration mode for all files
+    setSelectedFile(file);
+    setConfiguringFile(true);
   };
   
   // Function to handle file configuration submission
-  const handleFileConfigSubmit = async (fileConfig) => {
+  const handleFileConfigSubmit = async (fileConfig, isStandardConfig) => {
     setLoading(true);
     setError(null);
     
     try {
-      // Start pipeline with dynamic config
-      const response = await axios.post(`${API_URL}/run-pipeline-with-config`, fileConfig);
+      let response;
+      
+      if (isStandardConfig) {
+        // Use the standard pipeline endpoint
+        response = await axios.post(`${API_URL}/run-pipeline`, fileConfig);
+      } else {
+        // Use the dynamic config endpoint
+        response = await axios.post(`${API_URL}/run-pipeline-with-config`, fileConfig);
+      }
       
       // Update job list and select the new job
       fetchJobs();
       setSelectedJob(response.data.job_id);
       setConfiguringFile(false);
     } catch (err) {
-      console.error('Error starting pipeline with config:', err);
-      setError(err.response?.data?.detail || 'Failed to start processing');
+      console.error('Error starting pipeline:', err);
+      if (err.response) {
+        console.error('Response data:', err.response.data);
+        console.error('Response status:', err.response.status);
+        setError(`Server error (${err.response.status}): ${err.response?.data?.detail || 'Unknown error'}`);
+      } else if (err.request) {
+        setError('No response from server. Please check if the API is running.');
+      } else {
+        setError(`Error: ${err.message}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -641,17 +673,20 @@ function App() {
               {fileError && <div className="error">{fileError}</div>}
               
               <div className="file-upload">
-                <label className="upload-button">
-                  <UploadIcon /> Upload JSON File
-                  <input 
-                    type="file" 
-                    accept=".json" 
-                    onChange={handleFileUpload} 
-                    disabled={uploadingFile || !apiConnected}
-                    style={{ display: 'none' }}
-                  />
-                </label>
-                {uploadingFile && <span className="upload-status">Uploading...</span>}
+                <div className="upload-container">
+                  <label className="upload-button">
+                    <UploadIcon /> Upload JSON File
+                    <input 
+                      type="file" 
+                      accept=".json" 
+                      onChange={handleFileUpload} 
+                      disabled={uploadingFile || !apiConnected}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+                  {uploadingFile && <span className="upload-status">Uploading...</span>}
+                  {!uploadingFile && <span className="file-type-note">Only .json files are supported</span>}
+                </div>
               </div>
               
               <div className="file-list">
@@ -661,15 +696,16 @@ function App() {
                     <li 
                       key={file.filename}
                       className={config.input_file === file.filename ? 'selected' : ''}
+                      onClick={() => handleFileSelect(file)}
                     >
-                      <label className="file-item">
-                        <input 
-                          type="radio" 
-                          name="input_file" 
-                          value={file.filename}
-                          checked={config.input_file === file.filename}
-                          onChange={handleChange}
-                        />
+                      <div className="file-item">
+                        <div className="file-icon">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <path d="M10 12a1 1 0 0 0 0 2h4a1 1 0 0 0 0-2h-4z"></path>
+                          </svg>
+                        </div>
                         <div className="file-info">
                           <div className="file-name">{file.filename}</div>
                           <div className="file-meta">
@@ -677,7 +713,7 @@ function App() {
                             <span className="file-default">Default</span>
                           </div>
                         </div>
-                      </label>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -694,6 +730,13 @@ function App() {
                         onClick={() => handleFileSelect(file)}
                       >
                         <div className="file-item">
+                          <div className="file-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                              <polyline points="14 2 14 8 20 8"></polyline>
+                              <path d="M10 12a1 1 0 0 0 0 2h4a1 1 0 0 0 0-2h-4z"></path>
+                            </svg>
+                          </div>
                           <div className="file-info">
                             <div className="file-name">{file.filename}</div>
                             <div className="file-meta">
@@ -720,107 +763,21 @@ function App() {
             </div>
             
             {/* Configuration Panel */}
-            <div className="config-form">
-              <h2>Pipeline Configuration</h2>
+            <div className="start-panel">
+              <div className="start-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 15v4c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                </svg>
+              </div>
+              <h2>Select a JSON File to Begin</h2>
               {error && <div className="error">{error}</div>}
-              
-              <form onSubmit={handleSubmit}>
-                <div className="form-group">
-                  <label>Coding Mode:</label>
-                  <select 
-                    name="coding_mode" 
-                    value={config.coding_mode} 
-                    onChange={handleChange}
-                  >
-                    <option value="inductive">Inductive</option>
-                    <option value="deductive">Deductive</option>
-                  </select>
-                </div>
-                
-                <div className="form-group checkbox-group">
-                  <label>
-                    <input 
-                      type="checkbox" 
-                      name="use_parsing" 
-                      checked={config.use_parsing} 
-                      onChange={handleChange}
-                    />
-                    Use Parsing
-                  </label>
-                </div>
-                
-                <div className="form-group">
-                  <label>Segments Per Prompt:</label>
-                  <input 
-                    type="number" 
-                    name="preliminary_segments_per_prompt" 
-                    value={config.preliminary_segments_per_prompt} 
-                    onChange={handleChange}
-                    min="1"
-                    max="100"
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label>Meaning Units Per Prompt:</label>
-                  <input 
-                    type="number" 
-                    name="meaning_units_per_assignment_prompt" 
-                    value={config.meaning_units_per_assignment_prompt} 
-                    onChange={handleChange}
-                    min="1"
-                    max="50"
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label>Context Size:</label>
-                  <input 
-                    type="number" 
-                    name="context_size" 
-                    value={config.context_size} 
-                    onChange={handleChange}
-                    min="1"
-                    max="20"
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label>Model:</label>
-                  <select 
-                    name="model_name" 
-                    value={config.model_name} 
-                    onChange={handleChange}
-                  >
-                    <option value="gpt-4o-mini">GPT-4o Mini</option>
-                    <option value="gpt-4o">GPT-4o</option>
-                    <option value="gpt-4">GPT-4</option>
-                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                  </select>
-                </div>
-                
-                <div className="form-group">
-                  <label>Threads:</label>
-                  <input 
-                    type="number" 
-                    name="thread_count" 
-                    value={config.thread_count} 
-                    onChange={handleChange}
-                    min="1"
-                    max="10"
-                  />
-                </div>
-                
-                <div className="form-actions">
-                  <button 
-                    type="submit" 
-                    disabled={loading || !apiConnected || !config.input_file} 
-                    className="start-button"
-                  >
-                    {loading ? 'Starting Pipeline...' : 'Start Pipeline'}
-                  </button>
-                </div>
-              </form>
+              <p className="help-text">
+                Choose a file from the list to configure and start the analysis pipeline
+              </p>
+              <div className="json-requirement">
+                <span className="json-badge">JSON</span>
+                <span>This system only processes structured JSON data files</span>
+              </div>
             </div>
           </div>
         )}
