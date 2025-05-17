@@ -948,3 +948,15 @@ Please provide the assigned codes in the following JSON format:
 2025-05-09 16:28:32,664 [DEBUG] transcriptanalysis.validator: Saving validation report to '/Users/a12066/Documents/GitHub/LLMQualitativeCoder/outputs/teacher_transcript_validation_report.json'.
 2025-05-09 16:28:32,665 [INFO] transcriptanalysis.validator: Validation report saved to '/Users/a12066/Documents/GitHub/LLMQualitativeCoder/outputs/teacher_transcript_validation_report.json'.
 2025-05-09 16:28:32,666 [INFO] __main__: Validation completed. Report saved to '/Users/a12066/Documents/GitHub/LLMQualitativeCoder/outputs/teacher_transcript_validation_report.json'.
+2025-05-17 10:27:38,170 [INFO] __main__: Starting the main pipeline.
+2025-05-17 10:27:56,904 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-05-17 10:28:09,879 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-05-17 10:28:10,135 [INFO] httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-05-17 10:28:10,143 [INFO] __main__: Coded meaning units saved to '/Users/a12066/Documents/GitHub/LLMQualitativeCoder/outputs/teacher_transcript_output_20250517_102810.json'.
+2025-05-17 10:28:10,146 [DEBUG] transcriptanalysis.validator: Loaded data with shape (7, 5).
+2025-05-17 10:28:10,148 [INFO] transcriptanalysis.validator: Loaded meaning units derived from 7 unique source_ids.
+2025-05-17 10:28:10,149 [INFO] transcriptanalysis.validator: Total preliminary segments: 14
+2025-05-17 10:28:10,149 [INFO] transcriptanalysis.validator: Total meaning units: 19
+2025-05-17 10:28:10,149 [DEBUG] transcriptanalysis.validator: Saving validation report to '/Users/a12066/Documents/GitHub/LLMQualitativeCoder/outputs/teacher_transcript_validation_report.json'.
+2025-05-17 10:28:10,150 [INFO] transcriptanalysis.validator: Validation report saved to '/Users/a12066/Documents/GitHub/LLMQualitativeCoder/outputs/teacher_transcript_validation_report.json'.
+2025-05-17 10:28:10,150 [INFO] __main__: Validation completed. Report saved to '/Users/a12066/Documents/GitHub/LLMQualitativeCoder/outputs/teacher_transcript_validation_report.json'.
