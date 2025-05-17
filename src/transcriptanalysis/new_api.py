@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # new_api.py
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Form, Request, Body
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Form, Request, Body, Query
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -563,6 +563,180 @@ async def reset_prompt(prompt_type: str):
     except Exception as e:
         logger.exception(f"Error resetting prompt {prompt_type}: {e}")
         raise HTTPException(status_code=500, detail=f"Error resetting prompt: {str(e)}")
+
+@app.get("/prompts/{prompt_type}/preview")
+async def get_prompt_preview(
+    prompt_type: str,
+    file_id: str,
+    content_field: Optional[str] = None,
+    context_fields: Optional[List[str]] = Query([]),
+    list_field: Optional[str] = None,
+    coding_mode: str = "inductive",
+    use_parsing: bool = True,
+    preliminary_segments_per_prompt: int = 5,
+    meaning_units_per_assignment_prompt: int = 10,
+    context_size: int = 5,
+    model_name: str = "gpt-4o-mini",
+    temperature: float = 0.7,
+    max_tokens: int = 2000,
+    thread_count: int = 2,
+    selected_codebase: Optional[str] = None
+):
+    """Generate the actual prompt that would be sent to the LLM based on current configuration.
+    
+    Args:
+        prompt_type: The type of prompt ('inductive' or 'deductive')
+        file_id: The filename of the file to process
+        content_field: The field containing the content to analyze
+        context_fields: Fields providing context for the content
+        list_field: The field containing a list of items (if applicable)
+        coding_mode: The coding mode ('inductive' or 'deductive')
+        use_parsing: Whether to use parsing
+        preliminary_segments_per_prompt: Number of segments per preliminary prompt
+        meaning_units_per_assignment_prompt: Number of meaning units per assignment prompt
+        context_size: Number of context items to include
+        model_name: The model name to use
+        temperature: The temperature to use
+        max_tokens: The maximum number of tokens to use
+        thread_count: The number of threads to use
+        selected_codebase: The selected codebase (if deductive)
+        
+    Returns:
+        A JSON object containing the actual prompt that would be sent to the LLM
+    """
+    if prompt_type not in ["inductive", "deductive"]:
+        raise HTTPException(status_code=400, detail="Invalid prompt type. Must be 'inductive' or 'deductive'")
+    
+    try:
+        # Get the prompt template content
+        custom_prompt_path = USER_PROMPTS_DIR / f"{prompt_type}.txt"
+        default_prompt_path = DEFAULT_PROMPTS_DIR / f"{prompt_type}.txt"
+        
+        prompt_path = custom_prompt_path if custom_prompt_path.exists() else default_prompt_path
+        
+        if not prompt_path.exists():
+            raise HTTPException(status_code=404, detail=f"Prompt file {prompt_type}.txt not found")
+        
+        # Read the prompt content
+        with open(prompt_path, 'r') as f:
+            prompt_template = f.read()
+        
+        # Get sample data from the file for the preview
+        file_path = USER_UPLOADS_DIR / file_id
+        if not file_path.exists():
+            file_path = DEFAULT_DATA_DIR / file_id
+            if not file_path.exists():
+                raise HTTPException(status_code=404, detail=f"File {file_id} not found")
+        
+        # Load the sample data
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+        
+        # Format the entire prompt exactly as it would be sent to the LLM
+        formatted_prompt = prompt_template
+        
+        # For deductive coding, include the complete codebase
+        if prompt_type == "deductive" and selected_codebase:
+            codebase_path = USER_CODEBASES_DIR / selected_codebase
+            
+            # If not in user codebases, check default codebases
+            if not codebase_path.exists():
+                codebase_path = DEFAULT_CODEBASES_DIR / selected_codebase
+                
+            if codebase_path.exists():
+                # Add all codes from codebase
+                with open(codebase_path, 'r') as f:
+                    codebase_lines = f.readlines()
+                
+                codes_section = "\n\n## CODING FRAMEWORK\n\n"
+                for line in codebase_lines:
+                    try:
+                        code = json.loads(line.strip())
+                        code_name = code.get('text', code.get('name', 'Unknown'))
+                        code_desc = code.get('metadata', {}).get('description', code.get('description', ''))
+                        codes_section += f"- {code_name}: {code_desc}\n"
+                    except:
+                        # Skip invalid lines
+                        continue
+                
+                formatted_prompt += codes_section
+        
+        # Add sample data
+        data_section = "\n\n## DATA TO CODE\n\n"
+        
+        # Extract data based on content field and list field configuration
+        sample_data = []
+        
+        # If list field is specified, extract items from that list
+        if list_field and list_field in data and isinstance(data[list_field], list):
+            items = data[list_field]
+            # Limit to meaning_units_per_assignment_prompt items for the preview
+            sample_items = items[:min(meaning_units_per_assignment_prompt, len(items))]
+            sample_data = sample_items
+        # If data is already a list, use it directly
+        elif isinstance(data, list):
+            sample_items = data[:min(meaning_units_per_assignment_prompt, len(data))]
+            sample_data = sample_items
+        # If data is a single object, wrap it in a list
+        else:
+            sample_data = [data]
+        
+        # Format each item with content and context fields
+        for i, item in enumerate(sample_data):
+            data_section += f"Item {i+1}:\n"
+            
+            # Add content field
+            if content_field and content_field in item:
+                data_section += f"Content: {item[content_field]}\n"
+            else:
+                # Try to find a suitable content field if not specified
+                for key, value in item.items():
+                    if isinstance(value, str) and len(value) > 10:
+                        data_section += f"Content: {value}\n"
+                        break
+            
+            # Add context fields
+            if context_fields:
+                data_section += "Context:\n"
+                for field in context_fields:
+                    if field in item:
+                        data_section += f"  {field}: {item[field]}\n"
+            
+            data_section += "\n"
+        
+        formatted_prompt += data_section
+        
+        # Add instructions to format the response
+        formatted_prompt += "\n\n## INSTRUCTIONS\n\n"
+        if prompt_type == "inductive":
+            formatted_prompt += "Review the data provided and create a set of meaningful codes that capture the key themes and concepts. For each code, provide a clear definition and examples from the text."
+        else:  # deductive
+            formatted_prompt += "Apply the codes from the coding framework to each item in the data. You may apply multiple codes to a single item if appropriate. For each assigned code, explain your reasoning."
+        
+        formatted_prompt += "\nPlease format your response as a JSON array with the following structure:\n"
+        formatted_prompt += """```json
+[
+  {
+    "item_number": 1,
+    "codes": [
+      {
+        "code": "Code name",
+        "reasoning": "Explanation for why this code applies"
+      }
+    ]
+  }
+]
+```"""
+
+        return {
+            "preview": formatted_prompt
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error generating prompt preview: {e}")
+        raise HTTPException(status_code=500, detail=f"Error generating prompt preview: {str(e)}")
 
 @app.get("/codebases/list")
 def list_codebases():

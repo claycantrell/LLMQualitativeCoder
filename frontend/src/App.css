@@ -335,14 +335,15 @@ h3 {
 
 .prompt-textarea {
   width: 100%;
-  padding: 15px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  font-family: monospace;
-  font-size: 14px;
-  margin: 15px 0;
-  background-color: #f8f9fa;
   min-height: 300px;
+  max-width: 100%;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  resize: vertical;
 }
 
 .prompt-actions {
@@ -631,6 +632,20 @@ h3 {
 }
 
 /* JSON document viewer */
+.json-document-container {
+  background-color: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  width: 100%;
+  height: 100%;
+  min-height: 500px;
+  max-height: 500px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
 .json-document-viewer {
   background-color: #f8f9fa;
   border-radius: 6px;
@@ -638,14 +653,83 @@ h3 {
   overflow: auto;
   width: 100%;
   height: 100%;
-  min-height: 250px;
-  border: 1px solid var(--border-color);
   font-family: monospace;
+  white-space: pre-wrap;
+  font-size: 0.9rem;
+  line-height: 1.4;
 }
 
 .json-document-viewer pre {
   margin: 0;
   white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.prompt-preview-container {
+  background-color: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 15px;
+  overflow: auto;
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  font-family: monospace;
+  white-space: pre-wrap;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: #333;
+  word-break: break-word;
+  box-sizing: border-box;
+}
+
+.prompt-preview-container h1,
+.prompt-preview-container h2,
+.prompt-preview-container h3,
+.prompt-preview-container h4 {
+  color: #333;
+  margin-top: 1.2em;
+  margin-bottom: 0.7em;
+}
+
+.prompt-preview-container code,
+.prompt-preview-container pre {
+  background-color: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.5em;
+  margin: 0.5em 0;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  display: block;
+}
+
+.prompt-preview-container ul,
+.prompt-preview-container ol {
+  padding-left: 2em;
+  margin: 0.5em 0;
+}
+
+.prompt-preview-container li {
+  margin-bottom: 0.3em;
+}
+
+/* Section styling for prompt parts */
+.prompt-preview-container section {
+  margin-bottom: 1.5em;
+  padding-bottom: 1em;
+  border-bottom: 1px solid #eee;
+}
+
+.prompt-preview-container .section-heading {
+  font-weight: bold;
+  color: #2980b9;
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  font-size: 1.1em;
 }
 
 .json-document-empty {
@@ -693,14 +777,6 @@ h3 {
   padding: 0;
   font-size: 1.2rem;
   color: #666;
-}
-
-.json-document-container {
-  background-color: #f8f9fa;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  height: 100%;
-  min-height: 500px;
 }
 
 /* Responsive layouts */
@@ -1294,4 +1370,142 @@ button:disabled {
   display: flex;
   gap: 10px;
   margin-top: 20px;
+}
+
+/* Maximizable container styles */
+.maximizable-container {
+  position: relative;
+  margin-bottom: 20px;
+  transition: all 0.3s ease;
+}
+
+.maximizable-container .maximize-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #ddd;
+  color: #666;
+  cursor: pointer;
+  z-index: 10;
+  padding: 5px;
+  font-size: 1rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.maximizable-container .maximize-button:hover {
+  background-color: #f0f0f0;
+  color: #333;
+  transform: scale(1.05);
+}
+
+.maximizable-container.maximized {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1000;
+  background-color: rgba(255, 255, 255, 0.98);
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.maximizable-container.maximized .json-document-container,
+.maximizable-container.maximized .prompt-preview-container,
+.maximizable-container.maximized .prompt-textarea,
+.maximizable-container.maximized .codes-list,
+.maximizable-container.maximized .add-code-form,
+.maximizable-container.maximized .file-content-preview {
+  flex: 1;
+  max-height: none;
+  min-height: 0;
+  height: calc(100vh - 60px);
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  overflow: auto;
+}
+
+.maximizable-container.maximized h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 1.5rem;
+}
+
+.maximizable-container.maximized .maximize-button {
+  top: 10px;
+  right: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+}
+
+.maximizable-container.maximized .json-document-viewer {
+  height: 100%;
+  max-height: none;
+  width: 100%;
+  overflow: auto;
+  padding: 15px;
+  box-sizing: border-box;
+}
+
+.maximizable-container.maximized .json-document-viewer pre {
+  margin: 0;
+  min-height: 100%;
+  overflow: visible;
+}
+
+.maximizable-container.maximized .codes-list {
+  height: calc(100vh - 70px);
+  overflow: auto;
+}
+
+/* Ensure content fills maximized containers properly */
+.json-document-viewer {
+  height: 100%;
+  max-height: 100%;
+  overflow: auto;
+}
+
+.prompt-preview-container {
+  height: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.prompt-preview-container pre {
+  flex: 1;
+  overflow: auto;
+}
+
+/* Additional styles for file content preview */
+.file-content-preview {
+  max-height: 500px;
+  transition: all 0.3s ease;
+}
+
+.maximizable-container.maximized .file-content-preview pre,
+.maximizable-container.maximized .file-content-preview code {
+  height: 100%;
+  margin: 0;
+  padding: 15px;
+  overflow: auto;
+}
+
+.maximizable-container.maximized .prompt-preview-container pre {
+  height: 100%;
+  width: 100%;
+  overflow: auto;
+  margin: 0;
+  padding: 15px;
+  box-sizing: border-box;
 }
