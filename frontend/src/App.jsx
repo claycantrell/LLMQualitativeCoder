@@ -815,13 +815,15 @@ function FileList({ files, onSelect, selectedFile, onDelete }) {
         </div>
       </div>
       
-      <div className="file-content-preview">
+      <div className="file-preview-container">
         <h3>File Preview</h3>
-        {loading ? (
-          <div className="loading-content">Loading content...</div>
-        ) : (
-          <JsonDocumentViewer content={viewingContent} />
-        )}
+        <div className="file-content-preview">
+          {loading ? (
+            <div className="loading-content">Loading content...</div>
+          ) : (
+            <JsonDocumentViewer content={viewingContent} />
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1374,13 +1376,14 @@ function App() {
 
   return (
     <div className="App">
-      <header className="App-header">
-        <h1>LLM Qualitative Coder</h1>
-        <p>Automated qualitative coding using Large Language Models</p>
-      </header>
-      
-      <div className="content">
-        {showFileConfig ? (
+      <div className="content-wrapper">
+        <header className="App-header">
+          <h1>LLM Qualitative Coder</h1>
+          <p>Automated qualitative coding using Large Language Models</p>
+        </header>
+        
+        <div className="content">
+          {showFileConfig ? (
           // Show file configuration form when a file is being configured
           <FileConfigForm 
             file={selectedFile}
@@ -1479,6 +1482,7 @@ function App() {
             </section>
           </div>
         )}
+      </div>
       </div>
     </div>
   );
