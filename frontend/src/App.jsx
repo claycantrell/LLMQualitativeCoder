@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import './App.css'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faFileCode, faTrash, faUpload, faFileAlt, faDownload, faExpand, faCompress } from '@fortawesome/free-solid-svg-icons'
+import { faFileCode, faTrash, faUpload, faFileAlt, faDownload } from '@fortawesome/free-solid-svg-icons'
 
 // API base URL - change this to your API URL when deployed
 const API_URL = 'http://localhost:8000'
@@ -43,44 +43,18 @@ const UploadIcon = () => (
   </svg>
 )
 
-// MaximizableContainer Component
-function MaximizableContainer({ title, children }) {
-  const [maximized, setMaximized] = useState(false);
-  
-  const toggleMaximize = () => {
-    setMaximized(!maximized);
-  };
-  
-  return (
-    <div className={`maximizable-container ${maximized ? 'maximized' : ''}`}>
-      {title && <h3>{title}</h3>}
-      <button 
-        className="maximize-button" 
-        onClick={toggleMaximize}
-        title={maximized ? "Minimize" : "Maximize"}
-      >
-        <FontAwesomeIcon icon={maximized ? faCompress : faExpand} />
-      </button>
-      {children}
-    </div>
-  );
-}
-
 // File Configuration Component
 function FileConfigForm({ file, onSubmit, onCancel }) {
-  const [analyzing, setAnalyzing] = useState(true);
+  const [activeTab, setActiveTab] = useState('config');
   const [fileStructure, setFileStructure] = useState(null);
+  const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState(null);
   const [fileContent, setFileContent] = useState(null);
-  const [loadingContent, setLoadingContent] = useState(true);
+  const [loadingContent, setLoadingContent] = useState(false);
   
-  // Add active tab state
-  const [activeTab, setActiveTab] = useState('config'); // 'config', 'inductive', 'deductive', 'codebases'
-  
-  // Add preview tab state
-  const [previewTab, setPreviewTab] = useState('file'); // 'file' or 'prompt'
+  // Add state for preview tabs
+  const [previewTab, setPreviewTab] = useState('file');
   const [promptPreview, setPromptPreview] = useState('');
-  const [loadingPromptPreview, setLoadingPromptPreview] = useState(false);
   
   // Configuration state
   const [config, setConfig] = useState({
@@ -178,18 +152,12 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
   // Handle form field changes
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    const newValue = type === 'checkbox' ? checked : value;
-    
-    setConfig(prev => ({
-      ...prev,
-      [name]: newValue
-    }));
-    
-    // Force prompt preview update when any field changes in config mode
-    if (activeTab === 'config' && previewTab === 'prompt') {
-      // Use a small timeout to ensure state is updated before refreshing
-      setTimeout(() => generatePromptPreview(), 100);
-    }
+    setConfig({
+      ...config,
+      [name]: type === 'checkbox' ? checked : 
+              type === 'number' ? Number(value) :
+              value
+    });
   };
   
   // Handle context field selection
@@ -197,19 +165,13 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
     setConfig(prev => {
       const updatedContextFields = isChecked
         ? [...prev.context_fields, fieldName]
-        : prev.context_fields.filter(field => field !== fieldName);
+        : prev.context_fields.filter(f => f !== fieldName);
       
       return {
         ...prev,
         context_fields: updatedContextFields
       };
     });
-    
-    // Force prompt preview update when context fields change
-    if (activeTab === 'config' && previewTab === 'prompt') {
-      // Use a small timeout to ensure state is updated before refreshing
-      setTimeout(() => generatePromptPreview(), 100);
-    }
   };
   
   // Handle form submission
@@ -246,21 +208,38 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
         setInductivePrompt({
           content: response.data.content,
           isCustom: response.data.is_custom,
-          loading: false
+          loading: false,
+          isDirty: false
         });
       } else {
         setDeductivePrompt({
           content: response.data.content,
           isCustom: response.data.is_custom,
-          loading: false
+          loading: false,
+          isDirty: false
         });
       }
     } catch (err) {
       console.error(`Error fetching ${promptType} prompt:`, err);
+      // Set default content in case of error
+      const defaultContent = promptType === 'inductive' 
+        ? "Error loading inductive prompt. Using default prompt."
+        : "Error loading deductive prompt. Using default prompt.";
+        
       if (promptType === 'inductive') {
-        setInductivePrompt(prev => ({ ...prev, loading: false }));
+        setInductivePrompt({
+          content: defaultContent,
+          isCustom: false,
+          loading: false,
+          isDirty: false
+        });
       } else {
-        setDeductivePrompt(prev => ({ ...prev, loading: false }));
+        setDeductivePrompt({
+          content: defaultContent,
+          isCustom: false,
+          loading: false,
+          isDirty: false
+        });
       }
     }
   };
@@ -390,8 +369,40 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
   useEffect(() => {
     if (activeTab === 'inductive' && inductivePrompt.loading) {
       fetchPrompt('inductive');
+      
+      // Add timeout to ensure loading state is cleared
+      const timeout = setTimeout(() => {
+        setInductivePrompt(prev => {
+          if (prev.loading) {
+            return {
+              ...prev,
+              loading: false,
+              content: "Timed out loading the prompt. Please try again."
+            };
+          }
+          return prev;
+        });
+      }, 5000);
+      
+      return () => clearTimeout(timeout);
     } else if (activeTab === 'deductive' && deductivePrompt.loading) {
       fetchPrompt('deductive');
+      
+      // Add timeout to ensure loading state is cleared
+      const timeout = setTimeout(() => {
+        setDeductivePrompt(prev => {
+          if (prev.loading) {
+            return {
+              ...prev,
+              loading: false,
+              content: "Timed out loading the prompt. Please try again."
+            };
+          }
+          return prev;
+        });
+      }, 5000);
+      
+      return () => clearTimeout(timeout);
     } else if (activeTab === 'codebases' && codebases.loading) {
       fetchCodebases();
     }
@@ -433,51 +444,62 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
     return true;
   };
   
-  // Update prompt preview when config changes
+  // Add a function to generate the prompt preview based on current settings
   useEffect(() => {
-    if (activeTab === 'config' && previewTab === 'prompt') {
+    if (fileContent && config.content_field) {
       generatePromptPreview();
     }
-  }, [config, previewTab, activeTab]);
+  }, [
+    config.content_field, 
+    config.context_fields, 
+    config.list_field, 
+    config.coding_mode, 
+    config.selected_codebase,
+    config.meaning_units_per_assignment_prompt,
+    config.preliminary_segments_per_prompt,
+    config.use_parsing,
+    config.context_size,
+    fileContent,
+    file.filename
+  ]);
   
-  // Generate prompt preview based on current config
-  const generatePromptPreview = async () => {
-    setLoadingPromptPreview(true);
-    try {
-      // Create the config object for the preview
-      const previewConfig = {
-        file_id: file.filename,
-        content_field: config.content_field,
-        context_fields: config.context_fields,
-        list_field: config.list_field,
-        coding_mode: config.coding_mode,
-        use_parsing: config.use_parsing,
-        preliminary_segments_per_prompt: config.preliminary_segments_per_prompt,
-        meaning_units_per_assignment_prompt: config.meaning_units_per_assignment_prompt,
-        context_size: config.context_size,
-        model_name: config.model_name,
-        temperature: config.temperature,
-        max_tokens: config.max_tokens,
-        thread_count: config.thread_count,
-        selected_codebase: config.selected_codebase
-      };
-      
-      // Only make the API call if we have the minimum required config
-      if (config.content_field || file.is_default) {
-        const promptType = config.coding_mode === 'inductive' ? 'inductive' : 'deductive';
-        const response = await axios.get(`http://localhost:8000/prompts/${promptType}/preview`, { 
-          params: previewConfig 
-        });
-        
-        setPromptPreview(response.data.preview);
-      } else {
-        setPromptPreview("Please select a content field to generate a prompt preview.");
-      }
-    } catch (err) {
-      console.error('Error generating prompt preview:', err);
-      setPromptPreview("Error generating prompt preview. Please make sure all required fields are filled out.");
+  const generatePromptPreview = () => {
+    // Only generate preview if we have the necessary data
+    if (!fileContent || !config.content_field) {
+      setPromptPreview("Configure the required fields first to see prompt preview");
+      return;
     }
-    setLoadingPromptPreview(false);
+    
+    // Set loading state
+    setPromptPreview("Loading prompt preview...");
+    
+    // Create a config object to send to the API - include all relevant settings
+    const previewConfig = {
+      file_id: file.filename,
+      coding_mode: config.coding_mode,
+      content_field: config.content_field,
+      context_fields: config.context_fields,
+      list_field: config.list_field,
+      selected_codebase: config.selected_codebase,
+      meaning_units_per_assignment_prompt: config.meaning_units_per_assignment_prompt,
+      preliminary_segments_per_prompt: config.preliminary_segments_per_prompt,
+      use_parsing: config.use_parsing,
+      context_size: config.context_size,
+      model_name: config.model_name,
+      temperature: config.temperature,
+      max_tokens: config.max_tokens,
+      thread_count: config.thread_count
+    };
+    
+    // Call the API endpoint
+    axios.post(`${API_URL}/preview-prompt`, previewConfig)
+      .then(response => {
+        setPromptPreview(response.data.prompt);
+      })
+      .catch(error => {
+        console.error("Error fetching prompt preview:", error);
+        setPromptPreview("Error fetching prompt preview. Please ensure all required fields are configured correctly.");
+      });
   };
   
   if (analyzing) {
@@ -535,7 +557,7 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
               <h3>Error</h3>
               <p>{error}</p>
               <button onClick={() => onCancel()}>Go Back</button>
-            </div>
+      </div>
           ) : (
             <>
               <div className="file-config-layout">
@@ -722,7 +744,7 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
                       </div>
                       
                       <div className="form-group">
-                        <label htmlFor="units-per-prompt">Meaning Units Per Coding Prompt:</label>
+                        <label htmlFor="units-per-prompt">Meaning Units Per Assignment:</label>
                         <input 
                           type="number" 
                           id="units-per-prompt" 
@@ -731,18 +753,32 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
                           value={config.meaning_units_per_assignment_prompt}
                           onChange={e => setConfig({...config, meaning_units_per_assignment_prompt: parseInt(e.target.value)})}
                         />
+                        <small>Number of meaning units to include in each prompt</small>
+                      </div>
+                      
+                      <div className="form-group">
+                        <label htmlFor="context-size">Context Window Size:</label>
+                        <input 
+                          type="number" 
+                          id="context-size" 
+                          min="1" 
+                          max="20" 
+                          value={config.context_size}
+                          onChange={e => setConfig({...config, context_size: parseInt(e.target.value)})}
+                        />
+                        <small>Number of surrounding meaning units to include as context</small>
                       </div>
                     </div>
                   </div>
                 </div>
                 <div className="file-preview-section">
-                  <div className="config-tabs" style={{ marginBottom: '10px' }}>
+                  <div className="preview-tabs">
                     <button 
                       className={`tab-button ${previewTab === 'file' ? 'active' : ''}`}
                       onClick={() => setPreviewTab('file')}
                     >
                       File Preview
-                    </button>
+        </button>
                     <button 
                       className={`tab-button ${previewTab === 'prompt' ? 'active' : ''}`}
                       onClick={() => setPreviewTab('prompt')}
@@ -751,43 +787,21 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
                     </button>
                   </div>
                   
-                  {previewTab === 'file' ? (
-                    <MaximizableContainer title="File Preview">
-                      <div className="json-document-container">
-                        {loadingContent ? (
-                          <div className="loading-content">Loading file content...</div>
-                        ) : (
+                  <div className="json-document-container">
+                    {loadingContent ? (
+                      <div className="loading-content">Loading content...</div>
+                    ) : (
+                      <>
+                        {previewTab === 'file' ? (
                           <JsonDocumentViewer content={fileContent} />
-                        )}
-                      </div>
-                    </MaximizableContainer>
-                  ) : (
-                    <MaximizableContainer title="Prompt Preview">
-                      <div className="json-document-container">
-                        {loadingPromptPreview ? (
-                          <div className="loading-content">Generating prompt preview...</div>
                         ) : (
-                          <div className="prompt-preview-container">
-                            {/* Format the prompt preview with proper markdown sections */}
-                            {promptPreview.split('## ').map((section, index) => {
-                              if (index === 0) return <div key="intro">{section}</div>;
-                              
-                              const sectionLines = section.split('\n');
-                              const sectionTitle = sectionLines[0];
-                              const sectionContent = sectionLines.slice(1).join('\n');
-                              
-                              return (
-                                <section key={index}>
-                                  <div className="section-heading">## {sectionTitle}</div>
-                                  <div>{sectionContent}</div>
-                                </section>
-                              );
-                            })}
+                          <div className="prompt-preview">
+                            <pre>{promptPreview}</pre>
                           </div>
                         )}
-                      </div>
-                    </MaximizableContainer>
-                  )}
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
               
@@ -953,15 +967,14 @@ function FileList({ files, onSelect, selectedFile, onDelete }) {
       </div>
       
       <div className="file-preview-container">
-        <MaximizableContainer title="File Preview">
-          <div className="file-content-preview">
-            {loading ? (
-              <div className="loading-content">Loading content...</div>
-            ) : (
-              <JsonDocumentViewer content={viewingContent} />
-            )}
-          </div>
-        </MaximizableContainer>
+        <h3>File Preview</h3>
+        <div className="file-content-preview">
+          {loading ? (
+            <div className="loading-content">Loading content...</div>
+          ) : (
+            <JsonDocumentViewer content={viewingContent} />
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1102,49 +1115,55 @@ function PromptEditor({ type, prompt, setPrompt, fetchPrompt, savePrompt, resetP
       isDirty: true
     });
   };
-  
+
   const handleSave = async () => {
     await savePrompt(type, prompt.content);
+    setPrompt({
+      ...prompt,
+      isDirty: false
+    });
   };
-  
+
   const handleReset = async () => {
-    await resetPrompt(type);
+    if (window.confirm(`Are you sure you want to reset the ${type} prompt to default?`)) {
+      await resetPrompt(type);
+    }
   };
-  
+
   return (
     <div className="prompt-editor">
-      <MaximizableContainer title={`${type.charAt(0).toUpperCase() + type.slice(1)} Prompt ${prompt.isCustom ? '(Custom)' : ''}`}>
-        <div className="prompt-info">
-          <p>
-            {type === 'inductive' 
-              ? 'The inductive prompt is used when generating codes from data.' 
-              : 'The deductive prompt is used when applying predefined codes to data.'}
-          </p>
-        </div>
-        
-        <textarea
-          className="prompt-textarea"
-          value={prompt.content || ''}
-          onChange={handlePromptChange}
-          rows={15}
-        />
-        
-        <div className="prompt-actions">
-          <button 
-            className="secondary-button" 
-            onClick={handleReset}
-          >
-            Reset to Default
-          </button>
-          <button 
-            className="primary-button" 
-            onClick={handleSave}
-            disabled={!prompt.isDirty}
-          >
-            Save Changes
-          </button>
-        </div>
-      </MaximizableContainer>
+      <h3>{type.charAt(0).toUpperCase() + type.slice(1)} Prompt {prompt.isCustom && <span className="custom-indicator">(Custom)</span>}</h3>
+      
+      <div className="prompt-info">
+        <p>
+          {type === 'inductive' 
+            ? 'The inductive prompt is used when generating codes from data.' 
+            : 'The deductive prompt is used when applying predefined codes to data.'}
+        </p>
+      </div>
+      
+      <textarea 
+        className="prompt-textarea"
+        value={prompt.content || ''}
+        onChange={handlePromptChange}
+        rows={15}
+      />
+      
+      <div className="prompt-actions">
+        <button 
+          className="secondary-button" 
+          onClick={handleReset}
+        >
+          Reset to Default
+        </button>
+        <button 
+          className="primary-button" 
+          onClick={handleSave}
+          disabled={!prompt.isDirty}
+        >
+          Save Changes
+        </button>
+      </div>
     </div>
   );
 }
@@ -1307,63 +1326,60 @@ function CodebaseManager({
               <>
                 {activeCodebase && (
                   <>
-                    <MaximizableContainer title={`Codes in ${activeCodebase}`}>
-                      <div className="codes-list">
-                        {codebaseContent.length > 0 ? (
-                          <table className="codes-table">
-                            <thead>
-                              <tr>
-                                <th>Code</th>
-                                <th>Description</th>
+                    <div className="codes-list">
+                      {codebaseContent.length > 0 ? (
+                        <table className="codes-table">
+                          <thead>
+                            <tr>
+                              <th>Code</th>
+                              <th>Description</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {codebaseContent.map((code, index) => (
+                              <tr key={index}>
+                                <td>{code.text}</td>
+                                <td>{code.metadata?.description || '-'}</td>
                               </tr>
-                            </thead>
-                            <tbody>
-                              {codebaseContent.map((code, index) => (
-                                <tr key={index}>
-                                  <td>{code.text}</td>
-                                  <td>{code.metadata?.description || '-'}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        ) : (
-                          <div className="empty-message">No codes in this codebase</div>
-                        )}
-                      </div>
-                    </MaximizableContainer>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <div className="empty-message">No codes in this codebase</div>
+                      )}
+                    </div>
                     
                     {/* Form to add new code */}
-                    <MaximizableContainer title="Add New Code">
-                      <div className="add-code-form">
-                        <div className="form-group">
-                          <label>Code:</label>
-                          <input 
-                            type="text" 
-                            value={newCodeText}
-                            onChange={(e) => setNewCodeText(e.target.value)}
-                            placeholder="Enter code text"
-                          />
-                        </div>
-                        
-                        <div className="form-group">
-                          <label>Description:</label>
-                          <textarea 
-                            value={newCodeDescription}
-                            onChange={(e) => setNewCodeDescription(e.target.value)}
-                            placeholder="Enter code description"
-                            rows={3}
-                          />
-                        </div>
-                        
-                        <button 
-                          className="primary-button" 
-                          onClick={handleAddCode}
-                          disabled={!newCodeText}
-                        >
-                          Add Code
-                        </button>
+                    <div className="add-code-form">
+                      <h4>Add New Code</h4>
+                      <div className="form-group">
+                        <label>Code text:</label>
+                        <input 
+                          type="text" 
+                          value={newCodeText}
+                          onChange={(e) => setNewCodeText(e.target.value)}
+                          placeholder="Enter code text"
+                        />
                       </div>
-                    </MaximizableContainer>
+                      
+                      <div className="form-group">
+                        <label>Description:</label>
+                        <textarea 
+                          value={newCodeDescription}
+                          onChange={(e) => setNewCodeDescription(e.target.value)}
+                          placeholder="Enter code description"
+                          rows={3}
+                        />
+                      </div>
+                      
+                      <button 
+                        className="primary-button" 
+                        onClick={handleAddCode}
+                        disabled={!newCodeText}
+                      >
+                        Add Code
+                      </button>
+                    </div>
                   </>
                 )}
               </>
