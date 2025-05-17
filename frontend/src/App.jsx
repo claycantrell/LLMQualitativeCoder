@@ -276,10 +276,14 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
     }
     
     try {
-      const response = await axios.post(`${API_URL}/codebases/create`, {
-        codebase_name: newCodebaseName,
-        base_codebase: selectedBaseCodebase
-      });
+      // Create FormData object to match the backend's Form parameters expectation
+      const formData = new FormData();
+      formData.append('codebase_name', newCodebaseName);
+      if (selectedBaseCodebase) {
+        formData.append('base_codebase', selectedBaseCodebase);
+      }
+      
+      const response = await axios.post(`${API_URL}/codebases/create`, formData);
       
       // Clear form and refresh the list
       setNewCodebaseName('');
@@ -314,6 +318,8 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
       // Clear form and refresh
       setNewCodeText('');
       setNewCodeDescription('');
+      
+      // Refresh the codebases list
       fetchCodebases();
       
     } catch (err) {
@@ -1039,12 +1045,12 @@ function CodebaseManager({
   const [codebaseContent, setCodebaseContent] = useState([]);
   const [loading, setLoading] = useState(false);
   
-  // Fetch codebase content when a codebase is selected
+  // Fetch codebase content when a codebase is selected or codebases list is refreshed
   useEffect(() => {
     if (activeCodebase) {
       fetchCodebaseContent(activeCodebase);
     }
-  }, [activeCodebase]);
+  }, [activeCodebase, codebases]);
   
   const fetchCodebaseContent = async (codebaseName) => {
     try {
