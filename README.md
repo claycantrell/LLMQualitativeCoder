@@ -1,13 +1,94 @@
 ## 1. Overview
-LLMQualitativeCoder is a tool for automated qualitative coding using Large Language Models (LLMs). The workflow includes:
+LLMQualitativeCoder is a tool for automated qualitative coding using Large Language Models (LLMs). It provides a modern web interface for easy interaction with the qualitative coding pipeline, as well as a programmable API for advanced users.
 
+Key features include:
+
+- **Web Interface:** A modern React-based UI for uploading files, configuring the pipeline, running analyses, and managing results.
 - **Flexible Data Handling:** Supports diverse JSON input data formats with customizable fields and basic filtering.
 - **Automated Parsing:** Breaks down large texts into smaller meaning units for coding based on specifications in LLM user prompt.
 - **Deductive and Inductive Coding:** Offers both predefined (deductive) and emergent (inductive) coding approaches.
-- **Customizable Configuration:** Config files allow for customization of batch size, context size, and LLM provider/model for coding taks.
-- **Web Interface:** A modern React-based UI for uploading files, running the pipeline, and managing results.
+- **Customizable Configuration:** Configure batch size, context size, and LLM provider/model directly through the UI.
 
-## 2. Installation & Setup
+## 2. Quick Start (Using the Web Interface)
+
+The easiest way to use LLMQualitativeCoder is through its web interface, which requires minimal setup.
+
+### Starting the Application
+
+1. **Clone the Repository:**
+   ```
+   git clone https://github.com/iggygraceful/LLMQualitativeCoder.git
+   cd LLMQualitativeCoder
+   ```
+
+2. **Install Dependencies:**
+   Follow the installation steps in section 3 below to set up the required dependencies.
+
+3. **Start the Backend Server:**
+   ```sh
+   # Activate your virtual environment if not already active
+   source /path/to/your/virtualenv/bin/activate
+   
+   # Start the FastAPI server
+   cd src
+   uvicorn transcriptanalysis.new_api:app --reload --host 0.0.0.0 --port 8000
+   ```
+
+4. **Start the Frontend Server:**
+   ```sh
+   # Navigate to the frontend directory
+   cd frontend
+   
+   # Start the development server
+   npm run dev
+   ```
+
+5. **Access the UI:**
+   Open your browser and navigate to:
+   ```
+   http://localhost:5173
+   ```
+   (Or the port displayed in your terminal after starting the frontend server)
+
+### Using the Web Interface
+
+The web interface provides an intuitive workflow for qualitative coding:
+
+#### 1. File Management
+- **View Available Files:** The home screen displays both default example files and your uploaded files.
+- **Upload New Files:** Click the "Upload JSON File" button to add your own JSON files for analysis.
+- **Preview Files:** Click on a file to see its content before processing.
+- **Delete Files:** Remove user-uploaded files when no longer needed.
+
+#### 2. Configure Analysis
+- **Select a File:** Click the "Configure" button next to a file to set up analysis parameters.
+- **Map Fields:** Specify which fields in your JSON contain the text content, contextual information, etc.
+- **Choose Coding Mode:** Select between inductive (generate new codes) or deductive (use predefined codes) coding.
+- **Configure Segmentation:** Choose between LLM-based or sentence-based segmentation of your text.
+- **Select Model:** Choose which OpenAI model to use for analysis.
+- **Advanced Options:** Configure batch sizes, context window, and thread count.
+
+#### 3. Manage Codebases (for Deductive Coding)
+- **View Codebases:** See available code schemes under the "Codebases" tab.
+- **Create New Codebases:** Build your own coding scheme or modify existing ones.
+- **Add Codes:** Add new codes to your codebase with descriptions and metadata.
+
+#### 4. Customize Prompts
+- **Edit Prompts:** Customize the instructions sent to the LLM for inductive, deductive, and parsing tasks.
+- **Preview Prompts:** See how your configuration will appear in the prompt sent to the LLM.
+- **Reset to Default:** Easily reset prompts to their default templates if needed.
+
+#### 5. Run Analysis and View Results
+- **Start Jobs:** Begin the analysis process with your selected configuration.
+- **Monitor Progress:** See the status of running and completed jobs.
+- **Download Results:** Get output and validation files from completed jobs.
+- **View Reports:** Analyze validation reports to check for quality issues.
+
+#### 6. API Key Management
+- **Set OpenAI API Key:** Enter your OpenAI API key in the settings panel to authenticate API requests.
+- **Secure Storage:** Your key is stored securely in memory for the duration of your session.
+
+## 3. Installation & Setup
 ### Using Poetry
 LLMQualitativeCoder uses Poetry for dependency management and packaging.
 
@@ -111,6 +192,8 @@ LLMQualitativeCoder uses Poetry for dependency management and packaging.
      # set HUGGINGFACE_API_KEY=your-huggingface-api-key # If HuggingFace is supported later
      ```
    **Note:** Currently, only OpenAI models are fully supported.
+   
+   **Alternative:** You can also set your API key through the web interface, eliminating the need to set environment variables.
 
 ### Troubleshooting
 - **Poetry Not Found:** If you get a "command not found" error, ensure Poetry's bin directory is added to your PATH.
@@ -118,8 +201,113 @@ LLMQualitativeCoder uses Poetry for dependency management and packaging.
 - **SSL/OpenSSL Warnings:** You may see warnings about OpenSSL versions with urllib3. These are usually harmless and can be ignored.
 - **Missing Dependencies:** If you encounter errors about missing modules, try running `poetry update` followed by `poetry install`.
 - **File Upload Issues:** If file uploads are not working, ensure you have installed the `python-multipart` package.
+- **No Files Showing in UI:** Make sure the backend server is running and check the terminal for any error messages.
 
-## 4. Key Components
+## 4. Advanced: Running the Pipeline Programmatically
+
+For advanced users who prefer to run the pipeline programmatically without the web interface:
+
+### Setting Up Environment Variables
+Set the necessary API keys:
+- On Linux/macOS:
+  ```
+  export OPENAI_API_KEY='your-openai-api-key'
+  ```
+- On Windows CMD:
+  ```
+  set OPENAI_API_KEY=your-openai-api-key
+  ```
+
+**Important:** Ensure you have set your `OPENAI_API_KEY` environment variable with a valid key **before** proceeding to execute the pipeline. The application will not function correctly without it.
+
+### Execute the Pipeline
+Make sure you're in the Poetry virtual environment (see Installation Step 4 and verify its activation), then run:
+
+```sh
+# Navigate to the src directory
+cd src
+
+# Run the main module
+python -m transcriptanalysis.main
+```
+
+Alternatively, you can use Poetry's run script (from the project root):
+
+```sh
+poetry run transcriptanalysis.main:run
+```
+
+If you encounter any errors, check the logs for details.
+A successful run will show API communication logs (HTTP 200) and messages indicating that the output and validation report JSON files have been saved to the `outputs/` directory.
+
+## 5. Configuration
+### Pipeline Configuration (`config.json`)
+Defines the pipeline behavior, including coding modes, model selections, paths, and logging settings.
+
+**Note on Configuration File Paths:** The application expects `config.json` and `data_format_config.json` (described below) to be in the `src/transcriptanalysis/configs/` directory by default. Ensure your input data files (e.g., `teacher_transcript.json`) and prompt files (e.g., `parse_prompt.txt`) are correctly pathed within your `config.json` relative to the project structure and the paths specified in `config.json` itself (e.g., `paths.json_folder`, `paths.prompts_folder`).
+
+**Example:**
+```json
+{
+  "coding_mode": "deductive",
+  "use_parsing": true,
+  "preliminary_segments_per_prompt": 5,
+  "meaning_units_per_assignment_prompt": 10,
+  "context_size": 5,
+  "data_format": "transcript",
+  "paths": {
+    "prompts_folder": "transcriptanalysis/prompts",
+    "codebase_folder": "transcriptanalysis/codebases",
+    "json_folder": "transcriptanalysis/json_inputs",
+    "config_folder": "transcriptanalysis/configs",
+    "user_uploads_folder": "data/user_uploads"
+  },
+  "selected_codebase": "default_codebase.json",
+  "selected_json_file": "teacher_transcript.json",
+  "parse_prompt_file": "parse_prompt.txt",
+  "inductive_coding_prompt_file": "inductive_prompt.txt",
+  "deductive_coding_prompt_file": "deductive_prompt.txt",
+  "output_folder": "outputs",
+  "enable_logging": true,
+  "logging_level": "INFO",
+  "log_to_file": true,
+  "log_file_path": "logs/application.log",
+  "thread_count": 4,
+  "parse_llm_config": {
+    "provider": "openai",
+    "model_name": "gpt-4",
+    "temperature": 0.7,
+    "max_tokens": 2000,
+    "api_key": "YOUR_OPENAI_API_KEY"
+  },
+  "assign_llm_config": {
+    "provider": "openai",
+    "model_name": "gpt-4o-mini",
+    "temperature": 0.6,
+    "max_tokens": 1500,
+    "api_key": "YOUR_OPENAI_API_KEY"
+  }
+}
+```
+
+### Data Format Configuration (`data_format_config.json`)
+Specifies your JSON input file, including fields for content, speaker, source IDs, and filtering rules.
+
+Context fields are input fields that you want to include during the LLM coding task.
+
+**Example:**
+```json
+{
+  "transcript": {
+    "content_field": "text",
+    "context_fields": ["speaker", "timestamp"],
+    "list_field": "dialogues",
+    "filter_rules": []
+  }
+}
+```
+
+## 6. Key Components
 The codebase includes several modules:
 
 ### `main.py`
@@ -176,174 +364,13 @@ The codebase includes several modules:
 - `GET /files/list` - List available files
 - `DELETE /files/{filename}` - Delete a user-uploaded file
 
-## 5. Configuration
-### Pipeline Configuration (`config.json`)
-Defines the pipeline behavior, including coding modes, model selections, paths, and logging settings.
-
-**Note on Configuration File Paths:** The application expects `config.json` and `data_format_config.json` (described below) to be in the `src/transcriptanalysis/configs/` directory by default. Ensure your input data files (e.g., `teacher_transcript.json`) and prompt files (e.g., `parse_prompt.txt`) are correctly pathed within your `config.json` relative to the project structure and the paths specified in `config.json` itself (e.g., `paths.json_folder`, `paths.prompts_folder`).
-
-**Example:**
-```json
-{
-  "coding_mode": "deductive",
-  "use_parsing": true,
-  "preliminary_segments_per_prompt": 5,
-  "meaning_units_per_assignment_prompt": 10,
-  "context_size": 5,
-  "data_format": "transcript",
-  "paths": {
-    "prompts_folder": "transcriptanalysis/prompts",
-    "codebase_folder": "transcriptanalysis/codebases",
-    "json_folder": "transcriptanalysis/json_inputs",
-    "config_folder": "transcriptanalysis/configs",
-    "user_uploads_folder": "data/user_uploads"
-  },
-  "selected_codebase": "default_codebase.json",
-  "selected_json_file": "teacher_transcript.json",
-  "parse_prompt_file": "parse_prompt.txt",
-  "inductive_coding_prompt_file": "inductive_prompt.txt",
-  "deductive_coding_prompt_file": "deductive_prompt.txt",
-  "output_folder": "outputs",
-  "enable_logging": true,
-  "logging_level": "INFO",
-  "log_to_file": true,
-  "log_file_path": "logs/application.log",
-  "thread_count": 4,
-  "parse_llm_config": {
-    "provider": "openai",
-    "model_name": "gpt-4",
-    "temperature": 0.7,
-    "max_tokens": 2000,
-    "api_key": "YOUR_OPENAI_API_KEY"
-  },
-  "assign_llm_config": {
-    "provider": "huggingface",
-    "model_name": "some-hf-model",
-    "temperature": 0.6,
-    "max_tokens": 1500,
-    "api_key": "YOUR_HUGGINGFACE_API_KEY"
-  }
-}
-```
-
-### Data Format Configuration (`data_format_config.json`)
-Specifies your JSON input file, including fields for content, speaker, source IDs, and filtering rules.
-
-Context fields are input fields that you want to include during the LLM coding task.
-
-**Example:**
-```json
-{
-  "transcript": {
-    "content_field": "text",
-    "context_fields": ["speaker", "timestamp"],
-    "list_field": "dialogues",
-    "filter_rules": []
-  }
-}
-```
-
-## 6. Running the Pipeline
-### Setting Up Environment Variables
-Set the necessary API keys (as also described in Step 5 of Installation & Setup):
-- On Linux/macOS:
-  ```
-  export OPENAI_API_KEY='your-openai-api-key'
-  # export HUGGINGFACE_API_KEY='your-huggingface-api-key' # If HuggingFace is supported later
-  ```
-- On Windows CMD:
-  ```
-  set OPENAI_API_KEY=your-openai-api-key
-  # set HUGGINGFACE_API_KEY=your-huggingface-api-key # If HuggingFace is supported later
-  ```
-
-**Note:** Currently, only OpenAI models are fully supported.
-
-**Important:** Ensure you have set your `OPENAI_API_KEY` environment variable with a valid key **before** proceeding to execute the pipeline. The application will not function correctly without it.
-
-### Execute the Pipeline
-Make sure you're in the Poetry virtual environment (see Installation Step 4 and verify its activation), then run:
-
-```sh
-# Navigate to the src directory
-cd src
-
-# Run the main module
-python -m transcriptanalysis.main
-```
-
-Alternatively, you can use Poetry's run script (from the project root):
-
-```sh
-poetry run transcriptanalysis.main:run
-```
-
-If you encounter any errors, check the logs for details.
-A successful run will show API communication logs (HTTP 200) and messages indicating that the output and validation report JSON files have been saved to the `outputs/` directory.
-
-## 7. Web Interface
-The project includes a modern web interface for easy interaction with the qualitative coding pipeline without needing to use the command line.
-
-### Starting the Web Interface
-1. **Start the API Server:**
-   ```sh
-   # Activate your virtual environment if not already active
-   source /path/to/your/virtualenv/bin/activate
-   
-   # Start the FastAPI server
-   uvicorn transcriptanalysis.new_api:app --reload --host 0.0.0.0 --port 8000
-   ```
-
-2. **Start the Frontend Server:**
-   ```sh
-   # Navigate to the frontend directory
-   cd frontend
-   
-   # Start the development server
-   npm run dev -- --host
-   ```
-
-3. **Access the UI:**
-   Open your browser and navigate to:
-   ```
-   http://localhost:5173
-   ```
-
-### Using the Web Interface
-The web interface offers the following features:
-
-#### File Management
-- **Default Files:** Select from pre-packaged example JSON files.
-- **User Files:** Upload your own JSON files for analysis.
-- **File Upload:** Click the "Upload JSON File" button to add your own files.
-- **File Deletion:** Remove user-uploaded files when no longer needed.
-
-#### Pipeline Configuration
-- **Coding Mode:** Choose between inductive and deductive coding.
-- **Model Selection:** Select which OpenAI model to use.
-- **Advanced Options:** Configure batch sizes, parsing options, and thread count.
-
-#### Job Management
-- **Job Status:** Monitor the status of running and completed jobs.
-- **Download Results:** Download output and validation files from completed jobs.
-
-### Custom File Upload Guidelines
-1. **Format:** Files must be valid JSON with a structure that matches your data_format_config.json settings.
-2. **Size:** Keep files reasonably sized (under 5MB recommended) for efficient processing.
-3. **Fields:** Ensure your JSON contains the required fields as specified in your configuration.
-
-### Security Notes
-- User-uploaded files are stored in the `data/user_uploads` directory.
-- This directory is excluded from version control via .gitignore for privacy.
-- Files are accessible only to users with access to the server filesystem.
-
-## 8. Validation Process
+## 7. Validation Process
 Validation ensures the final meaning units accurately represent the original segments. Discrepancies are reported in `validation_report.json`.
 
-## 9. Logging
+## 8. Logging
 Logs capture pipeline operations and are saved in the specified `log_file_path`.
 
-## 10. Input and Output
+## 9. Input and Output
 ### Input
 - **Preliminary Segments:** JSON files containing raw data.
 - **Codebase Files:** JSONL files for deductive coding.

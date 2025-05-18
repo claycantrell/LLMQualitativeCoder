@@ -70,6 +70,10 @@ app.add_middleware(
 # In-memory job store
 jobs = {}
 
+# Global variable to store the API key between requests
+# Not recommended for production systems, but works for a simple demo
+OPENAI_API_KEY = ""  # Initialize with empty string to force API key entry through UI
+
 class JobStatus:
     PENDING = "pending"
     RUNNING = "running"
@@ -149,6 +153,10 @@ class DynamicConfigModel(BaseModel):
     max_tokens: int = 2000
     thread_count: int = 2
     selected_codebase: Optional[str] = None
+
+class ApiKeyModel(BaseModel):
+    """Model for OpenAI API key"""
+    api_key: str
 
 @app.get("/")
 def read_root():
@@ -926,11 +934,17 @@ def run_pipeline_task(job_id: str, config: ConfigModel, input_file: Optional[str
         
         # Load environment variables and update config
         env_vars = load_environment_variables()
-        if env_vars.get("OPENAI_API_KEY"):
+        
+        # Try to use the globally stored API key first, then fall back to environment variable
+        global OPENAI_API_KEY
+        if OPENAI_API_KEY:
+            config.parse_llm_config.api_key = OPENAI_API_KEY
+            config.assign_llm_config.api_key = OPENAI_API_KEY
+        elif env_vars.get("OPENAI_API_KEY"):
             config.parse_llm_config.api_key = env_vars["OPENAI_API_KEY"]
             config.assign_llm_config.api_key = env_vars["OPENAI_API_KEY"]
         else:
-            raise ValueError("OPENAI_API_KEY environment variable not set")
+            raise ValueError("No OpenAI API key found. Please set it in the UI or as an environment variable")
         
         # Run main pipeline
         main(config)
@@ -1265,6 +1279,48 @@ async def preview_prompt(config: DynamicConfigModel):
     except Exception as e:
         logger.exception(f"Error generating prompt preview: {e}")
         raise HTTPException(status_code=500, detail=f"Error generating prompt preview: {str(e)}")
+
+@app.post("/set-api-key")
+async def set_api_key(key_data: ApiKeyModel):
+    """Set the OpenAI API key to be used for subsequent API calls
+    
+    Args:
+        key_data: The API key to use
+        
+    Returns:
+        A JSON object confirming that the key was set
+    """
+    try:
+        global OPENAI_API_KEY
+        OPENAI_API_KEY = key_data.api_key
+        
+        # Return a success message with partial key for confirmation
+        masked_key = key_data.api_key[:4] + '*' * (len(key_data.api_key) - 8) + key_data.api_key[-4:]
+        logger.info(f"API key set (begins with {key_data.api_key[:4]})")
+        
+        return {
+            "message": f"API key set successfully: {masked_key}",
+            "success": True
+        }
+    
+    except Exception as e:
+        logger.exception(f"Error setting API key: {e}")
+        raise HTTPException(status_code=500, detail=f"Error setting API key: {str(e)}")
+
+@app.get("/check-api-key")
+async def check_api_key():
+    """Check if an API key is set
+    
+    Returns:
+        A JSON object indicating whether an API key is set
+    """
+    global OPENAI_API_KEY
+    is_set = bool(OPENAI_API_KEY)
+    
+    return {
+        "api_key_set": is_set,
+        "message": "API key is set" if is_set else "API key is not set"
+    }
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import './App.css'
 
@@ -9,6 +9,7 @@ import { formatDate, downloadOutput, downloadValidation } from './utils/helpers'
 import FileConfigForm from './components/FileConfigForm';
 import FileList from './components/FileList';
 import FileUpload from './components/FileUpload';
+import ApiKeyForm from './components/ApiKeyForm';
 
 function App() {
   const [files, setFiles] = useState({ user_files: [], default_files: [] });
@@ -18,11 +19,28 @@ function App() {
   const [uploadStatus, setUploadStatus] = useState('');
   const [jobs, setJobs] = useState([]);
   const [activeJobId, setActiveJobId] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  
+  const settingsMenuRef = useRef(null);
   
   useEffect(() => {
     fetchFiles();
     const intervalId = setInterval(fetchJobStatus, 5000);
-    return () => clearInterval(intervalId);
+    
+    // Close settings menu when clicking outside
+    const handleClickOutside = (event) => {
+      if (settingsMenuRef.current && !settingsMenuRef.current.contains(event.target) && 
+          !event.target.classList.contains('settings-toggle')) {
+        setShowSettings(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
   const fetchFiles = async () => {
@@ -86,12 +104,27 @@ function App() {
     setSelectedFile(null);
   };
 
+  const toggleSettings = () => {
+    setShowSettings(!showSettings);
+  };
+
   return (
     <div className="App">
       <div className="content-wrapper">
         <header className="App-header">
           <h1>LLM Qualitative Coder</h1>
           <p>Automated qualitative coding using Large Language Models</p>
+          
+          <button className="settings-toggle" onClick={toggleSettings}>
+            ⚙️
+          </button>
+          
+          {showSettings && (
+            <div className="settings-menu" ref={settingsMenuRef}>
+              <h2>Settings</h2>
+              <ApiKeyForm />
+            </div>
+          )}
         </header>
         
         <div className="content">
