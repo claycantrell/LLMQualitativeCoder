@@ -4,6 +4,8 @@ import json
 import logging
 import os
 import uuid  # Import UUID module
+import re
+import nltk
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
@@ -11,10 +13,16 @@ import pandas as pd
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from transcriptanalysis.qual_functions import MeaningUnit, PreliminarySegment
-from transcriptanalysis.config_schemas import ProviderEnum, LLMConfig
+from transcriptanalysis.config_schemas import ProviderEnum, LLMConfig, SegmentationMethodEnum
 from transcriptanalysis.langchain_llm import LangChainLLM
 
 logger = logging.getLogger(__name__)
+
+# Download NLTK resources if not already present (needed for sentence tokenization)
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt')
 
 # ------------------------------------------------------------------
 # NEW: Pydantic models for structured parse responses
@@ -50,6 +58,7 @@ class FlexibleDataHandler:
         source_id_field: Optional[str] = None,
         filter_rules: Optional[List[Dict[str, Any]]] = None,
         use_parsing: bool = True,
+        segmentation_method: str = SegmentationMethodEnum.LLM,  # New parameter
         preliminary_segments_per_prompt: int = 1,  # Renamed
         thread_count: int = 1
     ):
@@ -62,6 +71,7 @@ class FlexibleDataHandler:
         self.source_id_field = source_id_field
         self.filter_rules = filter_rules
         self.use_parsing = use_parsing
+        self.segmentation_method = segmentation_method
         self.preliminary_segments_per_prompt = preliminary_segments_per_prompt
         self.thread_count = thread_count
         self.document_metadata = {}  # Store document-level metadata
@@ -75,7 +85,7 @@ class FlexibleDataHandler:
         # NEW: Initialize LangChainLLM for parsing (if needed)
         # ------------------------------------------------------------------
         self.llm = None
-        if self.use_parsing:
+        if self.use_parsing and self.segmentation_method == SegmentationMethodEnum.LLM:
             try:
                 # Build an LLMConfig (example: defaulting to OpenAI with a 0.2 temperature)
                 self.llm_config = LLMConfig(
@@ -261,6 +271,22 @@ Preliminary Segments (JSON):
 
         return (batch_index, parsed_units)
 
+    def _segment_text_into_sentences(self, text: str) -> List[str]:
+        """
+        Segment text into sentences using NLTK's sentence tokenizer.
+        Returns a list of sentence strings.
+        """
+        if not text.strip():
+            return []
+            
+        # Use NLTK's sentence tokenizer
+        sentences = nltk.sent_tokenize(text)
+        
+        # Filter out empty sentences
+        sentences = [s.strip() for s in sentences if s.strip()]
+        
+        return sentences
+
     def transform_data(self, data: pd.DataFrame) -> List[MeaningUnit]:
         """
         Transforms data into MeaningUnit objects, optionally using LLM-based parsing.
@@ -298,62 +324,102 @@ Preliminary Segments (JSON):
             logger.debug(f"Transformed data (no parsing) into {len(meaning_units)} meaning units.")
             return meaning_units
 
-        # PARSING is ON
-        chunked_data = [
-            data.iloc[i: i + self.preliminary_segments_per_prompt]
-            for i in range(0, len(data), self.preliminary_segments_per_prompt)
-        ]
-
-        all_parsed_results: List[Tuple[int, List[Dict[str, str]]]] = []
-        with ThreadPoolExecutor(max_workers=self.thread_count) as executor:
-            futures = {}
-            for idx, chunk in enumerate(chunked_data):
-                future = executor.submit(
-                    self._parse_chunk_of_data,
-                    chunk_data=chunk,
-                    parse_instructions=self.parse_instructions,
-                    batch_index=idx
-                )
-                futures[future] = idx
-
-            for future in as_completed(futures):
-                batch_index, parsed_list = future.result()
-                all_parsed_results.append((batch_index, parsed_list))
-
-        # Sort the results based on batch_index to maintain order
-        all_parsed_results.sort(key=lambda x: x[0])
-
-        for _, parsed_list in all_parsed_results:
-            for item in parsed_list:
-                sid = item["source_id"]
-                parsed_text = item["parsed_text"]
-                # Retrieve the original record to get metadata
-                matching_records = data[data['source_id'] == sid]
-                if not matching_records.empty:
-                    record = matching_records.iloc[0]
-                    metadata = record.drop(labels=[self.content_field], errors='ignore').to_dict()
-                else:
-                    metadata = {}
-
+        # PARSING is ON - choose method based on segmentation_method
+        if self.segmentation_method == SegmentationMethodEnum.SENTENCE:
+            # Sentence-based segmentation
+            for _, record in data.iterrows():
+                content = record.get(self.content_field, "")
+                metadata = record.drop(labels=[self.content_field], errors='ignore').to_dict()
+                source_id = str(record['source_id'])
+                
+                # Create a preliminary segment for context
                 preliminary_segment = PreliminarySegment(
-                    source_id=sid,
-                    content=record.get(self.content_field, "") if not matching_records.empty else "",
+                    source_id=source_id,
+                    content=content,
                     metadata=metadata
                 )
+                
+                # Split the content into sentences
+                sentences = self._segment_text_into_sentences(content)
+                
+                # Create a meaning unit for each sentence
+                for sentence in sentences:
+                    if not sentence.strip():
+                        continue
+                        
+                    # Generate UUID for meaning_unit_uuid
+                    meaning_unit_uuid = str(uuid.uuid4())
+                    
+                    mu = MeaningUnit(
+                        meaning_unit_id=self.meaning_unit_counter,
+                        meaning_unit_uuid=meaning_unit_uuid,
+                        source_id=source_id,
+                        meaning_unit_string=sentence,
+                        assigned_code_list=[],
+                        preliminary_segment=preliminary_segment
+                    )
+                    meaning_units.append(mu)
+                    self.meaning_unit_counter += 1
+            
+            logger.debug(f"Transformed data with sentence-based segmentation into {len(meaning_units)} meaning units.")
+            return meaning_units
+        else:
+            # LLM-based segmentation (existing implementation)
+            chunked_data = [
+                data.iloc[i: i + self.preliminary_segments_per_prompt]
+                for i in range(0, len(data), self.preliminary_segments_per_prompt)
+            ]
 
-                # Generate UUID for meaning_unit_uuid
-                meaning_unit_uuid = str(uuid.uuid4())
+            all_parsed_results: List[Tuple[int, List[Dict[str, str]]]] = []
+            with ThreadPoolExecutor(max_workers=self.thread_count) as executor:
+                futures = {}
+                for idx, chunk in enumerate(chunked_data):
+                    future = executor.submit(
+                        self._parse_chunk_of_data,
+                        chunk_data=chunk,
+                        parse_instructions=self.parse_instructions,
+                        batch_index=idx
+                    )
+                    futures[future] = idx
 
-                mu = MeaningUnit(
-                    meaning_unit_id=self.meaning_unit_counter,
-                    meaning_unit_uuid=meaning_unit_uuid,
-                    source_id=sid,  # NEW: Link meaning unit to the same source_id
-                    meaning_unit_string=parsed_text,
-                    assigned_code_list=[],
-                    preliminary_segment=preliminary_segment
-                )
-                meaning_units.append(mu)
-                self.meaning_unit_counter += 1
+                for future in as_completed(futures):
+                    batch_index, parsed_list = future.result()
+                    all_parsed_results.append((batch_index, parsed_list))
 
-        logger.debug(f"Transformed data (with parsing) into {len(meaning_units)} meaning units.")
-        return meaning_units
+            # Sort the results based on batch_index to maintain order
+            all_parsed_results.sort(key=lambda x: x[0])
+
+            for _, parsed_list in all_parsed_results:
+                for item in parsed_list:
+                    sid = item["source_id"]
+                    parsed_text = item["parsed_text"]
+                    # Retrieve the original record to get metadata
+                    matching_records = data[data['source_id'] == sid]
+                    if not matching_records.empty:
+                        record = matching_records.iloc[0]
+                        metadata = record.drop(labels=[self.content_field], errors='ignore').to_dict()
+                    else:
+                        metadata = {}
+
+                    preliminary_segment = PreliminarySegment(
+                        source_id=sid,
+                        content=record.get(self.content_field, "") if not matching_records.empty else "",
+                        metadata=metadata
+                    )
+
+                    # Generate UUID for meaning_unit_uuid
+                    meaning_unit_uuid = str(uuid.uuid4())
+
+                    mu = MeaningUnit(
+                        meaning_unit_id=self.meaning_unit_counter,
+                        meaning_unit_uuid=meaning_unit_uuid,
+                        source_id=sid,  # NEW: Link meaning unit to the same source_id
+                        meaning_unit_string=parsed_text,
+                        assigned_code_list=[],
+                        preliminary_segment=preliminary_segment
+                    )
+                    meaning_units.append(mu)
+                    self.meaning_unit_counter += 1
+
+            logger.debug(f"Transformed data with LLM-based parsing into {len(meaning_units)} meaning units.")
+            return meaning_units

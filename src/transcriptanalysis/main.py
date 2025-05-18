@@ -133,6 +133,7 @@ def main(config: ConfigModel):
         source_id_field=format_config.source_id_field,
         filter_rules=[rule.model_dump() for rule in format_config.filter_rules],
         use_parsing=config.use_parsing,
+        segmentation_method=config.segmentation_method,  # Added parameter
         preliminary_segments_per_prompt=config.preliminary_segments_per_prompt,  # Renamed
         thread_count=config.thread_count
     )

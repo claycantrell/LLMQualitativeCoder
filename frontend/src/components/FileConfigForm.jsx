@@ -24,6 +24,7 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
     list_field: '',
     coding_mode: 'inductive',
     use_parsing: true,
+    segmentation_method: 'llm',
     preliminary_segments_per_prompt: 5,
     meaning_units_per_assignment_prompt: 10,
     context_size: 5,
@@ -269,7 +270,7 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
       fetchPromptInternal('inductive');
     } else if (activeTab === 'deductive' && deductivePrompt.loading) {
       fetchPromptInternal('deductive');
-    } else if (activeTab === 'parse' && parsePrompt.loading) {
+    } else if (activeTab === 'llm_parse' && parsePrompt.loading) {
       fetchPromptInternal('parse');
     }
     // Removed codebases.loading check as it's not explicitly set here
@@ -313,7 +314,7 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
   }, [
     config.content_field, config.context_fields, config.list_field, 
     config.coding_mode, config.selected_codebase, config.meaning_units_per_assignment_prompt,
-    config.preliminary_segments_per_prompt, config.use_parsing, config.context_size,
+    config.preliminary_segments_per_prompt, config.use_parsing, config.segmentation_method, config.context_size,
     fileContent, file.filename, previewTab // Added previewTab
   ]);
   
@@ -355,13 +356,13 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
       <p className="help-text">Set up how your file should be processed.</p>
       
       <div className="config-tabs">
-        {['config', 'inductive', 'deductive', 'parse', 'codebases', 'go_back'].map(tabName => (
+        {['config', 'inductive', 'deductive', 'llm_parse', 'codebases', 'go_back'].map(tabName => (
           <button 
             key={tabName}
             className={`tab-button ${activeTab === tabName ? 'active' : ''}`}
             onClick={() => tabName === 'go_back' ? onCancel() : setActiveTab(tabName)}
           >
-            {tabName === 'go_back' ? 'Go Back' : tabName.charAt(0).toUpperCase() + tabName.slice(1)}
+            {tabName === 'go_back' ? 'Go Back' : tabName === 'llm_parse' ? 'LLM Parse' : tabName.charAt(0).toUpperCase() + tabName.slice(1)}
           </button>
         ))}
       </div>
@@ -474,10 +475,30 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
                       checked={config.use_parsing}
                       onChange={handleChange} // Use general handleChange
                     />
-                    Use LLM for preliminary segmentation
+                    Enable preliminary segmentation
                   </label>
                   <small>Split text into meaningful segments before coding</small>
                 </div>
+                
+                {config.use_parsing && (
+                  <div className="form-group">
+                    <label htmlFor="segmentation-method">Segmentation Method:</label>
+                    <select 
+                      id="segmentation-method" 
+                      name="segmentation_method"
+                      value={config.segmentation_method}
+                      onChange={handleChange}
+                    >
+                      <option value="llm">LLM-based Segmentation</option>
+                      <option value="sentence">Sentence-based Segmentation</option>
+                    </select>
+                    <small>
+                      {config.segmentation_method === 'llm' 
+                        ? 'Use LLM to identify semantic meaning units' 
+                        : 'Split text into sentences automatically'}
+                    </small>
+                  </div>
+                )}
               </div>
               
               <div className="form-section">
@@ -509,10 +530,12 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
                     <label htmlFor="thread_count">Thread Count:</label>
                     <input type="number" id="thread_count" name="thread_count" min="1" max="10" value={config.thread_count} onChange={handleChange} />
                   </div>
-                  <div className="form-group">
-                    <label htmlFor="preliminary_segments_per_prompt">Segments Per Parsing Prompt:</label>
-                    <input type="number" id="preliminary_segments_per_prompt" name="preliminary_segments_per_prompt" min="1" max="10" value={config.preliminary_segments_per_prompt} onChange={handleChange} />
-                  </div>
+                  {config.use_parsing && config.segmentation_method === 'llm' && (
+                    <div className="form-group">
+                      <label htmlFor="preliminary_segments_per_prompt">Segments Per Parsing Prompt:</label>
+                      <input type="number" id="preliminary_segments_per_prompt" name="preliminary_segments_per_prompt" min="1" max="10" value={config.preliminary_segments_per_prompt} onChange={handleChange} />
+                    </div>
+                  )}
                   <div className="form-group">
                     <label htmlFor="meaning_units_per_assignment_prompt">Meaning Units Per Assignment:</label>
                     <input type="number" id="meaning_units_per_assignment_prompt" name="meaning_units_per_assignment_prompt" min="1" max="20" value={config.meaning_units_per_assignment_prompt} onChange={handleChange} />
@@ -578,7 +601,7 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
         />
       )}
       
-      {activeTab === 'parse' && (
+      {activeTab === 'llm_parse' && (
         <PromptEditor 
           type="parse"
           prompt={parsePrompt}

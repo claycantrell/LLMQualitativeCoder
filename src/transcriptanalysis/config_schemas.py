@@ -20,6 +20,10 @@ class CodingModeEnum(str, Enum):
     DEDUCTIVE = "deductive"
     INDUCTIVE = "inductive"
 
+class SegmentationMethodEnum(str, Enum):
+    LLM = "llm"
+    SENTENCE = "sentence"
+
 class LoggingLevelEnum(str, Enum):
     DEBUG = "DEBUG"
     INFO = "INFO"
@@ -98,6 +102,7 @@ class PathsModel(BaseModel):
 class ConfigModel(BaseModel):
     coding_mode: CodingModeEnum
     use_parsing: bool
+    segmentation_method: SegmentationMethodEnum = SegmentationMethodEnum.LLM  # New field with default value
     preliminary_segments_per_prompt: int  # Renamed from speaking_turns_per_prompt
     meaning_units_per_assignment_prompt: int
     context_size: int
@@ -137,6 +142,7 @@ if __name__ == "__main__":
         config = ConfigModel(
             coding_mode="deductive",
             use_parsing=True,
+            segmentation_method="llm",  # Added segmentation method
             preliminary_segments_per_prompt=5,  # Updated field name
             meaning_units_per_assignment_prompt=10,
             context_size=2048,
