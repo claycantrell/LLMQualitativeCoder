@@ -26,16 +26,25 @@ function PromptEditor({ type, prompt, setPrompt, fetchPrompt, savePrompt, resetP
     }
   };
 
+  const getPromptDescription = () => {
+    switch(type) {
+      case 'inductive':
+        return 'The inductive prompt is used when generating codes from data.';
+      case 'deductive':
+        return 'The deductive prompt is used when applying predefined codes to data.';
+      case 'parse':
+        return 'The parse prompt is used to segment text into meaningful units before coding.';
+      default:
+        return '';
+    }
+  };
+
   return (
     <div className="prompt-editor">
       <h3>{type.charAt(0).toUpperCase() + type.slice(1)} Prompt {prompt.isCustom && <span className="custom-indicator">(Custom)</span>}</h3>
       
       <div className="prompt-info">
-        <p>
-          {type === 'inductive' 
-            ? 'The inductive prompt is used when generating codes from data.' 
-            : 'The deductive prompt is used when applying predefined codes to data.'}
-        </p>
+        <p>{getPromptDescription()}</p>
       </div>
       
       <ExpandableContainer title={`${type.charAt(0).toUpperCase() + type.slice(1)} Prompt Editor`}>

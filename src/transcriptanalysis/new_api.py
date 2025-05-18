@@ -463,8 +463,8 @@ async def get_prompt(prompt_type: str):
     Returns:
         A JSON object containing the prompt content and whether it's customized
     """
-    if prompt_type not in ["inductive", "deductive"]:
-        raise HTTPException(status_code=400, detail="Invalid prompt type. Must be 'inductive' or 'deductive'")
+    if prompt_type not in ["inductive", "deductive", "parse"]:
+        raise HTTPException(status_code=400, detail="Invalid prompt type. Must be 'inductive', 'deductive', or 'parse'")
     
     try:
         # Check for custom prompt
@@ -503,8 +503,8 @@ async def save_custom_prompt(prompt_type: str, content: str = Body(...)):
     Returns:
         A JSON object confirming that the prompt was saved
     """
-    if prompt_type not in ["inductive", "deductive"]:
-        raise HTTPException(status_code=400, detail="Invalid prompt type. Must be 'inductive' or 'deductive'")
+    if prompt_type not in ["inductive", "deductive", "parse"]:
+        raise HTTPException(status_code=400, detail="Invalid prompt type. Must be 'inductive', 'deductive', or 'parse'")
     
     try:
         # Ensure prompts directory exists
@@ -537,8 +537,8 @@ async def reset_prompt(prompt_type: str):
     Returns:
         A JSON object confirming that the prompt was reset
     """
-    if prompt_type not in ["inductive", "deductive"]:
-        raise HTTPException(status_code=400, detail="Invalid prompt type. Must be 'inductive' or 'deductive'")
+    if prompt_type not in ["inductive", "deductive", "parse"]:
+        raise HTTPException(status_code=400, detail="Invalid prompt type. Must be 'inductive', 'deductive', or 'parse'")
     
     try:
         # Check if a custom prompt exists

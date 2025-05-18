@@ -49,7 +49,7 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
   });
   
   const [parsePrompt, setParsePrompt] = useState({
-    loading: true,
+    loading: true, 
     content: '',
     isCustom: false,
     isDirty: false
@@ -141,12 +141,7 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
   };
   
   const fetchPromptInternal = async (promptType) => {
-    const targetSetter = promptType === 'inductive' 
-      ? setInductivePrompt 
-      : promptType === 'deductive' 
-        ? setDeductivePrompt 
-        : setParsePrompt;
-    
+    const targetSetter = promptType === 'inductive' ? setInductivePrompt : promptType === 'deductive' ? setDeductivePrompt : setParsePrompt;
     targetSetter(prev => ({ ...prev, loading: true }));
     try {
       const response = await axios.get(`${API_URL}/prompts/${promptType}`);
@@ -158,7 +153,11 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
       });
     } catch (err) {
       console.error(`Error fetching ${promptType} prompt:`, err);
-      const defaultContent = `Error loading ${promptType} prompt. Using default prompt.`;
+      const defaultContent = promptType === 'inductive' 
+        ? "Error loading inductive prompt. Using default prompt."
+        : promptType === 'deductive'
+          ? "Error loading deductive prompt. Using default prompt."
+          : "Error loading parse prompt. Using default prompt.";
       targetSetter({
         content: defaultContent,
         isCustom: false,
@@ -169,12 +168,7 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
   };
 
   const savePromptInternal = async (promptType, content) => {
-    const targetSetter = promptType === 'inductive' 
-      ? setInductivePrompt 
-      : promptType === 'deductive' 
-        ? setDeductivePrompt 
-        : setParsePrompt;
-    
+    const targetSetter = promptType === 'inductive' ? setInductivePrompt : promptType === 'deductive' ? setDeductivePrompt : setParsePrompt;
     try {
       const response = await axios.post(`${API_URL}/prompts/${promptType}`, content, {
         headers: { 'Content-Type': 'text/plain' }
@@ -278,8 +272,27 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
     } else if (activeTab === 'parse' && parsePrompt.loading) {
       fetchPromptInternal('parse');
     }
+    // Removed codebases.loading check as it's not explicitly set here
+    // else if (activeTab === 'codebases') {
+    //   fetchCodebasesInternal();
+    // }
   }, [activeTab, inductivePrompt.loading, deductivePrompt.loading, parsePrompt.loading]);
   
+  // Update main config when the CodebaseManager's selectedCodebase (for editing) changes
+  // This ensures the dropdown in config tab stays in sync if user selects via CodebaseManager tab
+  // useEffect(() => {
+  //   if (selectedCodebase) { // selectedCodebase is the one from CodebaseManager for its own UI
+  //     setConfig(prev => ({
+  //       ...prev,
+  //       selected_codebase: selectedCodebase // Update the main config as well
+  //     }));
+  //   }
+  // }, [selectedCodebase]);
+  // The above selectedCodebase is for the UI of CodebaseManager, config.selected_codebase is for the form submission.
+  // The dropdown in the config tab directly sets config.selected_codebase.
+  // The CodebaseManager uses its own `activeCodebase` for display, and `setSelectedCodebase` to update that.
+  // For adding codes, it should use `config.selected_codebase` as the target.
+
   // Fetch codebases if deductive mode is selected and list is empty (initial load)
   useEffect(() => {
     if (config.coding_mode === 'deductive' && codebases.default_codebases.length === 0 && codebases.user_codebases.length === 0) {
@@ -342,13 +355,13 @@ function FileConfigForm({ file, onSubmit, onCancel }) {
       <p className="help-text">Set up how your file should be processed.</p>
       
       <div className="config-tabs">
-        {['config', 'inductive', 'deductive', 'parse', 'codebases'].map(tabName => (
+        {['config', 'inductive', 'deductive', 'parse', 'codebases', 'go_back'].map(tabName => (
           <button 
             key={tabName}
             className={`tab-button ${activeTab === tabName ? 'active' : ''}`}
-            onClick={() => setActiveTab(tabName)}
+            onClick={() => tabName === 'go_back' ? onCancel() : setActiveTab(tabName)}
           >
-            {tabName.charAt(0).toUpperCase() + tabName.slice(1)}
+            {tabName === 'go_back' ? 'Go Back' : tabName.charAt(0).toUpperCase() + tabName.slice(1)}
           </button>
         ))}
       </div>
